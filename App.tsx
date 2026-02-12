@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, AppRole, ApiError, ViewType } from './types';
 import * as api from './services/api';
@@ -35,7 +34,7 @@ const App: React.FC = () => {
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
-      console.error('App loading error:', err);
+      console.error('App-Ladefehler:', err);
       if (err.status === 401 || err.status === 403) {
         handleUnauthorized();
       } else {
@@ -67,6 +66,25 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
+  const getRoleDisplayName = (role: AppRole) => {
+    switch (role) {
+      case AppRole.SUPERADMIN: return 'Administrator';
+      case AppRole.VORSTAND: return 'Vorstand';
+      case AppRole.USER: return 'Mitglied';
+      default: return role;
+    }
+  };
+
+  const getViewDisplayName = (view: ViewType) => {
+    switch (view) {
+      case 'polls': return 'UMFRAGEN';
+      case 'calendar': return 'KALENDER';
+      case 'members': return 'MITGLIEDERVERWALTUNG';
+      case 'tasks': return 'AUFGABEN';
+      default: return view;
+    }
+  };
+
   const renderContent = () => {
     switch (activeView) {
       case 'polls':
@@ -94,7 +112,7 @@ const App: React.FC = () => {
                 <h3 className="text-2xl font-bold text-[#1A1A1A] uppercase tracking-tighter">In Entwicklung</h3>
                 <div className="h-1 w-12 bg-[#B5A47A] mx-auto mt-3 mb-4 rounded-full"></div>
                 <p className="text-slate-400 text-sm max-w-sm mx-auto font-medium leading-relaxed">
-                  Die Komponente <span className="text-[#1A1A1A] font-bold">"{activeView.toUpperCase()}"</span> wird aktuell für den GuG Verein vorbereitet.
+                  Die Komponente <span className="text-[#1A1A1A] font-bold">"{getViewDisplayName(activeView)}"</span> wird aktuell für den GuG Verein vorbereitet.
                 </p>
              </div>
           </div>
@@ -109,7 +127,7 @@ const App: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8]">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B5A47A] mb-6"></div>
-          <p className="text-[#1A1A1A] font-black uppercase text-[10px] tracking-widest">Initialisierung...</p>
+          <p className="text-[#1A1A1A] font-black uppercase text-[10px] tracking-widest">Wird geladen...</p>
         </div>
       </div>
     );
@@ -132,7 +150,7 @@ const App: React.FC = () => {
             onViewChange={setActiveView}
           />
           <Header 
-            user={user} 
+            user={{...user, role: getRoleDisplayName(user.role) as any}} 
             onLogout={handleLogout} 
             onOpenMenu={() => setIsSidebarOpen(true)}
           />
@@ -141,7 +159,7 @@ const App: React.FC = () => {
           </main>
           <footer className="bg-white border-t border-slate-100 py-10 text-center">
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.3em] mb-2">
-              GuG Verein | Member Portal v1.0
+              GuG Verein | Mitgliederportal v1.0
             </p>
             <div className="h-0.5 w-8 bg-[#B5A47A]/30 mx-auto rounded-full"></div>
           </footer>

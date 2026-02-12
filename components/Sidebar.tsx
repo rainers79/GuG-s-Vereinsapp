@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ViewType } from '../types';
 
@@ -35,18 +34,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Hintergrund-Overlay */}
       <div 
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-500 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
-      {/* Sidebar Panel */}
+      {/* Sidebar-Panel */}
       <aside 
         className={`fixed top-0 left-0 h-full w-80 bg-[#1A1A1A] z-[70] shadow-2xl transition-transform duration-500 ease-in-out transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex flex-col h-full">
-          {/* Header in Sidebar */}
+          {/* Header in der Sidebar */}
           <div className="p-8 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-4">
                <div className="w-12 h-12 bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] rounded-xl flex items-center justify-center shadow-xl shadow-black/40 shrink-0 transform -rotate-2">
@@ -56,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
               </div>
               <div>
                 <span className="text-white font-bold block leading-none text-xl tracking-tight">GuG Verein</span>
-                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Portal Navigation</span>
+                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Portalnavigation</span>
               </div>
             </div>
             <button onClick={onClose} className="text-white/30 hover:text-white transition-colors p-2">
@@ -66,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
             </button>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigations-Links */}
           <nav className="flex-grow py-8 px-4 space-y-2">
             {menuItems.map((item) => (
               <button
@@ -94,10 +93,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
             ))}
           </nav>
 
-          {/* Footer in Sidebar */}
+          {/* Footer in der Sidebar */}
           <div className="p-8 border-t border-white/5">
             <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.2em] text-center">
-              GuG Verein Management Systems
+              GuG Verein Verwaltungssysteme
             </p>
           </div>
         </div>
