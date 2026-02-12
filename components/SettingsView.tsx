@@ -10,12 +10,32 @@ const SettingsView: React.FC<SettingsViewProps> = ({ theme, onThemeChange }) => 
   const [dndActive, setDndActive] = useState(() => localStorage.getItem('gug_dnd_active') === 'true');
   const [dndStart, setDndStart] = useState(() => localStorage.getItem('gug_dnd_start') || '22:00');
   const [dndEnd, setDndEnd] = useState(() => localStorage.getItem('gug_dnd_end') || '07:00');
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false }));
 
   useEffect(() => {
     localStorage.setItem('gug_dnd_active', String(dndActive));
     localStorage.setItem('gug_dnd_start', dndStart);
     localStorage.setItem('gug_dnd_end', dndEnd);
   }, [dndActive, dndStart, dndEnd]);
+
+  // Update current time every minute to refresh status badge
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isNowDnd = () => {
+    if (!dndActive) return false;
+    const now = currentTime;
+    if (dndStart <= dndEnd) {
+      return now >= dndStart && now <= dndEnd;
+    } else {
+      // Over midnight
+      return now >= dndStart || now <= dndEnd;
+    }
+  };
 
   const Toggle = ({ active, onToggle, label, sublabel }: { active: boolean, onToggle: () => void, label: string, sublabel?: string }) => (
     <div className="flex items-center justify-between py-4">
@@ -64,13 +84,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ theme, onThemeChange }) => 
 
         {/* DND Section */}
         <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-2xl p-8 shadow-xl border transition-colors duration-500`}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-10 h-10 bg-[#B5A47A]/10 text-[#B5A47A] rounded-xl flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#B5A47A]/10 text-[#B5A47A] rounded-xl flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold tracking-tight uppercase">Nicht stören (DND)</h3>
             </div>
-            <h3 className="text-lg font-bold tracking-tight uppercase">Nicht stören (DND)</h3>
+            
+            {dndActive && (
+              <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse ${isNowDnd() ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                {isNowDnd() ? 'Aktuell: Lautlos' : 'Aktuell: Popups Aktiv'}
+              </div>
+            )}
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-white/5">
@@ -82,7 +110,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ theme, onThemeChange }) => 
             />
 
             {dndActive && (
-              <div className="py-6 animate-in slide-in-from-top-2 duration-500">
+              <div className="py-6 space-y-8 animate-in slide-in-from-top-2 duration-500">
                 <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-10">
                   <div className="flex flex-col gap-1.5 w-full">
                     <label className="text-[10px] font-black opacity-40 uppercase tracking-widest ml-1">Von (Start)</label>
@@ -103,6 +131,38 @@ const SettingsView: React.FC<SettingsViewProps> = ({ theme, onThemeChange }) => 
                     />
                   </div>
                 </div>
+
+                {/* Status Explanation */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className={`p-5 rounded-2xl border ${isNowDnd() ? 'bg-[#B5A47A]/5 border-[#B5A47A]/20' : 'bg-slate-50 dark:bg-white/5 border-transparent'} transition-all duration-500`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-red-500/10 text-red-500 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" strokeDasharray="2 2" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest">Ruhemodus</span>
+                    </div>
+                    <p className="text-[10px] opacity-40 font-bold uppercase tracking-tight leading-relaxed">
+                      Zwischen <span className="text-[#B5A47A]">{dndStart}</span> und <span className="text-[#B5A47A]">{dndEnd}</span> Uhr werden alle Benachrichtigungen <span className="underline">lautlos</span> im Hintergrund empfangen. Keine Popups.
+                    </p>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border ${!isNowDnd() ? 'bg-[#B5A47A]/5 border-[#B5A47A]/20' : 'bg-slate-50 dark:bg-white/5 border-transparent'} transition-all duration-500`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-green-500/10 text-green-500 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest">Normalmodus</span>
+                    </div>
+                    <p className="text-[10px] opacity-40 font-bold uppercase tracking-tight leading-relaxed">
+                      Außerhalb der Ruhezeiten werden Benachrichtigungen direkt als <span className="underline font-black">Popup</span> angezeigt und akustisch signalisiert.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -110,7 +170,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ theme, onThemeChange }) => 
 
         {/* Info Card */}
         <div className="p-10 text-center">
-           <p className="text-[10px] opacity-30 font-bold uppercase tracking-[0.2em]">GuG Verein Management System v1.0.4</p>
+           <p className="text-[10px] opacity-30 font-bold uppercase tracking-[0.2em]">GuG Verein Management System v1.0.5</p>
         </div>
       </div>
     </div>
