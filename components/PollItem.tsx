@@ -31,18 +31,18 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
   };
 
   return (
-    <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-black/5 transition-all duration-500 overflow-hidden relative group">
+    <div className="bg-inherit rounded-xl p-8 shadow-sm border border-slate-100 dark:border-white/5 hover:shadow-xl hover:shadow-black/5 transition-all duration-500 overflow-hidden relative group bg-white dark:bg-[#1E1E1E]">
       {/* Subtle indicator for brand identity */}
       <div className="absolute top-0 left-0 w-1 h-full bg-[#B5A47A]/20 group-hover:bg-[#B5A47A] transition-colors duration-500"></div>
 
       <div className="flex justify-between items-start mb-8 pl-2">
         <div className="space-y-2">
-          <h3 className="text-xl font-bold text-[#1A1A1A] tracking-tight">{poll.question}</h3>
+          <h3 className="text-xl font-bold tracking-tight">{poll.question}</h3>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
             {new Date(poll.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div className="bg-[#1A1A1A] text-white px-3 py-1.5 rounded-md">
+        <div className="bg-[#1A1A1A] dark:bg-[#B5A47A] text-white dark:text-[#1A1A1A] px-3 py-1.5 rounded-md transition-colors duration-500">
            <span className="text-[10px] font-black uppercase tracking-widest">
             {poll.total_votes} Stimmen
           </span>
@@ -69,19 +69,19 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
               <div className="flex justify-between items-center mb-2 text-xs">
                 <div className="flex items-center gap-3">
                   {!poll.has_voted && (
-                    <div className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${isSelected ? 'border-[#B5A47A] bg-[#B5A47A]' : 'border-slate-300'}`}>
+                    <div className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${isSelected ? 'border-[#B5A47A] bg-[#B5A47A]' : 'border-slate-300 dark:border-white/20'}`}>
                       {isSelected && <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>}
                     </div>
                   )}
-                  <span className={`font-bold transition-colors ${isSelected ? 'text-[#B5A47A]' : 'text-slate-600'}`}>
+                  <span className={`font-bold transition-colors ${isSelected ? 'text-[#B5A47A]' : 'opacity-70'}`}>
                     {option.text}
                   </span>
                 </div>
-                <span className="text-[#1A1A1A] font-black">{percentage.toFixed(0)}%</span>
+                <span className="font-black">{percentage.toFixed(0)}%</span>
               </div>
-              <div className="w-full bg-slate-50 rounded h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-50 dark:bg-white/5 rounded h-1.5 overflow-hidden">
                 <div 
-                  className={`h-full transition-all duration-1000 ease-out ${isSelected || poll.has_voted ? 'bg-[#B5A47A]' : 'bg-slate-200'}`} 
+                  className={`h-full transition-all duration-1000 ease-out ${isSelected || poll.has_voted ? 'bg-[#B5A47A]' : 'bg-slate-200 dark:bg-white/10'}`} 
                   style={{ width: `${percentage}%` }}
                 ></div>
               </div>
@@ -90,7 +90,7 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
         })}
       </div>
       
-      <div className="mt-10 pt-6 border-t border-slate-50 flex items-center justify-end pl-2">
+      <div className="mt-10 pt-6 border-t border-slate-50 dark:border-white/5 flex items-center justify-end pl-2">
         {poll.has_voted ? (
           <div className="flex items-center gap-2 text-[#B5A47A] text-[10px] font-black uppercase tracking-[0.2em] bg-[#B5A47A]/5 px-4 py-2.5 rounded-lg border border-[#B5A47A]/10">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -104,8 +104,8 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
             onClick={handleVote}
             className={`text-[10px] font-black uppercase tracking-widest px-10 py-3.5 rounded-lg transition-all flex items-center gap-3 ${
               selectedOption 
-                ? 'bg-[#1A1A1A] text-white hover:bg-[#B5A47A] shadow-lg active:scale-95' 
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                ? 'bg-[#1A1A1A] dark:bg-[#B5A47A] text-white dark:text-[#1A1A1A] hover:opacity-90 shadow-lg active:scale-95' 
+                : 'bg-slate-100 dark:bg-white/5 text-slate-400 cursor-not-allowed'
             }`}
           >
             {isVoting && (

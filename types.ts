@@ -5,7 +5,7 @@ export enum AppRole {
   USER = 'USER'
 }
 
-export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks';
+export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks' | 'settings';
 
 export interface WPUserResponse {
   token: string;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, AppRole, ApiError, ViewType } from './types';
 import * as api from './services/api';
@@ -6,6 +7,7 @@ import PollList from './components/PollList';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Notification from './components/Notification';
+import SettingsView from './components/SettingsView';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(api.getStoredUser());
@@ -14,6 +16,9 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>('calendar');
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
+  );
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
@@ -34,7 +39,7 @@ const App: React.FC = () => {
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
-      console.error('App-Ladefehler:', err);
+      console.error('App loading error:', err);
       if (err.status === 401 || err.status === 403) {
         handleUnauthorized();
       } else {
@@ -54,6 +59,10 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem('gug_theme', theme);
+  }, [theme]);
+
   const handleLoginSuccess = async (loggedUser: User) => {
     setUser(loggedUser);
     await fetchAppData();
@@ -64,25 +73,6 @@ const App: React.FC = () => {
     setUser(null);
     setPolls([]);
     setIsSidebarOpen(false);
-  };
-
-  const getRoleDisplayName = (role: AppRole) => {
-    switch (role) {
-      case AppRole.SUPERADMIN: return 'Administrator';
-      case AppRole.VORSTAND: return 'Vorstand';
-      case AppRole.USER: return 'Mitglied';
-      default: return role;
-    }
-  };
-
-  const getViewDisplayName = (view: ViewType) => {
-    switch (view) {
-      case 'polls': return 'UMFRAGEN';
-      case 'calendar': return 'KALENDER';
-      case 'members': return 'MITGLIEDERVERWALTUNG';
-      case 'tasks': return 'AUFGABEN';
-      default: return view;
-    }
   };
 
   const renderContent = () => {
@@ -96,12 +86,16 @@ const App: React.FC = () => {
             onUnauthorized={handleUnauthorized}
           />
         );
+      case 'settings':
+        return (
+          <SettingsView theme={theme} onThemeChange={setTheme} />
+        );
       case 'calendar':
       case 'members':
       case 'tasks':
         return (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="bg-white rounded-xl p-20 text-center border border-slate-100 shadow-sm">
+             <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-xl p-20 text-center border shadow-sm transition-colors duration-500`}>
                 <div className="text-[#B5A47A] mb-8 flex justify-center">
                    <div className="p-10 bg-[#B5A47A]/5 rounded-full border border-[#B5A47A]/10">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,10 +103,10 @@ const App: React.FC = () => {
                       </svg>
                    </div>
                 </div>
-                <h3 className="text-2xl font-bold text-[#1A1A1A] uppercase tracking-tighter">In Entwicklung</h3>
+                <h3 className="text-2xl font-bold uppercase tracking-tighter">In Entwicklung</h3>
                 <div className="h-1 w-12 bg-[#B5A47A] mx-auto mt-3 mb-4 rounded-full"></div>
-                <p className="text-slate-400 text-sm max-w-sm mx-auto font-medium leading-relaxed">
-                  Die Komponente <span className="text-[#1A1A1A] font-bold">"{getViewDisplayName(activeView)}"</span> wird aktuell für den GuG Verein vorbereitet.
+                <p className="opacity-50 text-sm max-w-sm mx-auto font-medium leading-relaxed">
+                  Die Komponente <span className="font-bold">"{activeView.toUpperCase()}"</span> wird aktuell für den GuG Verein vorbereitet.
                 </p>
              </div>
           </div>
@@ -124,17 +118,17 @@ const App: React.FC = () => {
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8]">
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#121212]' : 'bg-[#F8F8F8]'} transition-colors duration-500`}>
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B5A47A] mb-6"></div>
-          <p className="text-[#1A1A1A] font-black uppercase text-[10px] tracking-widest">Wird geladen...</p>
+          <p className={`${theme === 'dark' ? 'text-white' : 'text-[#1A1A1A]'} font-black uppercase text-[10px] tracking-widest`}>Initialisierung...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] flex flex-col font-sans text-[#1A1A1A]">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-[#121212] text-white' : 'bg-[#F8F8F8] text-[#1A1A1A]'}`}>
       {error && <Notification message={error} type="error" onClose={() => setError(null)} />}
       
       {!user ? (
@@ -150,16 +144,16 @@ const App: React.FC = () => {
             onViewChange={setActiveView}
           />
           <Header 
-            user={{...user, role: getRoleDisplayName(user.role) as any}} 
+            user={user} 
             onLogout={handleLogout} 
             onOpenMenu={() => setIsSidebarOpen(true)}
           />
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {renderContent()}
           </main>
-          <footer className="bg-white border-t border-slate-100 py-10 text-center">
+          <footer className={`py-10 text-center border-t transition-colors duration-500 ${theme === 'dark' ? 'bg-[#1A1A1A] border-white/5' : 'bg-white border-slate-100'}`}>
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.3em] mb-2">
-              GuG Verein | Mitgliederportal v1.0
+              GuG Verein | Member Portal v1.0
             </p>
             <div className="h-0.5 w-8 bg-[#B5A47A]/30 mx-auto rounded-full"></div>
           </footer>

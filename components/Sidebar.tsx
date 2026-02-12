@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewType } from '../types';
 
@@ -30,22 +31,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     )},
+    { id: 'settings' as ViewType, label: 'Einstellungen', icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    )},
   ];
 
   return (
     <>
-      {/* Hintergrund-Overlay */}
+      {/* Backdrop */}
       <div 
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-500 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
-      {/* Sidebar-Panel */}
+      {/* Sidebar Panel */}
       <aside 
         className={`fixed top-0 left-0 h-full w-80 bg-[#1A1A1A] z-[70] shadow-2xl transition-transform duration-500 ease-in-out transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex flex-col h-full">
-          {/* Header in der Sidebar */}
+          {/* Header in Sidebar */}
           <div className="p-8 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-4">
                <div className="w-12 h-12 bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] rounded-xl flex items-center justify-center shadow-xl shadow-black/40 shrink-0 transform -rotate-2">
@@ -55,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
               </div>
               <div>
                 <span className="text-white font-bold block leading-none text-xl tracking-tight">GuG Verein</span>
-                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Portalnavigation</span>
+                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Portal Navigation</span>
               </div>
             </div>
             <button onClick={onClose} className="text-white/30 hover:text-white transition-colors p-2">
@@ -65,8 +72,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
             </button>
           </div>
 
-          {/* Navigations-Links */}
-          <nav className="flex-grow py-8 px-4 space-y-2">
+          {/* Navigation Links */}
+          <nav className="flex-grow py-8 px-4 space-y-2 overflow-y-auto">
             {menuItems.map((item) => (
               <button
                 key={item.id}
@@ -93,10 +100,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
             ))}
           </nav>
 
-          {/* Footer in der Sidebar */}
+          {/* Footer in Sidebar */}
           <div className="p-8 border-t border-white/5">
             <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.2em] text-center">
-              GuG Verein Verwaltungssysteme
+              GuG Verein Management Systems
             </p>
           </div>
         </div>
