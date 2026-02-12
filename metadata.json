@@ -1,0 +1,5 @@
+{
+  "name": "GuG`s-Vereinsapp",
+  "description": "Production-ready React application for managing polls via WordPress REST API with JWT authentication.",
+  "requestFramePermissions": []
+}
