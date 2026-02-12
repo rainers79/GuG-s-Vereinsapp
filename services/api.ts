@@ -1,4 +1,5 @@
-import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse } from '../types';
+
+import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse, RegistrationData } from '../types';
 
 const API_BASE = 'https://api.gug-verein.at/wp-json';
 const TOKEN_KEY = 'gug_token';
@@ -80,17 +81,27 @@ export async function login(username: string, password: string): Promise<User> {
 
   setToken(data.token);
   
-  // Grundlegende User-Informationen aus der Token-Response
   const user: User = {
     id: 0,
     email: data.user_email,
     displayName: data.user_display_name,
     username: data.user_nicename,
-    role: AppRole.USER // Wird durch getCurrentUser() später präzisiert
+    role: AppRole.USER 
   };
   
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
+}
+
+export async function register(regData: RegistrationData): Promise<{success: boolean, message: string}> {
+  // Hinweis: Der Backend-Endpunkt muss die E-Mail an rainer@schmidt-kottingbrunn.at auslösen
+  return await apiRequest<{success: boolean, message: string}>('/gug/v1/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...regData,
+      admin_notification_email: 'rainer@schmidt-kottingbrunn.at'
+    })
+  });
 }
 
 export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {

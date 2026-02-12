@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, AppRole, ApiError, ViewType } from './types';
 import * as api from './services/api';
 import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
 import PollList from './components/PollList';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -14,7 +15,9 @@ const App: React.FC = () => {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>('calendar');
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
@@ -130,10 +133,15 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-[#121212] text-white' : 'bg-[#F8F8F8] text-[#1A1A1A]'}`}>
       {error && <Notification message={error} type="error" onClose={() => setError(null)} />}
+      {success && <Notification message={success} type="success" onClose={() => setSuccess(null)} />}
       
       {!user ? (
         <div className="flex-grow flex items-center justify-center p-4">
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
+          {isRegistering ? (
+            <RegisterForm onBackToLogin={() => setIsRegistering(false)} onSuccess={(msg) => setSuccess(msg)} />
+          ) : (
+            <LoginForm onLoginSuccess={handleLoginSuccess} onShowRegister={() => setIsRegistering(true)} />
+          )}
         </div>
       ) : (
         <>

@@ -22,6 +22,14 @@ export interface User {
   role: AppRole;
 }
 
+export interface RegistrationData {
+  firstName: string;
+  lastName: string;
+  birthday: string;
+  username: string;
+  password: string;
+}
+
 export interface PollOption {
   id: string;
   text: string;

@@ -5,9 +5,10 @@ import { User } from '../types';
 
 interface LoginFormProps {
   onLoginSuccess: (user: User) => void;
+  onShowRegister: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -105,6 +106,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             'LOGIN PORTAL'
           )}
         </button>
+
+        <div className="text-center mt-6">
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">Noch kein Konto?</p>
+          <button
+            type="button"
+            onClick={onShowRegister}
+            className="text-[#B5A47A] hover:text-[#1A1A1A] font-black text-xs uppercase tracking-widest transition-all"
+          >
+            Jetzt Registrieren
+          </button>
+        </div>
       </form>
       
       <div className="mt-12 pt-6 border-t border-slate-50 text-center">
