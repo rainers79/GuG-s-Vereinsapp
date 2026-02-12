@@ -24,9 +24,12 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
           </button>
 
           <div className="flex items-center gap-4">
-            {/* Runder Logo Platzhalter Mini */}
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#1A1A1A] font-bold text-[7px] p-1 text-center border border-white/20 shadow-lg shadow-black/20 leading-none overflow-hidden uppercase tracking-tighter shrink-0">
-              Logo<br/>.png
+            {/* Vereins-Logo Platzhalter */}
+            <div className="w-10 h-10 bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] rounded-xl flex items-center justify-center shadow-lg shadow-black/20 shrink-0 transform rotate-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A1A1A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A3.323 3.323 0 0010.605 3.323A3.323 3.323 0 0110.605 8.906c.443.71.596 1.5.405 2.228a3.323 3.323 0 01-4.708 2.373a3.323 3.323 0 00-3.323 3.323v1.312" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
             </div>
             <div className="hidden xs:block">
               <span className="text-lg font-bold block leading-none tracking-tight">GuG Verein</span>

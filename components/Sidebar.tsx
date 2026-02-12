@@ -49,12 +49,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
           {/* Header in Sidebar */}
           <div className="p-8 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#1A1A1A] font-bold text-[7px] p-1 text-center border border-white/20 shadow-lg shadow-black/20 leading-none overflow-hidden uppercase tracking-tighter shrink-0">
-                Logo<br/>.png
+               <div className="w-12 h-12 bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] rounded-xl flex items-center justify-center shadow-xl shadow-black/40 shrink-0 transform -rotate-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-[#1A1A1A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
               </div>
               <div>
-                <span className="text-white font-bold block leading-none">GuG Verein</span>
-                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Navigation</span>
+                <span className="text-white font-bold block leading-none text-xl tracking-tight">GuG Verein</span>
+                <span className="text-[8px] text-[#B5A47A] font-black uppercase tracking-widest">Portal Navigation</span>
               </div>
             </div>
             <button onClick={onClose} className="text-white/30 hover:text-white transition-colors p-2">
@@ -75,18 +77,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeView, onViewCh
                 }}
                 className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-300 group ${
                   activeView === item.id 
-                    ? 'bg-[#B5A47A] text-white shadow-lg shadow-[#B5A47A]/20' 
+                    ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20' 
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span className={`${activeView === item.id ? 'text-white' : 'text-[#B5A47A] group-hover:text-white'} transition-colors`}>
+                <span className={`${activeView === item.id ? 'text-[#1A1A1A]' : 'text-[#B5A47A] group-hover:text-white'} transition-colors`}>
                   {item.icon}
                 </span>
                 <span className="text-sm font-bold tracking-tight uppercase tracking-widest text-[11px] font-black">
                   {item.label}
                 </span>
                 {activeView === item.id && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1A1A1A] animate-pulse" />
                 )}
               </button>
             ))}
