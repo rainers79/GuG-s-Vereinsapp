@@ -34,6 +34,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowRegister })
     }
   };
 
+  const inputClasses = "w-full px-5 py-4 rounded-2xl border border-slate-300 focus:ring-4 focus:ring-[#B5A47A]/10 focus:border-[#B5A47A] outline-none transition-all font-bold text-base text-[#000000] bg-white placeholder:text-slate-300";
+
   return (
     <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-black/10 border border-slate-100 p-10 animate-in fade-in zoom-in-95 duration-700">
       <div className="text-center mb-10">
@@ -65,7 +67,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowRegister })
             id="username"
             type="text"
             autoComplete="username"
-            className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-[#B5A47A]/10 focus:border-[#B5A47A] outline-none transition-all font-medium text-[#1A1A1A] bg-slate-50/50 placeholder:text-slate-300"
+            className={inputClasses}
             placeholder="Ihr Benutzername"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -81,7 +83,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowRegister })
             id="password"
             type="password"
             autoComplete="current-password"
-            className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-[#B5A47A]/10 focus:border-[#B5A47A] outline-none transition-all font-medium text-[#1A1A1A] bg-slate-50/50 placeholder:text-slate-300"
+            className={inputClasses}
             placeholder="Ihr Passwort"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

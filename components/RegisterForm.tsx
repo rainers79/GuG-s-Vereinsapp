@@ -43,6 +43,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
+  const inputClasses = "w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#B5A47A] focus:ring-2 focus:ring-[#B5A47A]/10 outline-none transition-all font-bold text-base bg-white text-[#000000] placeholder:text-slate-400";
+  const labelClasses = "text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1 mb-1 block";
+
   return (
     <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-black/10 border border-slate-100 p-10 animate-in fade-in zoom-in-95 duration-700">
       <div className="text-center mb-10">
@@ -50,7 +53,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">GuG Verein Registrierung</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 animate-in shake duration-300">
             <span className="font-medium">{error}</span>
@@ -58,69 +61,73 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1" htmlFor="firstName">Vorname</label>
+          <div>
+            <label className={labelClasses} htmlFor="firstName">Vorname</label>
             <input
               id="firstName"
               type="text"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#B5A47A] outline-none transition-all font-medium text-sm bg-slate-50/50"
+              className={inputClasses}
               value={formData.firstName}
               onChange={handleChange}
               disabled={loading}
+              placeholder="Max"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1" htmlFor="lastName">Nachname</label>
+          <div>
+            <label className={labelClasses} htmlFor="lastName">Nachname</label>
             <input
               id="lastName"
               type="text"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#B5A47A] outline-none transition-all font-medium text-sm bg-slate-50/50"
+              className={inputClasses}
               value={formData.lastName}
               onChange={handleChange}
               disabled={loading}
+              placeholder="Mustermann"
             />
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1" htmlFor="birthday">Geburtstag</label>
+        <div>
+          <label className={labelClasses} htmlFor="birthday">Geburtstag</label>
           <input
             id="birthday"
             type="date"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#B5A47A] outline-none transition-all font-medium text-sm bg-slate-50/50"
+            className={inputClasses}
             value={formData.birthday}
             onChange={handleChange}
             disabled={loading}
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1" htmlFor="username">Benutzername</label>
+        <div>
+          <label className={labelClasses} htmlFor="username">Benutzername</label>
           <input
             id="username"
             type="text"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#B5A47A] outline-none transition-all font-medium text-sm bg-slate-50/50"
+            className={inputClasses}
             value={formData.username}
             onChange={handleChange}
             disabled={loading}
+            placeholder="Benutzername"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-widest ml-1" htmlFor="password">Passwort</label>
+        <div>
+          <label className={labelClasses} htmlFor="password">Passwort</label>
           <input
             id="password"
             type="password"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#B5A47A] outline-none transition-all font-medium text-sm bg-slate-50/50"
+            className={inputClasses}
             value={formData.password}
             onChange={handleChange}
             disabled={loading}
+            placeholder="••••••••"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full bg-[#1A1A1A] hover:bg-[#B5A47A] text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 mt-4 tracking-[0.1em] text-xs"
+          className="w-full bg-[#1A1A1A] hover:bg-[#B5A47A] text-white font-black py-4 px-6 rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 mt-6 tracking-[0.1em] text-xs"
           disabled={loading}
         >
           {loading ? 'Sende Daten...' : 'JETZT REGISTRIEREN'}
