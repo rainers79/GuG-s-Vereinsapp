@@ -1,18 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GuG Verein - Admin Panel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f8fafc;
-      }
-    </style>
+    <title>GuG Verein – Admin Panel</title>
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <script type="importmap">
 {
   "imports": {
@@ -23,7 +19,11 @@
 }
 </script>
 </head>
-  <body>
+
+  <body style="margin:0; font-family:Inter, sans-serif;">
     <div id="root"></div>
+
+    <!-- WICHTIG: VITE ENTRY POINT -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
