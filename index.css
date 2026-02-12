@@ -1,0 +1,25 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased text-[#1A1A1A] bg-[#F8F8F8];
+  }
+}
+
+/* Custom Scrollbar für den Premium Look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #B5A47A;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3936a;
+}
