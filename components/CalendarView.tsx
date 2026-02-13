@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
+import { CalendarEvent, CalendarViewMode, Poll, User, AppRole, ApiError } from '../types';
 import * as api from '../services/api';
 
 interface CalendarViewProps { theme: 'light' | 'dark'; polls: Poll[]; user: User; onRefresh: () => void; }
@@ -12,6 +12,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Form State
   const [newTitle, setNewTitle] = useState('');
@@ -27,7 +28,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
   const loadEvents = async () => {
     try {
       const data = await api.getEvents(() => {});
-      setEvents(data);
+      setEvents(data || []);
     } catch (e) {
       console.error("Could not load events", e);
     }
@@ -46,9 +47,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
       is_private: false
     }));
 
-    // Filtern der privaten Events: Nur eigene private oder alle öffentlichen
     const filteredCustomEvents = events.filter(e => !e.is_private || e.author_id === user.id);
-
     return [...pollEvents, ...filteredCustomEvents];
   }, [polls, events, user.id]);
 
@@ -66,6 +65,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
     e.preventDefault();
     if (!newTitle || !newDate) return;
     setLoading(true);
+    setFormError(null);
     try {
       await api.createEvent({
         title: newTitle,
@@ -77,14 +77,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
         author_id: user.id,
         status: newType === 'event' ? 'green' : 'orange'
       }, () => {});
+      
       setShowCreateModal(false);
       setNewTitle('');
       setNewDesc('');
       setNewDate('');
       loadEvents();
       onRefresh();
-    } catch (err) {
-      alert("Fehler beim Erstellen.");
+    } catch (err: any) {
+      setFormError(err.message || "Fehler beim Erstellen des Eintrags.");
     } finally {
       setLoading(false);
     }
@@ -126,43 +127,51 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
 
   return (
     <div className="max-w-4xl mx-auto pb-10 px-4">
-      {/* Create Modal Overlay */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1E1E1E] w-full max-w-lg rounded-[2.5rem] p-8 sm:p-12 shadow-2xl border-2 border-[#B5A47A] animate-in zoom-in-95 duration-300">
-            <h3 className="text-3xl font-black uppercase text-[#B5A47A] mb-8 tracking-tighter">Neuer Eintrag</h3>
-            <form onSubmit={handleCreateEntry} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Titel</label>
-                <input required type="text" className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+          <div className="bg-white dark:bg-[#1E1E1E] w-full max-w-lg rounded-[2.5rem] p-6 sm:p-10 shadow-2xl border-2 border-[#B5A47A] animate-in zoom-in-95 duration-300 my-auto">
+            <h3 className="text-2xl sm:text-3xl font-black uppercase text-[#B5A47A] mb-6 tracking-tighter">Neuer Eintrag</h3>
+            
+            {formError && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold animate-in shake duration-300">
+                {formError}
               </div>
-              <div className="space-y-2">
+            )}
+
+            <form onSubmit={handleCreateEntry} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Titel</label>
+                <input required type="text" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Datum</label>
-                <input required type="date" className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newDate} onChange={e => setNewDate(e.target.value)} />
+                <input required type="date" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newDate} onChange={e => setNewDate(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Typ</label>
-                  <select className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white appearance-none" value={newType} onChange={e => setNewType(e.target.value as any)}>
+                  <select className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white appearance-none" value={newType} onChange={e => setNewType(e.target.value as any)}>
                     <option value="event">Event</option>
                     <option value="task">Aufgabe</option>
                   </select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sichtbarkeit</label>
                   <div className="flex bg-slate-50 dark:bg-black/20 p-1 rounded-xl">
-                    <button type="button" onClick={() => setIsPrivate(false)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Publik</button>
-                    <button type="button" onClick={() => setIsPrivate(true)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Privat</button>
+                    <button type="button" onClick={() => setIsPrivate(false)} className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Publik</button>
+                    <button type="button" onClick={() => setIsPrivate(true)} className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Privat</button>
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Beschreibung</label>
-                <textarea rows={3} className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+                <textarea rows={3} className="w-full px-5 py-3.5 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white resize-none" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Details zum Eintrag..." />
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-5 rounded-2xl bg-slate-100 dark:bg-white/5 font-black text-[10px] uppercase tracking-widest">Abbruch</button>
-                <button type="submit" disabled={loading} className="flex-1 py-5 rounded-2xl bg-[#B5A47A] text-[#1A1A1A] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[#B5A47A]/20">Speichern</button>
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <button type="button" onClick={() => { setShowCreateModal(false); setFormError(null); }} className="order-2 sm:order-1 flex-1 py-4 rounded-xl bg-slate-100 dark:bg-white/5 font-black text-[10px] uppercase tracking-widest">Abbruch</button>
+                <button type="submit" disabled={loading} className="order-1 sm:order-2 flex-1 py-4 rounded-xl bg-[#B5A47A] text-[#1A1A1A] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[#B5A47A]/20 disabled:opacity-50">
+                  {loading ? 'Speichere...' : 'Speichern'}
+                </button>
               </div>
             </form>
           </div>
