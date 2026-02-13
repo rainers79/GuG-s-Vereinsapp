@@ -60,7 +60,6 @@ const App: React.FC = () => {
     } else {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -92,7 +91,12 @@ const App: React.FC = () => {
         );
       case 'calendar':
         return (
-          <CalendarView theme={theme} polls={polls} />
+          <CalendarView 
+            theme={theme} 
+            polls={polls} 
+            user={user!} 
+            onRefresh={() => fetchAppData()} 
+          />
         );
       case 'settings':
         return (
@@ -160,7 +164,7 @@ const App: React.FC = () => {
             onLogout={handleLogout} 
             onOpenMenu={() => setIsSidebarOpen(true)}
           />
-          <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+          <main className="flex-grow container mx-auto px-0 sm:px-4 py-12 max-w-4xl">
             {renderContent()}
           </main>
           <footer className={`py-10 text-center border-t transition-colors duration-500 ${theme === 'dark' ? 'bg-[#1A1A1A] border-white/5' : 'bg-white border-slate-100'}`}>

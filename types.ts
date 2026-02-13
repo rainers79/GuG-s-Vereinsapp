@@ -17,7 +17,9 @@ export interface CalendarEvent {
   type: 'poll' | 'task' | 'event';
   status: 'red' | 'orange' | 'green';
   author: string;
+  author_id?: number;
   linkedPollId?: number;
+  is_private?: boolean;
 }
 
 export interface WPUserResponse {

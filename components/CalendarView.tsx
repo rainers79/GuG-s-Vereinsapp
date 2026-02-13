@@ -1,15 +1,39 @@
 
-import React, { useState, useMemo } from 'react';
-import { CalendarEvent, CalendarViewMode, Poll } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
+import * as api from '../services/api';
 
-interface CalendarViewProps { theme: 'light' | 'dark'; polls: Poll[]; }
+interface CalendarViewProps { theme: 'light' | 'dark'; polls: Poll[]; user: User; onRefresh: () => void; }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefresh }) => {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const allEvents: CalendarEvent[] = useMemo(() => {
+  // Form State
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newDate, setNewDate] = useState('');
+  const [newType, setNewType] = useState<'event' | 'task'>('event');
+  const [isPrivate, setIsPrivate] = useState(false);
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const loadEvents = async () => {
+    try {
+      const data = await api.getEvents(() => {});
+      setEvents(data);
+    } catch (e) {
+      console.error("Could not load events", e);
+    }
+  };
+
+  const allEventsCombined: CalendarEvent[] = useMemo(() => {
     const pollEvents: CalendarEvent[] = polls.filter(p => p.target_date).map(p => ({
       id: `poll-${p.id}`,
       title: p.question,
@@ -18,10 +42,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
       type: 'poll',
       status: 'red',
       author: p.author_name || 'Vorstand',
-      linkedPollId: p.id
+      linkedPollId: p.id,
+      is_private: false
     }));
-    return [...pollEvents];
-  }, [polls]);
+
+    // Filtern der privaten Events: Nur eigene private oder alle öffentlichen
+    const filteredCustomEvents = events.filter(e => !e.is_private || e.author_id === user.id);
+
+    return [...pollEvents, ...filteredCustomEvents];
+  }, [polls, events, user.id]);
 
   const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
   const dayNames = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -31,7 +60,35 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
     return d === 0 ? 6 : d - 1;
   };
   const isSameDay = (d1: Date, d2: Date) => d1.toDateString() === d2.toDateString();
-  const getEventsForDay = (date: Date) => allEvents.filter(e => isSameDay(new Date(e.date), date));
+  const getEventsForDay = (date: Date) => allEventsCombined.filter(e => isSameDay(new Date(e.date), date));
+
+  const handleCreateEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle || !newDate) return;
+    setLoading(true);
+    try {
+      await api.createEvent({
+        title: newTitle,
+        description: newDesc,
+        date: newDate,
+        type: newType,
+        is_private: isPrivate,
+        author: user.displayName,
+        author_id: user.id,
+        status: newType === 'event' ? 'green' : 'orange'
+      }, () => {});
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDesc('');
+      setNewDate('');
+      loadEvents();
+      onRefresh();
+    } catch (err) {
+      alert("Fehler beim Erstellen.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderMonthGrid = (year: number, month: number, isMini = false) => {
     const daysInMonth = getDaysInMonth(year, month);
@@ -54,7 +111,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
               className={`h-12 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'} ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}`}
             >
               <span className={`text-xs sm:text-xl font-black ${isToday ? 'text-[#B5A47A]' : 'text-inherit'}`}>{d.getDate()}</span>
-              {dayEvents.length > 0 && <div className="flex gap-0.5 mt-1 sm:mt-2"><div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B5A47A]" /></div>}
+              {dayEvents.length > 0 && <div className="flex gap-0.5 mt-1 sm:mt-2">
+                {dayEvents.some(e => e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-400" title="Privat" />}
+                {dayEvents.some(e => !e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B5A47A]" title="Öffentlich" />}
+              </div>}
             </div>
           );
         })}
@@ -62,8 +122,53 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
     );
   };
 
+  const canCreate = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+
   return (
-    <div className="max-w-4xl mx-auto pb-10">
+    <div className="max-w-4xl mx-auto pb-10 px-4">
+      {/* Create Modal Overlay */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1E1E1E] w-full max-w-lg rounded-[2.5rem] p-8 sm:p-12 shadow-2xl border-2 border-[#B5A47A] animate-in zoom-in-95 duration-300">
+            <h3 className="text-3xl font-black uppercase text-[#B5A47A] mb-8 tracking-tighter">Neuer Eintrag</h3>
+            <form onSubmit={handleCreateEntry} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Titel</label>
+                <input required type="text" className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Datum</label>
+                <input required type="date" className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newDate} onChange={e => setNewDate(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Typ</label>
+                  <select className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white appearance-none" value={newType} onChange={e => setNewType(e.target.value as any)}>
+                    <option value="event">Event</option>
+                    <option value="task">Aufgabe</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sichtbarkeit</label>
+                  <div className="flex bg-slate-50 dark:bg-black/20 p-1 rounded-xl">
+                    <button type="button" onClick={() => setIsPrivate(false)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Publik</button>
+                    <button type="button" onClick={() => setIsPrivate(true)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isPrivate ? 'bg-[#B5A47A] text-[#1A1A1A]' : 'text-slate-400'}`}>Privat</button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Beschreibung</label>
+                <textarea rows={3} className="w-full px-5 py-4 bg-slate-50 dark:bg-black/20 rounded-xl outline-none border border-transparent focus:border-[#B5A47A] font-bold text-black dark:text-white" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-5 rounded-2xl bg-slate-100 dark:bg-white/5 font-black text-[10px] uppercase tracking-widest">Abbruch</button>
+                <button type="submit" disabled={loading} className="flex-1 py-5 rounded-2xl bg-[#B5A47A] text-[#1A1A1A] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[#B5A47A]/20">Speichern</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-12 sm:mb-20">
         <div className="text-center sm:text-left space-y-2">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B5A47A]/20 rounded-full mb-2 border border-[#B5A47A]/30">
@@ -71,26 +176,36 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
             <span className="text-[9px] font-black text-[#B5A47A] uppercase tracking-widest">Interaktiver Planer</span>
           </div>
           
-          {/* OPTIMIERT: Monatsschriftzug jetzt in hellem Gold für maximalen Kontrast */}
           <h2 className="text-6xl sm:text-9xl font-black uppercase tracking-tighter leading-[0.85] text-[#B5A47A] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transition-all duration-500">
             {monthNames[currentDate.getMonth()]}
           </h2>
           <p className="text-2xl sm:text-4xl font-black text-[#B5A47A]/70 tracking-[0.4em] ml-1">{currentDate.getFullYear()}</p>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl w-full sm:w-auto shadow-2xl border border-white/5">
-          <button 
-            onClick={() => setViewMode('month')} 
-            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
-          >
-            Monatsansicht
-          </button>
-          <button 
-            onClick={() => setViewMode('year')} 
-            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'year' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
-          >
-            Jahresansicht
-          </button>
+        <div className="flex flex-col gap-4 w-full sm:w-auto">
+          {canCreate && (
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-[#B5A47A] text-[#1A1A1A] px-8 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+              Neuer Eintrag
+            </button>
+          )}
+          <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl shadow-2xl border border-white/5">
+            <button 
+              onClick={() => setViewMode('month')} 
+              className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
+            >
+              Monatsansicht
+            </button>
+            <button 
+              onClick={() => setViewMode('year')} 
+              className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'year' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
+            >
+              Jahresansicht
+            </button>
+          </div>
         </div>
       </div>
 
@@ -154,10 +269,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
                    </div>
                  ) : (
                    getEventsForDay(selectedDay).map(e => (
-                     <div key={e.id} className="group border-l-8 border-[#B5A47A] pl-8 sm:pl-12 py-4 space-y-4 relative">
+                     <div key={e.id} className={`group border-l-8 ${e.is_private ? 'border-slate-400' : 'border-[#B5A47A]'} pl-8 sm:pl-12 py-4 space-y-4 relative`}>
                         <div className="flex items-center gap-3">
-                           <span className="px-3 py-1 bg-[#B5A47A]/10 text-[#B5A47A] text-[9px] font-black rounded-lg uppercase tracking-widest">{e.type}</span>
-                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                           <span className={`px-3 py-1 ${e.is_private ? 'bg-slate-100 text-slate-500' : 'bg-[#B5A47A]/10 text-[#B5A47A]'} text-[9px] font-black rounded-lg uppercase tracking-widest`}>
+                            {e.type} {e.is_private && '• Privat'}
+                           </span>
+                           <span className={`w-2 h-2 rounded-full ${e.type === 'poll' ? 'bg-red-500' : 'bg-green-500'} animate-pulse`}></span>
                         </div>
                         <h4 className="text-4xl sm:text-6xl font-black leading-[0.9] uppercase tracking-tighter text-black dark:text-white transition-colors">
                           {e.title}

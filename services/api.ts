@@ -1,5 +1,5 @@
 
-import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse, RegistrationData } from '../types';
+import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse, RegistrationData, CalendarEvent } from '../types';
 
 const API_BASE = 'https://api.gug-verein.at/wp-json';
 const TOKEN_KEY = 'gug_token';
@@ -60,7 +60,6 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      // Hier fangen wir den 404 ab und geben eine bessere Meldung aus
       if (response.status === 404) {
          throw { message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.', status: 404 } as ApiError;
       }
@@ -126,10 +125,20 @@ export async function deletePoll(pollId: number, onUnauth: () => void): Promise<
 }
 
 export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
-  // Wir probieren hier eine stabilere Route ohne /vote am Ende falls der WP Server das ID-Mapping anders handhabt
-  // Wenn die API Standard-konform ist, sollte /gug/v1/polls/{id}/vote funktionieren
   return await apiRequest<VoteResponse>(`/gug/v1/polls/${pollId}/vote`, { 
     method: 'POST', 
     body: JSON.stringify({ option_ids: optionIds }) 
+  }, onUnauth);
+}
+
+// Kalender-Events API
+export async function getEvents(onUnauthorized: () => void): Promise<CalendarEvent[]> {
+  return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized).catch(() => []);
+}
+
+export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () => void): Promise<CalendarEvent> {
+  return await apiRequest<CalendarEvent>('/gug/v1/events', {
+    method: 'POST',
+    body: JSON.stringify(event)
   }, onUnauth);
 }
