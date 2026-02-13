@@ -51,7 +51,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
             <div 
               key={idx} 
               onClick={() => { setSelectedDay(d); setViewMode('day'); }}
-              className={`h-12 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-50 border border-slate-100'} ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}`}
+              className={`h-12 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'} ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}`}
             >
               <span className={`text-xs sm:text-xl font-black ${isToday ? 'text-[#B5A47A]' : 'text-inherit'}`}>{d.getDate()}</span>
               {dayEvents.length > 0 && <div className="flex gap-0.5 mt-1 sm:mt-2"><div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B5A47A]" /></div>}
@@ -66,26 +66,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
     <div className="max-w-4xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-12 sm:mb-20">
         <div className="text-center sm:text-left space-y-2">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B5A47A]/10 rounded-full mb-2">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B5A47A]/20 rounded-full mb-2 border border-[#B5A47A]/30">
             <div className="w-1.5 h-1.5 rounded-full bg-[#B5A47A] animate-pulse"></div>
             <span className="text-[9px] font-black text-[#B5A47A] uppercase tracking-widest">Interaktiver Planer</span>
           </div>
-          {/* KONTRAST FIX: Explizite Farbe für den großen Monats-Text */}
-          <h2 className="text-5xl sm:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-black dark:text-white drop-shadow-sm transition-colors duration-500">
+          
+          {/* OPTIMIERT: Monatsschriftzug jetzt in hellem Gold für maximalen Kontrast */}
+          <h2 className="text-6xl sm:text-9xl font-black uppercase tracking-tighter leading-[0.85] text-[#B5A47A] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transition-all duration-500">
             {monthNames[currentDate.getMonth()]}
           </h2>
-          <p className="text-xl sm:text-3xl font-black text-[#B5A47A] tracking-[0.3em] opacity-80">{currentDate.getFullYear()}</p>
+          <p className="text-2xl sm:text-4xl font-black text-[#B5A47A]/70 tracking-[0.4em] ml-1">{currentDate.getFullYear()}</p>
         </div>
-        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl w-full sm:w-auto shadow-inner">
+        
+        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl w-full sm:w-auto shadow-2xl border border-white/5">
           <button 
             onClick={() => setViewMode('month')} 
-            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-[#B5A47A] text-black shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
           >
             Monatsansicht
           </button>
           <button 
             onClick={() => setViewMode('year')} 
-            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'year' ? 'bg-[#B5A47A] text-black shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'year' ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg' : 'text-slate-500 hover:text-white'}`}
           >
             Jahresansicht
           </button>
@@ -94,20 +96,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
 
       {viewMode === 'month' && (
         <div className="bg-white dark:bg-[#1E1E1E] p-5 sm:p-14 rounded-[2.5rem] sm:rounded-[4rem] shadow-2xl border border-slate-100 dark:border-white/5">
-           <div className="flex justify-between items-center mb-12 bg-slate-50 dark:bg-black/20 p-4 rounded-[2rem]">
+           <div className="flex justify-between items-center mb-12 bg-slate-50 dark:bg-black/20 p-5 rounded-[2rem] border border-slate-100 dark:border-white/5">
               <button 
                 onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} 
-                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:scale-110 active:scale-95 transition-all border border-slate-100 dark:border-white/5"
+                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:bg-[#B5A47A] hover:text-white transition-all border border-slate-100 dark:border-white/5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               </button>
               <div className="text-center">
-                <span className="font-black text-xl sm:text-3xl uppercase tracking-tighter text-black dark:text-white block">{monthNames[currentDate.getMonth()]}</span>
-                <span className="font-black text-[10px] uppercase text-[#B5A47A] tracking-widest">{currentDate.getFullYear()}</span>
+                <span className="font-black text-2xl sm:text-4xl uppercase tracking-tighter text-black dark:text-white block leading-none">{monthNames[currentDate.getMonth()]}</span>
+                <span className="font-black text-[12px] uppercase text-[#B5A47A] tracking-[0.4em] mt-2 block">{currentDate.getFullYear()}</span>
               </div>
               <button 
                 onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} 
-                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:scale-110 active:scale-95 transition-all border border-slate-100 dark:border-white/5"
+                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:bg-[#B5A47A] hover:text-white transition-all border border-slate-100 dark:border-white/5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
               </button>
@@ -131,7 +133,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
         <div className="space-y-6 animate-in fade-in duration-500">
            <button 
              onClick={() => setViewMode('month')} 
-             className="text-[10px] font-black uppercase tracking-widest bg-black text-[#B5A47A] px-10 py-5 rounded-2xl shadow-xl flex items-center gap-3 hover:gap-5 transition-all"
+             className="text-[10px] font-black uppercase tracking-widest bg-black text-[#B5A47A] px-10 py-5 rounded-2xl shadow-xl flex items-center gap-3 hover:gap-5 transition-all border border-[#B5A47A]/30"
            >
              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
              Zurück zum Monat
