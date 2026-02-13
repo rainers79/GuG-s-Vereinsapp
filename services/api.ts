@@ -24,7 +24,6 @@ export const getStoredUser = (): User | null => {
   return data ? JSON.parse(data) : null;
 };
 
-// Fix: Exported apiRequest to allow direct usage in components for specialized API requests
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -54,7 +53,7 @@ export async function apiRequest<T>(
       }
       const errData = await response.json().catch(() => ({}));
       throw { 
-        message: errData.message || 'Sitzung abgelaufen oder Zugriff verweigert.', 
+        message: errData.message || 'Sitzung abgelaufen.', 
         status: response.status 
       } as ApiError;
     }
@@ -62,7 +61,7 @@ export async function apiRequest<T>(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw { 
-        message: errorData.message || `Server Error ${response.status}`, 
+        message: errorData.message || `Fehler ${response.status}`, 
         status: response.status 
       } as ApiError;
     }
@@ -70,7 +69,7 @@ export async function apiRequest<T>(
     return await response.json();
   } catch (error: any) {
     if (error.status) throw error;
-    throw { message: 'Verbindung zum API-Backend fehlgeschlagen. Bitte Internetverbindung prüfen.' } as ApiError;
+    throw { message: 'Netzwerkfehler. Bitte Verbindung prüfen.' } as ApiError;
   }
 }
 
@@ -82,40 +81,27 @@ export async function login(username: string, password: string): Promise<User> {
 
   setToken(data.token);
   
-  const user: User = {
-    id: 0,
-    email: data.user_email,
-    displayName: data.user_display_name,
-    username: data.user_nicename,
-    role: AppRole.USER 
-  };
-  
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  // Wir holen sofort die echten Rollen vom User-Me Endpunkt
+  const user = await getCurrentUser(() => {});
   return user;
 }
 
 export async function register(regData: RegistrationData): Promise<{success: boolean, message: string}> {
-  // Hinweis: Der Backend-Endpunkt muss die E-Mail an rainer@schmidt-kottingbrunn.at auslösen
   return await apiRequest<{success: boolean, message: string}>('/gug/v1/register', {
     method: 'POST',
-    body: JSON.stringify({
-      ...regData,
-      admin_notification_email: 'rainer@schmidt-kottingbrunn.at'
-    })
+    body: JSON.stringify({ ...regData, admin_notification_email: 'rainer@schmidt-kottingbrunn.at' })
   });
 }
 
 export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {
   const wpUser = await apiRequest<any>('/gug/v1/me', {}, onUnauthorized);
-  
   const user: User = {
     id: wpUser.id || 0,
     email: wpUser.user_email || wpUser.email || '',
-    displayName: wpUser.display_name || wpUser.name || wpUser.user_login || 'Mitglied',
+    displayName: wpUser.display_name || wpUser.name || 'Mitglied',
     username: wpUser.user_login || wpUser.username || '',
     role: mapWPRoleToAppRole(wpUser.roles)
   };
-  
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
 }
@@ -124,16 +110,16 @@ export async function getPolls(onUnauthorized: () => void): Promise<Poll[]> {
   return await apiRequest<Poll[]>('/gug/v1/polls', {}, onUnauthorized);
 }
 
-export async function createPoll(question: string, options: string[], onUnauth: () => void): Promise<Poll> {
+export async function createPoll(payload: any, onUnauth: () => void): Promise<Poll> {
   return await apiRequest<Poll>('/gug/v1/polls', { 
     method: 'POST', 
-    body: JSON.stringify({ question, options }) 
+    body: JSON.stringify(payload) 
   }, onUnauth);
 }
 
-export async function votePoll(pollId: number, optionId: string, onUnauth: () => void): Promise<VoteResponse> {
+export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
   return await apiRequest<VoteResponse>(`/gug/v1/polls/${pollId}/vote`, { 
     method: 'POST', 
-    body: JSON.stringify({ option_id: optionId }) 
+    body: JSON.stringify({ option_ids: optionIds }) 
   }, onUnauth);
 }
