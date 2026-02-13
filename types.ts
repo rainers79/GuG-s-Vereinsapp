@@ -17,6 +17,7 @@ export interface CalendarEvent {
   type: 'poll' | 'task' | 'event';
   status: 'red' | 'orange' | 'green';
   author: string;
+  linkedPollId?: number;
 }
 
 export interface WPUserResponse {
@@ -53,6 +54,7 @@ export interface Poll {
   question: string;
   options: PollOption[];
   created_at: string;
+  target_date?: string; // Das Datum für den Kalender
   author_id: number;
   author_name?: string;
   total_votes: number;
