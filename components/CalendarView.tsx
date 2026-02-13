@@ -1,23 +1,36 @@
 
 import React, { useState, useMemo } from 'react';
-import { CalendarEvent, CalendarViewMode } from '../types';
+import { CalendarEvent, CalendarViewMode, Poll } from '../types';
 
 interface CalendarViewProps {
   theme: 'light' | 'dark';
+  polls: Poll[];
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Mock Events für die Visualisierung mit Admin-Farben (Rot, Orange, Grün)
-  const events: CalendarEvent[] = useMemo(() => [
-    { id: '1', title: 'Vorstandssitzung', description: 'Detaillierte Besprechung der neuen Satzung und Planung des Sommerfests. Alle Vorstandsmitglieder sind zur Anwesenheit verpflichtet.', date: new Date().toISOString(), type: 'event', status: 'orange', author: 'Rainer Schmidt' },
-    { id: '2', title: 'Abstimmung: Neues Logo', description: 'Finale Wahl des neuen Vereinslogos. Bitte die Entwürfe im Anhang vorab prüfen und die Stimmen pünktlich abgeben.', date: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(), type: 'poll', status: 'red', author: 'Vorstand' },
-    { id: '3', title: 'Mitgliederliste Update', description: 'Alle Profile müssen bis Ende der Woche vervollständigt sein, um die neue Mitgliederkarte zu erhalten.', date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(), type: 'task', status: 'green', author: 'System' },
-    { id: '4', title: 'Platzpflege', description: 'Gemeinsames Reinigen der Außenanlagen. Werkzeug wird gestellt.', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(), type: 'task', status: 'orange', author: 'Platzwart' },
-  ], []);
+  // Mische Mock-Events mit echten Umfragen für den Kalender
+  const allEvents: CalendarEvent[] = useMemo(() => {
+    const pollEvents: CalendarEvent[] = polls.map(p => ({
+      id: `poll-${p.id}`,
+      title: `Umfrage: ${p.question}`,
+      description: `Wichtige Mitgliederabstimmung. ${p.is_multiple_choice ? 'Mehrfachauswahl möglich.' : 'Einzelwahl.'}`,
+      date: p.created_at,
+      type: 'poll',
+      status: 'red',
+      author: p.author_name || 'Vorstand'
+    }));
+
+    const mockEvents: CalendarEvent[] = [
+      { id: 'm1', title: 'Vorstandssitzung', description: 'Besprechung der neuen Satzung.', date: new Date().toISOString(), type: 'event', status: 'orange', author: 'Rainer' },
+      { id: 'm2', title: 'Platzpflege', description: 'Außenanlagen säubern.', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(), type: 'task', status: 'green', author: 'Platzwart' },
+    ];
+
+    return [...pollEvents, ...mockEvents];
+  }, [polls]);
 
   const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
   const dayNames = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -25,14 +38,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => {
     const day = new Date(year, month, 1).getDay();
-    return day === 0 ? 6 : day - 1; // Start mit Montag
+    return day === 0 ? 6 : day - 1;
   };
 
   const isSameDay = (d1: Date, d2: Date) => 
     d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
 
   const getEventsForDay = (date: Date) => 
-    events.filter(e => isSameDay(new Date(e.date), date));
+    allEvents.filter(e => isSameDay(new Date(e.date), date));
 
   const changeMonth = (offset: number) => {
     const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
@@ -130,23 +143,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 max-w-7xl mx-auto">
-      {/* Header Bereich - KONTRAST OPTIMIERT */}
       <div className="flex flex-col lg:flex-row items-center justify-between gap-10 mb-20">
         <div className="text-center lg:text-left">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B5A47A]/20 rounded-full mb-4">
             <span className="w-2 h-2 bg-[#B5A47A] rounded-full animate-pulse"></span>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#B5A47A]">GuG Kalender</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#B5A47A]">Live Kalender</span>
           </div>
-          <h2 className="text-6xl sm:text-8xl font-black tracking-tighter uppercase leading-none text-inherit">
+          <h2 className="text-6xl sm:text-8xl font-black tracking-tighter uppercase leading-none">
             {viewMode === 'year' ? currentDate.getFullYear() : `${monthNames[currentDate.getMonth()]}`}
           </h2>
-          {/* JAHR - KONTRAST FIX (Höhere Opazität und Goldton) */}
           <p className="text-2xl font-black mt-2 uppercase tracking-[0.5em] text-[#B5A47A] opacity-90">
             {viewMode === 'year' ? 'Jahresübersicht' : currentDate.getFullYear()}
           </p>
         </div>
 
-        {/* VIEW SELECTOR - FIX FÜR UNSICHTBAREN TEXT */}
         <div className="flex bg-slate-200 dark:bg-white/10 p-2 rounded-[2rem] shadow-inner backdrop-blur-md">
           {(['month', 'year'] as CalendarViewMode[]).map((mode) => (
             <button
@@ -164,7 +174,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
         </div>
       </div>
 
-      {/* RENDER MONATSANSICHT */}
       {viewMode === 'month' && (
         <div className="animate-in fade-in zoom-in-95 duration-700">
           <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} p-8 sm:p-16 rounded-[3rem] border shadow-2xl transition-all duration-500`}>
@@ -185,7 +194,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
         </div>
       )}
 
-      {/* RENDER JAHRESANSICHT */}
       {viewMode === 'year' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 animate-in slide-in-from-bottom-12 duration-1000">
           {monthNames.map((name, idx) => (
@@ -207,7 +215,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
         </div>
       )}
 
-      {/* RENDER TAGESANSICHT (IMMERSIV) */}
       {viewMode === 'day' && selectedDay && (
         <div className="animate-in slide-in-from-right-12 duration-700 min-h-[700px] flex flex-col">
           <button 
@@ -219,7 +226,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
           </button>
           
           <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-[4rem] border shadow-3xl flex flex-col lg:flex-row overflow-hidden flex-grow`}>
-            {/* LINKER TEIL: Fokus Datum */}
             <div className="lg:w-2/5 bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] p-16 sm:p-24 flex flex-col justify-center items-center text-[#1A1A1A] text-center relative overflow-hidden">
               <div className="relative z-10">
                 <span className="text-sm font-black uppercase tracking-[0.5em] opacity-60 mb-6 block">
@@ -236,7 +242,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
               </div>
             </div>
             
-            {/* RECHTER TEIL: Details & Termine */}
             <div className="flex-grow p-12 sm:p-24 space-y-16 overflow-y-auto bg-slate-50/30 dark:bg-transparent">
               {getEventsForDay(selectedDay).length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center opacity-20 py-32">
@@ -255,7 +260,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
                               {event.type}
                             </div>
                          </div>
-                         <span className="text-xs font-bold text-inherit opacity-60">Admin: {event.author}</span>
+                         <span className="text-xs font-bold text-inherit opacity-60">Von {event.author}</span>
                       </div>
 
                       <div className="space-y-8">
@@ -267,7 +272,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme }) => {
 
                       <div className="flex flex-wrap items-center gap-10 pt-16 border-t border-slate-200 dark:border-white/10">
                         <button className="bg-[#1A1A1A] dark:bg-white text-white dark:text-[#1A1A1A] px-12 py-6 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-[#B5A47A] hover:text-white transition-all shadow-2xl">
-                          Teilnahme Bestätigen
+                          Details ansehen
                         </button>
                       </div>
                     </div>

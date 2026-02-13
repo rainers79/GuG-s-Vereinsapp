@@ -92,7 +92,7 @@ const App: React.FC = () => {
         );
       case 'calendar':
         return (
-          <CalendarView theme={theme} />
+          <CalendarView theme={theme} polls={polls} />
         );
       case 'settings':
         return (

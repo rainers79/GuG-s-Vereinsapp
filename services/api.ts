@@ -24,7 +24,8 @@ export const getStoredUser = (): User | null => {
   return data ? JSON.parse(data) : null;
 };
 
-async function apiRequest<T>(
+// Fix: Exported apiRequest to allow direct usage in components for specialized API requests
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
   onUnauthorized?: () => void

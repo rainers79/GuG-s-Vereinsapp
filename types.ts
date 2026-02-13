@@ -2,7 +2,8 @@
 export enum AppRole {
   SUPERADMIN = 'SUPERADMIN',
   VORSTAND = 'VORSTAND',
-  USER = 'USER'
+  USER = 'USER',
+  VISITOR = 'VISITOR'
 }
 
 export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks' | 'settings';
@@ -53,8 +54,10 @@ export interface Poll {
   options: PollOption[];
   created_at: string;
   author_id: number;
+  author_name?: string;
   total_votes: number;
   has_voted?: boolean;
+  is_multiple_choice?: boolean;
 }
 
 export interface ApiError {
