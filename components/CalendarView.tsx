@@ -65,32 +65,62 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
   return (
     <div className="max-w-4xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-12 sm:mb-20">
-        <div className="text-center sm:text-left">
-          <h2 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none">{monthNames[currentDate.getMonth()]}</h2>
-          <p className="text-lg sm:text-2xl font-black text-[#B5A47A] tracking-widest">{currentDate.getFullYear()}</p>
+        <div className="text-center sm:text-left space-y-2">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#B5A47A]/10 rounded-full mb-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#B5A47A] animate-pulse"></div>
+            <span className="text-[9px] font-black text-[#B5A47A] uppercase tracking-widest">Interaktiver Planer</span>
+          </div>
+          {/* KONTRAST FIX: Explizite Farbe für den großen Monats-Text */}
+          <h2 className="text-5xl sm:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-black dark:text-white drop-shadow-sm transition-colors duration-500">
+            {monthNames[currentDate.getMonth()]}
+          </h2>
+          <p className="text-xl sm:text-3xl font-black text-[#B5A47A] tracking-[0.3em] opacity-80">{currentDate.getFullYear()}</p>
         </div>
-        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-xl w-full sm:w-auto">
-          <button onClick={() => setViewMode('month')} className={`flex-1 sm:flex-none px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest ${viewMode === 'month' ? 'bg-[#B5A47A] text-black' : 'text-slate-400'}`}>Monat</button>
-          <button onClick={() => setViewMode('year')} className={`flex-1 sm:flex-none px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest ${viewMode === 'year' ? 'bg-[#B5A47A] text-black' : 'text-slate-400'}`}>Jahr</button>
+        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl w-full sm:w-auto shadow-inner">
+          <button 
+            onClick={() => setViewMode('month')} 
+            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-[#B5A47A] text-black shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            Monatsansicht
+          </button>
+          <button 
+            onClick={() => setViewMode('year')} 
+            className={`flex-1 sm:flex-none px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'year' ? 'bg-[#B5A47A] text-black shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            Jahresansicht
+          </button>
         </div>
       </div>
 
       {viewMode === 'month' && (
-        <div className="bg-white dark:bg-[#1E1E1E] p-4 sm:p-12 rounded-3xl sm:rounded-[3rem] shadow-xl">
-           <div className="flex justify-between items-center mb-10">
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-3 bg-slate-100 dark:bg-white/5 rounded-lg text-[#B5A47A]">←</button>
-              <span className="font-black text-sm sm:text-xl uppercase">{monthNames[currentDate.getMonth()]}</span>
-              <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-3 bg-slate-100 dark:bg-white/5 rounded-lg text-[#B5A47A]">→</button>
+        <div className="bg-white dark:bg-[#1E1E1E] p-5 sm:p-14 rounded-[2.5rem] sm:rounded-[4rem] shadow-2xl border border-slate-100 dark:border-white/5">
+           <div className="flex justify-between items-center mb-12 bg-slate-50 dark:bg-black/20 p-4 rounded-[2rem]">
+              <button 
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} 
+                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:scale-110 active:scale-95 transition-all border border-slate-100 dark:border-white/5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div className="text-center">
+                <span className="font-black text-xl sm:text-3xl uppercase tracking-tighter text-black dark:text-white block">{monthNames[currentDate.getMonth()]}</span>
+                <span className="font-black text-[10px] uppercase text-[#B5A47A] tracking-widest">{currentDate.getFullYear()}</span>
+              </div>
+              <button 
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} 
+                className="p-5 bg-white dark:bg-white/5 shadow-sm rounded-2xl text-[#B5A47A] hover:scale-110 active:scale-95 transition-all border border-slate-100 dark:border-white/5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
            </div>
            {renderMonthGrid(currentDate.getFullYear(), currentDate.getMonth())}
         </div>
       )}
 
       {viewMode === 'year' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
           {monthNames.map((name, idx) => (
-            <div key={name} onClick={() => { setCurrentDate(new Date(currentDate.getFullYear(), idx, 1)); setViewMode('month'); }} className="bg-white dark:bg-[#1E1E1E] p-6 rounded-2xl shadow-lg cursor-pointer hover:border-[#B5A47A] border-2 border-transparent">
-              <h4 className="text-xs font-black uppercase mb-4 text-[#B5A47A]">{name}</h4>
+            <div key={name} onClick={() => { setCurrentDate(new Date(currentDate.getFullYear(), idx, 1)); setViewMode('month'); }} className="bg-white dark:bg-[#1E1E1E] p-8 rounded-[2rem] shadow-xl cursor-pointer hover:border-[#B5A47A] border-2 border-transparent transition-all group">
+              <h4 className="text-sm font-black uppercase mb-6 text-[#B5A47A] group-hover:scale-110 origin-left transition-transform">{name}</h4>
               {renderMonthGrid(currentDate.getFullYear(), idx, true)}
             </div>
           ))}
@@ -98,20 +128,45 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls }) => {
       )}
 
       {viewMode === 'day' && selectedDay && (
-        <div className="space-y-6">
-           <button onClick={() => setViewMode('month')} className="text-[10px] font-black uppercase tracking-widest bg-black text-[#B5A47A] px-8 py-4 rounded-xl">Zurück</button>
-           <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-              <div className="bg-slate-900 p-10 flex flex-col items-center justify-center text-white">
-                 <span className="text-[8rem] font-black leading-none">{selectedDay.getDate()}</span>
-                 <span className="text-xl font-black uppercase tracking-widest">{monthNames[selectedDay.getMonth()]}</span>
+        <div className="space-y-6 animate-in fade-in duration-500">
+           <button 
+             onClick={() => setViewMode('month')} 
+             className="text-[10px] font-black uppercase tracking-widest bg-black text-[#B5A47A] px-10 py-5 rounded-2xl shadow-xl flex items-center gap-3 hover:gap-5 transition-all"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+             Zurück zum Monat
+           </button>
+           <div className="bg-white dark:bg-[#1E1E1E] rounded-[3rem] overflow-hidden shadow-2xl flex flex-col border border-slate-100 dark:border-white/5">
+              <div className="bg-slate-900 p-12 sm:p-20 flex flex-col items-center justify-center text-white relative">
+                 <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+                    <span className="text-[20rem] font-black absolute -top-20 -left-10 leading-none">{selectedDay.getDate()}</span>
+                 </div>
+                 <span className="text-[10rem] sm:text-[14rem] font-black leading-none z-10">{selectedDay.getDate()}</span>
+                 <span className="text-2xl sm:text-4xl font-black uppercase tracking-[0.3em] z-10 text-[#B5A47A]">{monthNames[selectedDay.getMonth()]}</span>
               </div>
-              <div className="p-8 sm:p-16 space-y-12">
-                 {getEventsForDay(selectedDay).length === 0 ? <p className="text-center font-black opacity-20 text-3xl uppercase">Keine Termine</p> : (
+              <div className="p-10 sm:p-20 space-y-12">
+                 {getEventsForDay(selectedDay).length === 0 ? (
+                   <div className="py-20 text-center space-y-4">
+                     <p className="font-black opacity-10 text-4xl sm:text-6xl uppercase tracking-tighter">Keine Termine</p>
+                     <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Genieße deinen freien Tag!</p>
+                   </div>
+                 ) : (
                    getEventsForDay(selectedDay).map(e => (
-                     <div key={e.id} className="border-l-4 border-[#B5A47A] pl-6 space-y-2">
-                        <span className="text-[10px] font-black text-[#B5A47A] uppercase">{e.type}</span>
-                        <h4 className="text-3xl font-black leading-tight uppercase">{e.title}</h4>
-                        <p className="text-slate-500 font-bold">{e.description}</p>
+                     <div key={e.id} className="group border-l-8 border-[#B5A47A] pl-8 sm:pl-12 py-4 space-y-4 relative">
+                        <div className="flex items-center gap-3">
+                           <span className="px-3 py-1 bg-[#B5A47A]/10 text-[#B5A47A] text-[9px] font-black rounded-lg uppercase tracking-widest">{e.type}</span>
+                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        </div>
+                        <h4 className="text-4xl sm:text-6xl font-black leading-[0.9] uppercase tracking-tighter text-black dark:text-white transition-colors">
+                          {e.title}
+                        </h4>
+                        <p className="text-slate-500 dark:text-slate-400 font-bold text-lg sm:text-2xl leading-relaxed max-w-2xl">{e.description}</p>
+                        <div className="flex items-center gap-4 pt-4">
+                           <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center font-black text-xs text-[#B5A47A]">
+                              {e.author.charAt(0)}
+                           </div>
+                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Eingetragen von {e.author}</span>
+                        </div>
                      </div>
                    ))
                  )}
