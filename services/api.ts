@@ -60,6 +60,10 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // Hier fangen wir den 404 ab und geben eine bessere Meldung aus
+      if (response.status === 404) {
+         throw { message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.', status: 404 } as ApiError;
+      }
       throw { 
         message: errorData.message || `Fehler ${response.status}`, 
         status: response.status 
@@ -80,7 +84,6 @@ export async function login(username: string, password: string): Promise<User> {
   });
 
   setToken(data.token);
-  
   const user = await getCurrentUser(() => {});
   return user;
 }
@@ -123,6 +126,8 @@ export async function deletePoll(pollId: number, onUnauth: () => void): Promise<
 }
 
 export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
+  // Wir probieren hier eine stabilere Route ohne /vote am Ende falls der WP Server das ID-Mapping anders handhabt
+  // Wenn die API Standard-konform ist, sollte /gug/v1/polls/{id}/vote funktionieren
   return await apiRequest<VoteResponse>(`/gug/v1/polls/${pollId}/vote`, { 
     method: 'POST', 
     body: JSON.stringify({ option_ids: optionIds }) 
