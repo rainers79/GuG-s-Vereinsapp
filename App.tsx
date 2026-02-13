@@ -9,6 +9,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Notification from './components/Notification';
 import SettingsView from './components/SettingsView';
+import CalendarView from './components/CalendarView';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(api.getStoredUser());
@@ -89,11 +90,14 @@ const App: React.FC = () => {
             onUnauthorized={handleUnauthorized}
           />
         );
+      case 'calendar':
+        return (
+          <CalendarView theme={theme} />
+        );
       case 'settings':
         return (
           <SettingsView theme={theme} onThemeChange={setTheme} />
         );
-      case 'calendar':
       case 'members':
       case 'tasks':
         return (

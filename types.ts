@@ -6,6 +6,17 @@ export enum AppRole {
 }
 
 export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks' | 'settings';
+export type CalendarViewMode = 'month' | 'year' | 'day';
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string; // ISO String
+  type: 'poll' | 'task' | 'event';
+  status: 'red' | 'orange' | 'green';
+  author: string;
+}
 
 export interface WPUserResponse {
   token: string;
