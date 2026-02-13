@@ -81,7 +81,6 @@ export async function login(username: string, password: string): Promise<User> {
 
   setToken(data.token);
   
-  // Wir holen sofort die echten Rollen vom User-Me Endpunkt
   const user = await getCurrentUser(() => {});
   return user;
 }
@@ -114,6 +113,12 @@ export async function createPoll(payload: any, onUnauth: () => void): Promise<Po
   return await apiRequest<Poll>('/gug/v1/polls', { 
     method: 'POST', 
     body: JSON.stringify(payload) 
+  }, onUnauth);
+}
+
+export async function deletePoll(pollId: number, onUnauth: () => void): Promise<any> {
+  return await apiRequest<any>(`/gug/v1/polls/${pollId}`, { 
+    method: 'DELETE'
   }, onUnauth);
 }
 
