@@ -114,7 +114,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
               onClick={() => { setSelectedDay(d); setViewMode('day'); }}
               className={`h-12 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'} ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}`}
             >
-              <span className={`text-xs sm:text-xl font-black ${isToday ? 'text-[#B5A47A]' : theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+             <span
+  className={`text-xs sm:text-xl font-black ${
+    isToday
+      ? 'text-[#B5A47A]'
+      : theme === 'dark'
+        ? 'text-white'
+        : 'text-slate-800'
+  }`}
+>
                 {d.getDate()}
               </span>
               {dayEvents.length > 0 && (
