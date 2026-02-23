@@ -1,4 +1,3 @@
-
 export enum AppRole {
   SUPERADMIN = 'SUPERADMIN',
   VORSTAND = 'VORSTAND',
@@ -41,6 +40,7 @@ export interface RegistrationData {
   firstName: string;
   lastName: string;
   birthday: string;
+  email: string;      // ✅ NEU
   username: string;
   password: string;
 }
