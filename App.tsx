@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, AppRole, ApiError, ViewType } from './types';
 import * as api from './services/api';
@@ -10,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import Notification from './components/Notification';
 import SettingsView from './components/SettingsView';
 import CalendarView from './components/CalendarView';
+import VerifyPage from './components/VerifyPage';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(api.getStoredUser());
@@ -23,6 +23,12 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
+
+  // 🔹 Verify Parameter erkennen
+  const params = new URLSearchParams(window.location.search);
+  const verifyUid = params.get('uid');
+  const verifyToken = params.get('token');
+  const isVerifyMode = !!verifyUid && !!verifyToken;
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
@@ -127,12 +133,28 @@ const App: React.FC = () => {
     }
   };
 
+  // 🔹 VERIFY MODE (wird vor normalem Layout gerendert)
+  if (isVerifyMode) {
+    return (
+      <VerifyPage
+        uid={parseInt(verifyUid!)}
+        token={verifyToken!}
+        onDone={() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   if (loading && !user) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#121212]' : 'bg-[#F8F8F8]'} transition-colors duration-500`}>
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B5A47A] mb-6"></div>
-          <p className={`${theme === 'dark' ? 'text-white' : 'text-[#1A1A1A]'} font-black uppercase text-[10px] tracking-widest`}>Initialisierung...</p>
+          <p className={`${theme === 'dark' ? 'text-white' : 'text-[#1A1A1A]'} font-black uppercase text-[10px] tracking-widest`}>
+            Initialisierung...
+          </p>
         </div>
       </div>
     );
