@@ -6,7 +6,7 @@ export enum AppRole {
 }
 
 export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks' | 'settings';
-export type CalendarViewMode = 'month' | 'year' | 'day';
+export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
 export interface CalendarEvent {
   id: string;
