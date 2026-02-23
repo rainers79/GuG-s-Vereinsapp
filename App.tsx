@@ -98,7 +98,6 @@ const App: React.FC = () => {
       case 'calendar':
         return (
           <CalendarView 
-            theme={theme} 
             polls={polls} 
             user={user!} 
             onRefresh={() => fetchAppData()} 
