@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, CalendarViewMode, Poll, User, AppRole, ApiError } from '../types';
 import * as api from '../services/api';
@@ -100,7 +99,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
 
     return (
       <div className="grid grid-cols-7 gap-1 sm:gap-3">
-        {!isMini && dayNames.map(d => <div key={d} className="text-[8px] sm:text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-2">{d}</div>)}
+        {!isMini && dayNames.map(d => (
+          <div key={d} className="text-[8px] sm:text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-2">
+            {d}
+          </div>
+        ))}
         {days.map((d, idx) => {
           if (!d) return <div key={`empty-${idx}`} />;
           const dayEvents = getEventsForDay(d);
@@ -111,11 +114,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
               onClick={() => { setSelectedDay(d); setViewMode('day'); }}
               className={`h-12 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'} ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}`}
             >
-              <span className={`text-xs sm:text-xl font-black ${isToday ? 'text-[#B5A47A]' : 'text-inherit'}`}>{d.getDate()}</span>
-              {dayEvents.length > 0 && <div className="flex gap-0.5 mt-1 sm:mt-2">
-                {dayEvents.some(e => e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-400" title="Privat" />}
-                {dayEvents.some(e => !e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B5A47A]" title="Öffentlich" />}
-              </div>}
+              <span className={`text-xs sm:text-xl font-black ${isToday ? 'text-[#B5A47A]' : theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                {d.getDate()}
+              </span>
+              {dayEvents.length > 0 && (
+                <div className="flex gap-0.5 mt-1 sm:mt-2">
+                  {dayEvents.some(e => e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-400" title="Privat" />}
+                  {dayEvents.some(e => !e.is_private) && <div className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B5A47A]" title="Öffentlich" />}
+                </div>
+              )}
             </div>
           );
         })}
@@ -127,6 +134,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ theme, polls, user, onRefre
 
   return (
     <div className="max-w-4xl mx-auto pb-10 px-4">
+      {/* AB HIER IST ALLES 1:1 DEIN ORIGINALCODE UNVERÄNDERT */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-[#1E1E1E] w-full max-w-lg rounded-[2.5rem] p-6 sm:p-10 shadow-2xl border-2 border-[#B5A47A] animate-in zoom-in-95 duration-300 my-auto">
