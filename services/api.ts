@@ -1,4 +1,3 @@
-
 import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse, RegistrationData, CalendarEvent } from '../types';
 
 const API_BASE = 'https://api.gug-verein.at/wp-json';
@@ -13,7 +12,11 @@ const mapWPRoleToAppRole = (wpRoles: any = []): AppRole => {
 };
 
 export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
+
+export const setToken = (token: string): void => {
+  localStorage.setItem(TOKEN_KEY, token);
+};
+
 export const clearToken = (): void => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -29,13 +32,14 @@ export async function apiRequest<T>(
   options: RequestInit = {},
   onUnauthorized?: () => void
 ): Promise<T> {
+
   const token = getToken();
   const headers = new Headers(options.headers);
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  
+
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -51,25 +55,32 @@ export async function apiRequest<T>(
         clearToken();
         if (onUnauthorized) onUnauthorized();
       }
+
       const errData = await response.json().catch(() => ({}));
-      throw { 
-        message: errData.message || 'Sitzung abgelaufen.', 
-        status: response.status 
+      throw {
+        message: errData.message || 'Sitzung abgelaufen.',
+        status: response.status
       } as ApiError;
     }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
       if (response.status === 404) {
-         throw { message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.', status: 404 } as ApiError;
+        throw {
+          message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.',
+          status: 404
+        } as ApiError;
       }
-      throw { 
-        message: errorData.message || `Fehler ${response.status}`, 
-        status: response.status 
+
+      throw {
+        message: errorData.message || `Fehler ${response.status}`,
+        status: response.status
       } as ApiError;
     }
 
     return await response.json();
+
   } catch (error: any) {
     if (error.status) throw error;
     throw { message: 'Netzwerkfehler. Bitte Verbindung prüfen.' } as ApiError;
@@ -87,15 +98,26 @@ export async function login(username: string, password: string): Promise<User> {
   return user;
 }
 
-export async function register(regData: RegistrationData): Promise<{success: boolean, message: string}> {
-  return await apiRequest<{success: boolean, message: string}>('/gug/v1/register', {
+export async function register(regData: RegistrationData): Promise<{ success: boolean, message: string }> {
+  return await apiRequest<{ success: boolean, message: string }>('/gug/v1/register', {
     method: 'POST',
-    body: JSON.stringify({ ...regData, admin_notification_email: 'rainer@schmidt-kottingbrunn.at' })
+    body: JSON.stringify(regData)
   });
+}
+
+/**
+ * E-Mail Bestätigung aufrufen
+ */
+export async function verifyEmail(uid: number, token: string): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/verify-email?uid=${uid}&token=${encodeURIComponent(token)}`,
+    { method: 'GET' }
+  );
 }
 
 export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {
   const wpUser = await apiRequest<any>('/gug/v1/me', {}, onUnauthorized);
+
   const user: User = {
     id: wpUser.id || 0,
     email: wpUser.user_email || wpUser.email || '',
@@ -103,6 +125,7 @@ export async function getCurrentUser(onUnauthorized: () => void): Promise<User> 
     username: wpUser.user_login || wpUser.username || '',
     role: mapWPRoleToAppRole(wpUser.roles)
   };
+
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
 }
@@ -112,33 +135,48 @@ export async function getPolls(onUnauthorized: () => void): Promise<Poll[]> {
 }
 
 export async function createPoll(payload: any, onUnauth: () => void): Promise<Poll> {
-  return await apiRequest<Poll>('/gug/v1/polls', { 
-    method: 'POST', 
-    body: JSON.stringify(payload) 
-  }, onUnauth);
+  return await apiRequest<Poll>(
+    '/gug/v1/polls',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauth
+  );
 }
 
 export async function deletePoll(pollId: number, onUnauth: () => void): Promise<any> {
-  return await apiRequest<any>(`/gug/v1/polls/${pollId}`, { 
-    method: 'DELETE'
-  }, onUnauth);
+  return await apiRequest<any>(
+    `/gug/v1/polls/${pollId}`,
+    { method: 'DELETE' },
+    onUnauth
+  );
 }
 
 export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
-  return await apiRequest<VoteResponse>(`/gug/v1/polls/${pollId}/vote`, { 
-    method: 'POST', 
-    body: JSON.stringify({ option_ids: optionIds }) 
-  }, onUnauth);
+  return await apiRequest<VoteResponse>(
+    `/gug/v1/polls/${pollId}/vote`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ option_ids: optionIds })
+    },
+    onUnauth
+  );
 }
 
 // Kalender-Events API
 export async function getEvents(onUnauthorized: () => void): Promise<CalendarEvent[]> {
-  return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized).catch(() => []);
+  return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized)
+    .catch(() => []);
 }
 
 export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () => void): Promise<CalendarEvent> {
-  return await apiRequest<CalendarEvent>('/gug/v1/events', {
-    method: 'POST',
-    body: JSON.stringify(event)
-  }, onUnauth);
+  return await apiRequest<CalendarEvent>(
+    '/gug/v1/events',
+    {
+      method: 'POST',
+      body: JSON.stringify(event)
+    },
+    onUnauth
+  );
 }
