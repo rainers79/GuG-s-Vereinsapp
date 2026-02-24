@@ -13,7 +13,6 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
       <div className="container mx-auto px-4 py-4 max-w-6xl flex items-center justify-between">
         <div className="flex items-center gap-4 sm:gap-6">
           
-          {/* Menu Toggle Button */}
           <button 
             onClick={onOpenMenu}
             className="p-2.5 text-white/70 hover:text-[#B5A47A] hover:bg-white/5 rounded-lg transition-all border border-white/5 flex items-center justify-center"
