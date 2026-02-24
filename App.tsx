@@ -24,7 +24,17 @@ const App: React.FC = () => {
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
 
-  // 🔹 Verify Parameter erkennen
+  // 🔥 Dark Mode korrekt aktivieren (Tailwind darkMode: 'class')
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('gug_theme', theme);
+  }, [theme]);
+
   const params = new URLSearchParams(window.location.search);
   const verifyUid = params.get('uid');
   const verifyToken = params.get('token');
@@ -40,16 +50,13 @@ const App: React.FC = () => {
 
   const fetchAppData = useCallback(async () => {
     if (!user) setLoading(true);
-    
     setError(null);
     try {
       const currentUser = await api.getCurrentUser(handleUnauthorized);
       setUser(currentUser);
-      
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
-      console.error('App loading error:', err);
       if (err.status === 401 || err.status === 403) {
         handleUnauthorized();
       } else {
@@ -67,10 +74,6 @@ const App: React.FC = () => {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('gug_theme', theme);
-  }, [theme]);
 
   const handleLoginSuccess = async (loggedUser: User) => {
     setUser(loggedUser);
@@ -111,7 +114,7 @@ const App: React.FC = () => {
       case 'tasks':
         return (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-xl p-20 text-center border shadow-sm transition-colors duration-500`}>
+             <div className="bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5 rounded-xl p-20 text-center shadow-sm transition-colors duration-500">
                 <div className="text-[#B5A47A] mb-8 flex justify-center">
                    <div className="p-10 bg-[#B5A47A]/5 rounded-full border border-[#B5A47A]/10">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,10 +122,12 @@ const App: React.FC = () => {
                       </svg>
                    </div>
                 </div>
-                <h3 className="text-2xl font-bold uppercase tracking-tighter">In Entwicklung</h3>
+                <h3 className="text-2xl font-bold uppercase tracking-tighter text-slate-900 dark:text-white">
+                  In Entwicklung
+                </h3>
                 <div className="h-1 w-12 bg-[#B5A47A] mx-auto mt-3 mb-4 rounded-full"></div>
-                <p className="opacity-50 text-sm max-w-sm mx-auto font-medium leading-relaxed">
-                  Die Komponente <span className="font-bold">"{activeView.toUpperCase()}"</span> wird aktuell für den GuG Verein vorbereitet.
+                <p className="text-slate-500 dark:text-slate-300 text-sm max-w-sm mx-auto font-medium leading-relaxed">
+                  Die Komponente <span className="font-bold">"{activeView.toUpperCase()}"</span> wird aktuell vorbereitet.
                 </p>
              </div>
           </div>
@@ -132,7 +137,6 @@ const App: React.FC = () => {
     }
   };
 
-  // 🔹 VERIFY MODE (wird vor normalem Layout gerendert)
   if (isVerifyMode) {
     return (
       <VerifyPage
@@ -148,10 +152,10 @@ const App: React.FC = () => {
 
   if (loading && !user) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#121212]' : 'bg-[#F8F8F8]'} transition-colors duration-500`}>
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8] dark:bg-[#121212] transition-colors duration-500">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B5A47A] mb-6"></div>
-          <p className={`${theme === 'dark' ? 'text-white' : 'text-[#1A1A1A]'} font-black uppercase text-[10px] tracking-widest`}>
+          <p className="font-black uppercase text-[10px] tracking-widest text-slate-900 dark:text-white">
             Initialisierung...
           </p>
         </div>
@@ -160,7 +164,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-[#121212] text-white' : 'bg-[#F8F8F8] text-[#1A1A1A]'}`}>
+    <div className="min-h-screen flex flex-col font-sans bg-[#F8F8F8] text-[#1A1A1A] dark:bg-[#121212] dark:text-white transition-colors duration-500">
       {error && <Notification message={error} type="error" onClose={() => setError(null)} />}
       {success && <Notification message={success} type="success" onClose={() => setSuccess(null)} />}
       
@@ -188,7 +192,7 @@ const App: React.FC = () => {
           <main className="flex-grow container mx-auto px-0 sm:px-4 py-12 max-w-4xl">
             {renderContent()}
           </main>
-          <footer className={`py-10 text-center border-t transition-colors duration-500 ${theme === 'dark' ? 'bg-[#1A1A1A] border-white/5' : 'bg-white border-slate-100'}`}>
+          <footer className="py-10 text-center border-t bg-white dark:bg-[#1A1A1A] border-slate-100 dark:border-white/5 transition-colors duration-500">
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.3em] mb-2">
               GuG Verein | Member Portal v1.0
             </p>
@@ -200,4 +204,5 @@ const App: React.FC = () => {
   );
 };
 
+export default App;
 export default App;
