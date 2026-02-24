@@ -5,14 +5,21 @@ export enum AppRole {
   VISITOR = 'VISITOR'
 }
 
-export type ViewType = 'polls' | 'calendar' | 'members' | 'tasks' | 'settings';
+export type ViewType =
+  | 'dashboard'
+  | 'polls'
+  | 'calendar'
+  | 'members'
+  | 'tasks'
+  | 'settings';
+
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
 export interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  date: string; // ISO String
+  date: string;
   type: 'poll' | 'task' | 'event';
   status: 'red' | 'orange' | 'green';
   author: string;
@@ -40,7 +47,7 @@ export interface RegistrationData {
   firstName: string;
   lastName: string;
   birthday: string;
-  email: string;      // ✅ NEU
+  email: string;
   username: string;
   password: string;
 }
@@ -56,7 +63,7 @@ export interface Poll {
   question: string;
   options: PollOption[];
   created_at: string;
-  target_date?: string; // Das Datum für den Kalender
+  target_date?: string;
   author_id: number;
   author_name?: string;
   total_votes: number;
