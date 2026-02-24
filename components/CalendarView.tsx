@@ -12,7 +12,12 @@ interface CalendarViewProps {
   onOpenPoll: (pollId: number) => void;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({
+  polls,
+  user,
+  onRefresh,
+  onOpenPoll
+}) => {
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
