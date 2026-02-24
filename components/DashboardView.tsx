@@ -1,6 +1,6 @@
 // components/DashboardView.tsx
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Poll, ViewType } from '../types';
 
 interface Props {
@@ -11,7 +11,66 @@ interface Props {
 
 const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
 
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const upcomingPolls = polls.filter(p => p.target_date);
+
+  /* ================= LOAD PROFILE IMAGE ================= */
+  useEffect(() => {
+    fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.profile_image_url) {
+          setProfileImage(data.profile_image_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  /* ================= HANDLE UPLOAD ================= */
+  const handleImageUpload = async (file: File) => {
+
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('Nur Bilddateien erlaubt.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+
+    try {
+      const response = await fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Upload fehlgeschlagen.');
+      }
+
+      setProfileImage(data.profile_image_url);
+
+    } catch (err: any) {
+      setError(err.message || 'Fehler beim Upload.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-10">
@@ -25,8 +84,43 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
           <div className="flex items-center gap-6">
 
             {/* Rundes Profilbild */}
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A] shadow-lg shadow-black/20">
-              {user.displayName.charAt(0).toUpperCase()}
+            <div className="relative">
+
+              <label className="cursor-pointer block">
+                <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg shadow-black/20 border-2 border-[#B5A47A]">
+
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt="Profil"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+
+                </div>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleImageUpload(e.target.files[0]);
+                    }
+                  }}
+                />
+              </label>
+
+              {uploading && (
+                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  Upload...
+                </div>
+              )}
+
             </div>
 
             {/* Name & Rolle */}
@@ -40,6 +134,12 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
                 Willkommen im Vereins-Dashboard
               </p>
+
+              {error && (
+                <p className="text-red-500 text-sm mt-3">
+                  {error}
+                </p>
+              )}
             </div>
           </div>
 
