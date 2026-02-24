@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, ViewType } from './types';
 import * as api from './services/api';
 import MembersView from './components/MembersView';
+import TasksView from './components/TasksView';
+
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import PollList from './components/PollList';
@@ -95,7 +97,6 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
-
       case 'dashboard':
         return (
           <DashboardView
@@ -135,22 +136,20 @@ const App: React.FC = () => {
         );
 
       case 'members':
-  return (
-    <MembersView
-      currentUserRole={user!.role}
-      onUnauthorized={handleUnauthorized}
-    />
-  );
+        return (
+          <MembersView
+            currentUserRole={user!.role}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
+
       case 'tasks':
         return (
-          <div className="bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5 rounded-xl p-20 text-center">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
-              In Entwicklung
-            </h3>
-            <p className="text-slate-500 dark:text-slate-300 text-sm mt-4">
-              Diese Komponente wird aktuell vorbereitet.
-            </p>
-          </div>
+          <TasksView
+            userId={user!.id}
+            userRole={user!.role}
+            onUnauthorized={handleUnauthorized}
+          />
         );
 
       default:
