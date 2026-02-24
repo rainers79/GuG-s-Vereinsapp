@@ -104,17 +104,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
                   key={ev.id}
                   onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
                   className="mt-1 text-[10px] font-bold text-[#B5A47A] hover:underline max-w-[90%] truncate"
-                  title={ev.title}
                 >
                   {ev.title}
                 </button>
               ))}
-
-              {dayEvents.length > 2 && (
-                <div className="text-[9px] font-bold text-slate-400 mt-1">
-                  +{dayEvents.length - 2}
-                </div>
-              )}
             </div>
           );
         })}
@@ -123,30 +116,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   };
 
   const renderDayView = () => {
-    if (!selectedDay) {
-      return (
-        <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-8 border border-slate-200 dark:border-white/5">
-          <p className="text-slate-500 dark:text-slate-400 font-bold">
-            Kein Tag ausgewählt.
-          </p>
-        </div>
-      );
-    }
+    if (!selectedDay) return null;
 
     const dayEvents = getEventsForDay(selectedDay);
 
     return (
       <div className="space-y-6">
-
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => setViewMode('month')}
-            className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-[#B5A47A]"
-          >
+          <button onClick={() => setViewMode('month')} className="text-sm font-bold text-slate-500 hover:text-[#B5A47A]">
             ← zurück
           </button>
 
-          <div className="text-sm font-black text-slate-700 dark:text-slate-200">
+          <div className="text-sm font-black">
             {selectedDay.toLocaleDateString()}
           </div>
 
@@ -162,7 +143,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
 
         <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 border border-slate-200 dark:border-white/5">
           {dayEvents.length === 0 ? (
-            <p className="text-slate-500 dark:text-slate-400 font-bold">
+            <p className="text-slate-500 font-bold">
               Keine Termine an diesem Tag.
             </p>
           ) : (
@@ -173,8 +154,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
                   onClick={() => setSelectedEvent(ev)}
                   className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#B5A47A] transition"
                 >
-                  <div className="font-black text-slate-900 dark:text-white">{ev.title}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="font-black">{ev.title}</div>
+                  <div className="text-sm text-slate-500 mt-1">
                     {ev.description || 'Keine Beschreibung'}
                   </div>
                 </button>
@@ -182,7 +163,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
             </div>
           )}
         </div>
-
       </div>
     );
   };
@@ -210,6 +190,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
         />
       )}
 
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl">
           <button onClick={()=>setViewMode('month')} className={`flex-1 py-3 px-6 rounded-xl font-bold ${viewMode==='month'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Monat</button>
@@ -227,8 +208,31 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
         )}
       </div>
 
+      {/* MONATS TITEL */}
       {viewMode==='month' && (
-        renderMonthGrid(currentDate.getFullYear(),currentDate.getMonth())
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1))}
+              className="font-bold text-slate-500 hover:text-[#B5A47A]"
+            >
+              ←
+            </button>
+
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 1))}
+              className="font-bold text-slate-500 hover:text-[#B5A47A]"
+            >
+              →
+            </button>
+          </div>
+
+          {renderMonthGrid(currentDate.getFullYear(),currentDate.getMonth())}
+        </>
       )}
 
       {viewMode==='year' && (
@@ -265,7 +269,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
                   : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}
                 ${isActive ? 'ring-2 ring-[#B5A47A]' : ''}`}
               >
-                <span className="font-black text-slate-900 dark:text-white">{name}</span>
+                <span className="font-black">{name}</span>
                 {hasEventsInMonth(currentDate.getFullYear(),idx) && (
                   <span className="text-[#B5A47A] font-bold">Termine</span>
                 )}
@@ -275,9 +279,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
         </div>
       )}
 
-      {viewMode==='day' && (
-        renderDayView()
-      )}
+      {viewMode==='day' && renderDayView()}
 
     </div>
   );
