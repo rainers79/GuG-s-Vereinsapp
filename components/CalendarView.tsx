@@ -212,12 +212,11 @@ if (selectedEvent) {
       user={user}
       onBack={() => setSelectedEvent(null)}
       onCreatePoll={() => {
-        if (selectedEvent.linkedPollId) {
-          onOpenPoll(selectedEvent.linkedPollId);
-        } else {
-          setPollEventContext(selectedEvent);
-          setShowPollCreate(true);
-        }
+        setPollEventContext(selectedEvent);
+        setShowPollCreate(true);
+      }}
+      onOpenPoll={(pollId) => {
+        onOpenPoll(pollId);
       }}
       onCreateTasks={(id) => console.log('Create tasks for', id)}
     />
