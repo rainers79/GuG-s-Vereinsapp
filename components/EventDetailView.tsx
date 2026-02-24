@@ -1,3 +1,5 @@
+// components/EventDetailView.tsx
+
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
 
@@ -211,4 +213,3 @@ const EventDetailView: React.FC<Props> = ({
 };
 
 export default EventDetailView;
-
