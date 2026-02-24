@@ -98,13 +98,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-4 cursor-pointer"
             >
               {/* Vereinslogo */}
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 shadow-xl shadow-black/40">
-                <img
-                  src="/logo.png"
-                  alt="Vereinslogo"
-                  className="w-full h-full object-contain p-1"
-                />
-              </div>
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
+  <img
+    src="/logo.png"
+    alt="Vereinslogo"
+    className="w-8 h-8 object-contain"
+  />
+</div>
 
               <div>
                 <span className="text-white font-bold block leading-none text-xl tracking-tight">
