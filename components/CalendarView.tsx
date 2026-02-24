@@ -225,14 +225,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           ← Zurück zum Event
         </button>
 
-        <PollCreate
-          onSuccess={async () => {
-            await onRefresh();
-            setShowPollCreate(false);
-            setPollEventContext(null);
-          }}
-          onUnauthorized={() => {}}
-        />
+      <PollCreate
+        eventId={pollEventContext.id}
+        defaultDate={
+          typeof pollEventContext.date === 'string'
+            ? pollEventContext.date.split('T')[0]
+            : ''
+        }
+        onSuccess={async () => {
+          await onRefresh();
+          setShowPollCreate(false);
+          setPollEventContext(null);
+        }}
+        onUnauthorized={() => {}}
+      />
       </div>
     );
   }
