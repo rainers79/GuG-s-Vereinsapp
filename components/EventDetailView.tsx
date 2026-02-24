@@ -130,9 +130,12 @@ const EventDetailView: React.FC<Props> = ({
                 <p className="mb-4 text-green-600 font-bold">
                   Umfrage ist verknüpft.
                 </p>
-                <button className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black">
-                  Zur Umfrage
-                </button>
+                <button
+  onClick={() => onCreatePoll(event.id)}
+  className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black"
+>
+  Zur Umfrage
+</button>
               </div>
             ) : (
               canManage && (
