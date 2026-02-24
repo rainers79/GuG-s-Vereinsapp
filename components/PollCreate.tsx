@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as api from '../services/api';
 
 interface PollCreateProps {
   onSuccess: () => void;
   onUnauthorized: () => void;
+  eventId?: number | string;
+  defaultDate?: string;
 }
 
-const PollCreate: React.FC<PollCreateProps> = ({ onSuccess, onUnauthorized }) => {
+const PollCreate: React.FC<PollCreateProps> = ({
+  onSuccess,
+  onUnauthorized,
+  eventId,
+  defaultDate
+}) => {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
-  const [targetDate, setTargetDate] = useState('');
+  const [targetDate, setTargetDate] = useState(defaultDate || '');
   const [isMultipleChoice, setIsMultipleChoice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultDate) {
+      setTargetDate(defaultDate);
+    }
+  }, [defaultDate]);
 
   const addOption = () => setOptions([...options, '']);
   const removeOption = (index: number) => setOptions(options.filter((_, i) => i !== index));
@@ -37,7 +50,8 @@ const PollCreate: React.FC<PollCreateProps> = ({ onSuccess, onUnauthorized }) =>
           question,
           options: filteredOptions,
           is_multiple_choice: isMultipleChoice,
-          target_date: targetDate || null
+          target_date: targetDate || null,
+          event_id: eventId ? Number(eventId) : null
         },
         onUnauthorized
       );
@@ -84,7 +98,6 @@ const PollCreate: React.FC<PollCreateProps> = ({ onSuccess, onUnauthorized }) =>
             />
           </div>
 
-          {/* ✅ Mehrfachauswahl Toggle */}
           <div className="flex items-center justify-between gap-4 p-5 rounded-2xl border-2 border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-black/20">
             <div className="space-y-1">
               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Abstimmungsmodus</div>
