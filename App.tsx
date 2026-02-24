@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>('calendar');
+  const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
@@ -88,15 +89,16 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
-      case 'polls':
-        return (
-          <PollList 
-            polls={polls} 
-            user={user!} 
-            onRefresh={() => fetchAppData()} 
-            onUnauthorized={handleUnauthorized}
-          />
-        );
+    case 'polls':
+  return (
+    <PollList 
+      polls={polls} 
+      user={user!} 
+      selectedPollId={selectedPollId}
+      onRefresh={() => fetchAppData()} 
+      onUnauthorized={handleUnauthorized}
+    />
+  );
       case 'calendar':
         return (
           <CalendarView 
