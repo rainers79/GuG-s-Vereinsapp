@@ -89,10 +89,10 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
-const toggleSidebar = () => {
-  setIsSidebarOpen(prev => !prev);
-};
-  
+  const toggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
   const renderContent = () => {
     switch (activeView) {
 
@@ -200,14 +200,15 @@ const toggleSidebar = () => {
             onClose={() => setIsSidebarOpen(false)}
             activeView={activeView}
             onViewChange={setActiveView}
+            userRole={user.role}
           />
 
-<Header
-  user={user}
-  onLogout={handleLogout}
-  onOpenMenu={toggleSidebar}
-  onGoHome={() => setActiveView('dashboard')}
-/>
+          <Header
+            user={user}
+            onLogout={handleLogout}
+            onOpenMenu={toggleSidebar}
+            onGoHome={() => setActiveView('dashboard')}
+          />
 
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {renderContent()}
