@@ -9,58 +9,70 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
   return (
-    <header className="bg-[#1A1A1A] text-white sticky top-0 z-50 shadow-xl shadow-black/10">
-      <div className="container mx-auto px-4 py-4 max-w-6xl flex items-center justify-between">
-        <div className="flex items-center gap-4 sm:gap-6">
+    <header className="bg-[#1A1A1A] text-white sticky top-0 z-50 border-b border-white/5">
+      
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        
+        {/* LEFT SIDE */}
+        <div className="flex items-center gap-4">
           
-          <button 
+          {/* Sidebar Toggle */}
+          <button
             onClick={onOpenMenu}
-            className="p-2.5 text-white/70 hover:text-[#B5A47A] hover:bg-white/5 rounded-lg transition-all border border-white/5 flex items-center justify-center"
+            className="p-2 rounded-lg text-white/60 hover:text-[#B5A47A] hover:bg-white/5 transition-all border border-white/5"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
-          <div className="flex items-center gap-4">
-            
-            {/* Vereinslogo */}
-            <div className="w-12 h-12 flex items-center justify-center shrink-0">
-              <img 
+          {/* Logo + Title */}
+          <div className="flex items-center gap-3">
+
+            <div className="h-10 flex items-center">
+              <img
                 src="/logo.png"
-                alt="GuG Verein Logo"
-                className="h-12 w-auto object-contain"
+                alt="GuG Logo"
+                className="h-10 w-auto object-contain"
               />
             </div>
 
-            <div className="hidden xs:block">
-              <span className="text-lg font-bold block leading-none tracking-tight">
+            <div className="hidden sm:block leading-tight">
+              <div className="text-base font-semibold tracking-tight">
                 GuG Verein
-              </span>
-              <span className="text-[9px] font-black text-[#B5A47A] uppercase tracking-widest opacity-80">
-                Member Interface
-              </span>
+              </div>
+              <div className="text-[10px] text-[#B5A47A] uppercase tracking-widest font-bold">
+                Member Portal
+              </div>
             </div>
+
           </div>
         </div>
 
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="text-right hidden sm:block border-r border-white/10 pr-6 mr-2">
-            <p className="text-sm font-bold leading-tight">{user.displayName}</p>
-            <p className="text-[9px] text-[#B5A47A] font-black uppercase tracking-widest mt-1">
+        {/* RIGHT SIDE */}
+        <div className="flex items-center gap-5">
+
+          {/* User Info */}
+          <div className="hidden md:block text-right">
+            <div className="text-sm font-semibold leading-none">
+              {user.displayName}
+            </div>
+            <div className="text-[10px] text-[#B5A47A] uppercase tracking-widest mt-1">
               {user.role}
-            </p>
+            </div>
           </div>
-          
+
+          {/* Logout Button */}
           <button
             onClick={onLogout}
-            className="p-2.5 text-white/50 hover:text-[#B5A47A] hover:bg-white/5 rounded-lg transition-all border border-transparent hover:border-white/10"
             title="Abmelden"
+            className="p-2 rounded-lg text-white/50 hover:text-[#B5A47A] hover:bg-white/5 transition-all"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
+
         </div>
       </div>
     </header>
