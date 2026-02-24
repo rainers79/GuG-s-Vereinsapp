@@ -99,21 +99,10 @@ const App: React.FC = () => {
       onUnauthorized={handleUnauthorized}
     />
   );
-     case 'calendar':
+case 'settings':
   return (
-    <CalendarView 
-      polls={polls} 
-      user={user!} 
-      onRefresh={() => fetchAppData()}
-      onOpenPoll={(pollId) => {
-        setSelectedPollId(pollId);
-        setActiveView('polls');
-      }}
-    />
+    <SettingsView theme={theme} onThemeChange={setTheme} />
   );
-        return (
-          <SettingsView theme={theme} onThemeChange={setTheme} />
-        );
       case 'members':
       case 'tasks':
         return (
