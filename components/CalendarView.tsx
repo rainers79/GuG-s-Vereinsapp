@@ -5,7 +5,12 @@ import EventDetailView from './EventDetailView';
 import EventCreateModal from './EventCreateModal';
 import PollCreate from './PollCreate';
 
-interface CalendarViewProps { polls: Poll[]; user: User; onRefresh: () => void; }
+interface CalendarViewProps {
+  polls: Poll[];
+  user: User;
+  onRefresh: () => void;
+  onOpenPoll: (pollId: number) => void;
+}
 
 const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) => {
 
