@@ -12,7 +12,13 @@ interface PollListProps {
   onUnauthorized: () => void;
 }
 
-const PollList: React.FC<PollListProps> = ({ polls, user, onRefresh, onUnauthorized }) => {
+const PollList: React.FC<PollListProps> = ({ 
+  polls, 
+  user, 
+  selectedPollId, 
+  onRefresh, 
+  onUnauthorized 
+}) => {
   const [showCreate, setShowCreate] = useState(false);
   const canCreate = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
 const selectedPoll = polls.find(p => p.id === selectedPollId);
