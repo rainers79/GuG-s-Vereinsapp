@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
 
-
 type TabType = 'overview' | 'poll' | 'tasks';
 
 interface Task {
@@ -14,11 +13,21 @@ interface Task {
   status?: string;
 }
 
+interface Props {
+  event: CalendarEvent;
+  user: User;
+  onBack: () => void;
+  onCreatePoll: () => void;
+  onOpenPoll: (pollId: number) => void;
+  onCreateTasks: (eventId: string) => void;
+}
+
 const EventDetailView: React.FC<Props> = ({
   event,
   user,
   onBack,
   onCreatePoll,
+  onOpenPoll,
   onCreateTasks
 }) => {
 
@@ -43,10 +52,11 @@ const EventDetailView: React.FC<Props> = ({
     })
       .then(r => r.json())
       .then((data: Task[]) => {
-        // Nach Event filtern
-        const eventTasks = data.filter(t => t.event_id === Number(event.id));
 
-        // Rollenlogik
+        const eventTasks = data.filter(
+          t => t.event_id === Number(event.id)
+        );
+
         const visibleTasks = canManage
           ? eventTasks
           : eventTasks.filter(t => t.assigned_user_id === user.id);
@@ -86,6 +96,7 @@ const EventDetailView: React.FC<Props> = ({
           >
             Übersicht
           </button>
+
           <button
             onClick={() => setActiveTab('poll')}
             className={`flex-1 py-2 rounded-lg font-bold ${
@@ -96,6 +107,7 @@ const EventDetailView: React.FC<Props> = ({
           >
             Umfrage
           </button>
+
           <button
             onClick={() => setActiveTab('tasks')}
             className={`flex-1 py-2 rounded-lg font-bold ${
@@ -123,14 +135,18 @@ const EventDetailView: React.FC<Props> = ({
                 <p className="mb-4 text-green-600 font-bold">
                   Umfrage ist verknüpft.
                 </p>
-               <button className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black">
-                Zur Umfrage
+
+                <button
+                  onClick={() => onOpenPoll(event.linkedPollId!)}
+                  className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black"
+                >
+                  Zur Umfrage
                 </button>
               </div>
             ) : (
               canManage && (
                 <button
-                  onClick={() => onCreatePoll(event.id)}
+                  onClick={onCreatePoll}
                   className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black"
                 >
                   Umfrage erstellen
@@ -175,6 +191,7 @@ const EventDetailView: React.FC<Props> = ({
                     <p className="text-sm text-slate-600 dark:text-slate-400">
                       {task.description}
                     </p>
+
                     {task.role_tag && (
                       <p className="text-xs mt-2 text-[#B5A47A] font-bold">
                         Rolle: {task.role_tag}
@@ -193,4 +210,5 @@ const EventDetailView: React.FC<Props> = ({
   );
 };
 
+export default EventDetailView;
 export default EventDetailView;
