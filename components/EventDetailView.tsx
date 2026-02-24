@@ -211,4 +211,4 @@ const EventDetailView: React.FC<Props> = ({
 };
 
 export default EventDetailView;
-export default EventDetailView;
+
