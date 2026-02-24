@@ -1,7 +1,9 @@
 // components/DashboardView.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
 import { User, Poll, ViewType } from '../types';
+import { getCroppedImg } from '../utils/cropImage';
 
 interface Props {
   user: User;
@@ -12,12 +14,16 @@ interface Props {
 const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const upcomingPolls = polls.filter(p => p.target_date);
 
-  /* ================= LOAD PROFILE IMAGE ================= */
+  /* Load existing image */
   useEffect(() => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
       headers: {
@@ -29,26 +35,33 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
         if (data.profile_image_url) {
           setProfileImage(data.profile_image_url);
         }
-      })
-      .catch(() => {});
+      });
   }, []);
 
-  /* ================= HANDLE UPLOAD ================= */
-  const handleImageUpload = async (file: File) => {
+  const onCropComplete = useCallback((_: any, croppedPixels: any) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
 
-    setError(null);
+  const handleFileSelect = (file: File) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      setSelectedImage(reader.result as string);
+    };
+  };
 
-    if (!file.type.startsWith('image/')) {
-      setError('Nur Bilddateien erlaubt.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
+  const handleUpload = async () => {
+    if (!selectedImage || !croppedAreaPixels) return;
 
     setUploading(true);
+    setError(null);
 
     try {
+      const croppedBlob = await getCroppedImg(selectedImage, croppedAreaPixels);
+
+      const formData = new FormData();
+      formData.append('file', croppedBlob, 'profile.jpg');
+
       const response = await fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
         method: 'POST',
         headers: {
@@ -59,14 +72,13 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data?.message || 'Upload fehlgeschlagen.');
-      }
+      if (!response.ok) throw new Error(data?.message);
 
       setProfileImage(data.profile_image_url);
+      setSelectedImage(null);
 
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Upload.');
+      setError(err.message || 'Upload fehlgeschlagen');
     } finally {
       setUploading(false);
     }
@@ -75,135 +87,114 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
   return (
     <div className="space-y-10">
 
-      {/* ================= PROFIL BEREICH ================= */}
-      <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl p-8 border border-slate-200 dark:border-white/5 shadow-xl">
+      {/* ================= PROFIL ================= */}
+      <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl p-8 border shadow-xl">
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+        <div className="flex items-center gap-6">
 
-          {/* Profil Links */}
-          <div className="flex items-center gap-6">
+          {/* Avatar */}
+          <div className="relative">
 
-            {/* Rundes Profilbild */}
-            <div className="relative">
+            <label className="cursor-pointer block">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#B5A47A]">
 
-              <label className="cursor-pointer block">
-                <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg shadow-black/20 border-2 border-[#B5A47A]">
+                {profileImage ? (
+                  <img src={profileImage} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
+                    {user.displayName.charAt(0)}
+                  </div>
+                )}
 
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profil"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
-                      {user.displayName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-
-                </div>
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleImageUpload(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-
-              {uploading && (
-                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                  Upload...
-                </div>
-              )}
-
-            </div>
-
-            {/* Name & Rolle */}
-            <div>
-              <h1 className="text-3xl font-black leading-tight">
-                {user.displayName}
-              </h1>
-              <p className="text-sm text-[#B5A47A] font-bold uppercase tracking-widest mt-2">
-                {user.role}
-              </p>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
-                Willkommen im Vereins-Dashboard
-              </p>
-
-              {error && (
-                <p className="text-red-500 text-sm mt-3">
-                  {error}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Logo Platzhalter Rechts */}
-          <div className="flex items-center justify-center">
-
-            <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-[#B5A47A]/40 flex items-center justify-center text-[#B5A47A] text-xs font-black uppercase tracking-widest text-center p-4">
-              Vereins<br />Logo
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ================= DASHBOARD KACHELN ================= */}
-      <div className="grid md:grid-cols-3 gap-6">
-
-        <div
-          onClick={() => onNavigate('calendar')}
-          className="cursor-pointer p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border hover:border-[#B5A47A] transition shadow-lg"
-        >
-          <h3 className="font-black text-lg mb-2">Kalender</h3>
-          <p className="text-sm text-slate-500">
-            Termine & Events verwalten
-          </p>
-        </div>
-
-        <div
-          onClick={() => onNavigate('polls')}
-          className="cursor-pointer p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border hover:border-[#B5A47A] transition shadow-lg"
-        >
-          <h3 className="font-black text-lg mb-2">Umfragen</h3>
-          <p className="text-sm text-slate-500">
-            {polls.length} aktive Umfragen
-          </p>
-        </div>
-
-        <div
-          onClick={() => onNavigate('tasks')}
-          className="cursor-pointer p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border hover:border-[#B5A47A] transition shadow-lg"
-        >
-          <h3 className="font-black text-lg mb-2">Aufgaben</h3>
-          <p className="text-sm text-slate-500">
-            Deine Aufgaben verwalten
-          </p>
-        </div>
-
-      </div>
-
-      {/* ================= ANSTEHENDE UMFRAGEN ================= */}
-      {upcomingPolls.length > 0 && (
-        <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 border shadow-lg">
-          <h3 className="font-black mb-4">Anstehende Umfragen</h3>
-          <div className="space-y-2">
-            {upcomingPolls.slice(0, 5).map(p => (
-              <div key={p.id} className="text-sm">
-                {p.question}
               </div>
-            ))}
+
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileSelect(e.target.files[0]);
+                  }
+                }}
+              />
+            </label>
+
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-black">{user.displayName}</h1>
+            <p className="text-sm text-[#B5A47A] uppercase font-bold">{user.role}</p>
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </div>
+
+        </div>
+      </div>
+
+      {/* ================= CROP MODAL ================= */}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+
+          <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-2xl w-[90%] max-w-lg">
+
+            <div className="relative w-full h-80 bg-black rounded-xl overflow-hidden">
+              <Cropper
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+
+            <div className="mt-4 flex justify-between items-center">
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+              />
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="px-4 py-2 rounded-lg bg-gray-400 text-white"
+                >
+                  Abbrechen
+                </button>
+
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="px-4 py-2 rounded-lg bg-[#B5A47A] text-black font-bold"
+                >
+                  {uploading ? 'Speichern...' : 'Speichern'}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
+
+      {/* ================= KACHELN ================= */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div onClick={() => onNavigate('calendar')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
+          <h3 className="font-black">Kalender</h3>
+        </div>
+
+        <div onClick={() => onNavigate('polls')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
+          <h3 className="font-black">Umfragen</h3>
+        </div>
+
+        <div onClick={() => onNavigate('tasks')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
+          <h3 className="font-black">Aufgaben</h3>
+        </div>
+      </div>
 
     </div>
   );
