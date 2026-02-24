@@ -169,4 +169,4 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   );
 };
 
-export default CalendarView;arView;
+export default CalendarView;
