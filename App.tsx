@@ -24,7 +24,6 @@ const App: React.FC = () => {
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
 
-  // 🔥 Dark Mode korrekt aktivieren (Tailwind darkMode: 'class')
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -204,5 +203,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
 export default App;
