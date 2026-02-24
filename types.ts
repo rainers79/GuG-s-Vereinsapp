@@ -82,3 +82,20 @@ export interface VoteResponse {
   message: string;
   poll: Poll;
 }
+export interface MemberMeta {
+  first_name: string;
+  last_name: string;
+  birthday: string;
+  phone: string;
+  address: string;
+  title: string;
+}
+
+export interface Member {
+  id: number;
+  username: string;
+  email: string;
+  display_name: string;
+  roles: string[];
+  meta: MemberMeta;
+}
