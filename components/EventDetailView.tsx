@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
 
 interface Props {
@@ -11,6 +11,16 @@ interface Props {
 
 type TabType = 'overview' | 'poll' | 'tasks';
 
+interface Task {
+  id: number;
+  event_id: number;
+  title: string;
+  description: string;
+  assigned_user_id: number;
+  role_tag?: string;
+  status?: string;
+}
+
 const EventDetailView: React.FC<Props> = ({
   event,
   user,
@@ -20,10 +30,40 @@ const EventDetailView: React.FC<Props> = ({
 }) => {
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
 
   const canManage =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
+
+  // 🔥 Tasks laden wenn Aufgaben-Tab aktiv wird
+  useEffect(() => {
+    if (activeTab !== 'tasks') return;
+
+    setLoadingTasks(true);
+
+    fetch('https://api.gug-verein.at/wp-json/gug/v1/tasks', {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+      }
+    })
+      .then(r => r.json())
+      .then((data: Task[]) => {
+        // Nach Event filtern
+        const eventTasks = data.filter(t => t.event_id === Number(event.id));
+
+        // Rollenlogik
+        const visibleTasks = canManage
+          ? eventTasks
+          : eventTasks.filter(t => t.assigned_user_id === user.id);
+
+        setTasks(visibleTasks);
+      })
+      .catch(err => console.error('Task Load Error:', err))
+      .finally(() => setLoadingTasks(false));
+
+  }, [activeTab, event.id, user.id, canManage]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-20">
@@ -109,18 +149,49 @@ const EventDetailView: React.FC<Props> = ({
 
         {activeTab === 'tasks' && (
           <div>
-            {canManage ? (
+
+            {canManage && (
               <button
                 onClick={() => onCreateTasks(event.id)}
-                className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black"
+                className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black mb-6"
               >
                 Aufgaben erstellen
               </button>
-            ) : (
+            )}
+
+            {loadingTasks && (
+              <p className="text-slate-500 dark:text-slate-400">
+                Aufgaben werden geladen...
+              </p>
+            )}
+
+            {!loadingTasks && tasks.length === 0 && (
               <p className="text-slate-500 dark:text-slate-400">
                 Keine Aufgaben vorhanden.
               </p>
             )}
+
+            {!loadingTasks && tasks.length > 0 && (
+              <div className="space-y-4">
+                {tasks.map(task => (
+                  <div
+                    key={task.id}
+                    className="p-4 rounded-xl bg-slate-100 dark:bg-[#111] border border-slate-200 dark:border-white/5"
+                  >
+                    <h4 className="font-bold mb-1">{task.title}</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {task.description}
+                    </p>
+                    {task.role_tag && (
+                      <p className="text-xs mt-2 text-[#B5A47A] font-bold">
+                        Rolle: {task.role_tag}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
         )}
 
