@@ -198,11 +198,12 @@ const App: React.FC = () => {
             onViewChange={setActiveView}
           />
 
-          <Header
-            user={user}
-            onLogout={handleLogout}
-            onOpenMenu={() => setIsSidebarOpen(true)}
-          />
+<Header
+  user={user}
+  onLogout={handleLogout}
+  onOpenMenu={toggleSidebar}
+  onGoHome={() => setActiveView('dashboard')}
+/>
 
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {renderContent()}
