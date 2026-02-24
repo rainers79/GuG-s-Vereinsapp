@@ -135,6 +135,12 @@ const App: React.FC = () => {
         );
 
       case 'members':
+  return (
+    <MembersView
+      currentUserRole={user!.role}
+      onUnauthorized={handleUnauthorized}
+    />
+  );
       case 'tasks':
         return (
           <div className="bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5 rounded-xl p-20 text-center">
