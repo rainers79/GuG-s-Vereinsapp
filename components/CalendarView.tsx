@@ -3,6 +3,7 @@ import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
 import * as api from '../services/api';
 import EventDetailView from './EventDetailView';
 import EventCreateModal from './EventCreateModal';
+import PollCreate from './PollCreate';
 
 interface CalendarViewProps { polls: Poll[]; user: User; onRefresh: () => void; }
 
@@ -14,7 +15,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
+const [showPollCreate, setShowPollCreate] = useState(false);
+const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(null);
   const canCreate =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
@@ -167,17 +169,46 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
     );
   };
 
-  if (selectedEvent) {
-    return (
-      <EventDetailView
-        event={selectedEvent}
-        user={user}
-        onBack={() => setSelectedEvent(null)}
-        onCreatePoll={(id) => console.log('Create poll for', id)}
-        onCreateTasks={(id) => console.log('Create tasks for', id)}
+  // 🔥 POLL CREATE VIEW
+if (showPollCreate && pollEventContext) {
+  return (
+    <div className="max-w-4xl mx-auto px-4 pb-20">
+      <button
+        onClick={() => {
+          setShowPollCreate(false);
+          setPollEventContext(null);
+        }}
+        className="mb-6 text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
+      >
+        ← Zurück zum Event
+      </button>
+
+      <PollCreate
+        onSuccess={async () => {
+          await onRefresh();
+          setShowPollCreate(false);
+          setPollEventContext(null);
+        }}
+        onUnauthorized={() => {}}
       />
-    );
-  }
+    </div>
+  );
+}
+
+if (selectedEvent) {
+  return (
+    <EventDetailView
+      event={selectedEvent}
+      user={user}
+      onBack={() => setSelectedEvent(null)}
+      onCreatePoll={() => {
+        setPollEventContext(selectedEvent);
+        setShowPollCreate(true);
+      }}
+      onCreateTasks={(id) => console.log('Create tasks for', id)}
+    />
+  );
+}
 
   return(
     <div className="max-w-4xl mx-auto pb-10 px-4">
