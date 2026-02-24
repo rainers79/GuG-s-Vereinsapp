@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
 import * as api from '../services/api';
+import EventDetailView from './EventDetailView';
 
 interface CalendarViewProps { polls: Poll[]; user: User; onRefresh: () => void; }
 
@@ -9,6 +10,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => { loadEvents(); }, []);
@@ -50,12 +52,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   const isSameDay=(d1:Date,d2:Date)=>d1.toDateString()===d2.toDateString();
   const getEventsForDay=(date:Date)=>allEventsCombined.filter(e=>isSameDay(new Date(e.date),date));
 
-  const hasEventsInMonth = (year:number, month:number) =>
-    allEventsCombined.some(e=>{
-      const d = new Date(e.date);
-      return d.getFullYear()===year && d.getMonth()===month;
-    });
-
   const renderMonthGrid=(year:number,month:number,isMini=false)=>{
     const daysInMonth=getDaysInMonth(year,month);
     const firstDay=getFirstDayOfMonth(year,month);
@@ -78,21 +74,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
           return(
             <div
               key={idx}
-              onClick={()=>{setSelectedDay(d);setViewMode('day');}}
-              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer 
+              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all 
               bg-white dark:bg-[#1E1E1E]
               border border-slate-200 dark:border-white/5
-              hover:bg-slate-100 dark:hover:bg-white/10
               ${isToday?'ring-2 ring-[#B5A47A]':''}`}
             >
               <span className={`text-sm sm:text-xl font-black ${isToday?'text-[#B5A47A]':'text-slate-900 dark:text-white'}`}>
                 {d.getDate()}
               </span>
-              {dayEvents.length>0&&(
-                <div className="flex gap-0.5 mt-1 sm:mt-2">
-                  <div className="w-2 h-2 rounded-full bg-[#B5A47A]" />
-                </div>
-              )}
+
+              {dayEvents.map(ev => (
+                <button
+                  key={ev.id}
+                  onClick={() => setSelectedEvent(ev)}
+                  className="mt-1 text-[10px] font-bold text-[#B5A47A] hover:underline"
+                >
+                  {ev.title}
+                </button>
+              ))}
             </div>
           );
         })}
@@ -100,53 +99,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
     );
   };
 
+  if (selectedEvent) {
+    return (
+      <EventDetailView
+        event={selectedEvent}
+        user={user}
+        onBack={() => setSelectedEvent(null)}
+        onCreatePoll={(id) => console.log('Create poll for', id)}
+        onCreateTasks={(id) => console.log('Create tasks for', id)}
+      />
+    );
+  }
+
   return(
     <div className="max-w-4xl mx-auto pb-10 px-4">
 
       <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl mb-10">
-        <button onClick={()=>setViewMode('month')} className={`flex-1 py-3 rounded-xl font-bold transition ${viewMode==='month'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Monat</button>
-        <button onClick={()=>setViewMode('year')} className={`flex-1 py-3 rounded-xl font-bold transition ${viewMode==='year'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Jahr</button>
-        <button onClick={()=>setViewMode('year-list')} className={`flex-1 py-3 rounded-xl font-bold transition ${viewMode==='year-list'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Liste</button>
+        <button onClick={()=>setViewMode('month')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='month'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Monat</button>
+        <button onClick={()=>setViewMode('year')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='year'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Jahr</button>
+        <button onClick={()=>setViewMode('year-list')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='year-list'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Liste</button>
       </div>
 
       {viewMode==='month' && (
         renderMonthGrid(currentDate.getFullYear(),currentDate.getMonth())
-      )}
-
-      {viewMode==='year' && (
-        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-8">
-          {monthNames.map((name,month)=>(
-            <div key={month}
-              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),month,1));setViewMode('month');}}
-              className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
-              ${hasEventsInMonth(currentDate.getFullYear(),month)
-                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
-            >
-              <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
-              {renderMonthGrid(currentDate.getFullYear(),month,true)}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {viewMode==='year-list' && (
-        <div className="space-y-4">
-          {monthNames.map((name,idx)=>(
-            <div key={idx}
-              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),idx,1));setViewMode('month');}}
-              className={`p-6 rounded-2xl cursor-pointer border transition-all flex justify-between items-center
-              ${hasEventsInMonth(currentDate.getFullYear(),idx)
-                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
-            >
-              <span className="font-black text-slate-900 dark:text-white">{name}</span>
-              {hasEventsInMonth(currentDate.getFullYear(),idx) && (
-                <span className="text-[#B5A47A] font-bold">Termine</span>
-              )}
-            </div>
-          ))}
-        </div>
       )}
 
     </div>
