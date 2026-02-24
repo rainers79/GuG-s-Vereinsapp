@@ -208,3 +208,40 @@ export async function updateMember(id: number, payload: any, onUnauthorized: () 
     onUnauthorized
   );
 }
+// ================= TASKS =================
+
+import type { Task } from '../types'; // falls du oben schon imports hast: Task dort ergänzen
+
+export async function getTasks(onUnauthorized: () => void): Promise<Task[]> {
+  return await apiRequest<Task[]>(
+    '/gug/v1/tasks',
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createTask(payload: Partial<Task>, onUnauthorized: () => void): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/tasks',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+/**
+ * Task abhaken / Status ändern (assigned user darf das, Admin auch)
+ * Backend Route müssen wir dafür ergänzen: POST /gug/v1/tasks/{id}
+ */
+export async function updateTask(taskId: number, payload: Partial<Task>, onUnauthorized: () => void): Promise<{ success: boolean; message?: string }> {
+  return await apiRequest<{ success: boolean; message?: string }>(
+    `/gug/v1/tasks/${taskId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
