@@ -6,13 +6,15 @@ interface SidebarProps {
   onClose: () => void;
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
+  userRole: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
   activeView,
-  onViewChange
+  onViewChange,
+  userRole
 }) => {
 
   const menuItems = [
@@ -50,7 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
-      )
+      ),
+      roles: ['admin', 'vorstand']
     },
     {
       id: 'tasks' as ViewType,
@@ -73,23 +76,24 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
+  const filteredMenuItems = menuItems.filter((item: any) => {
+    if (!item.roles) return true;
+    return item.roles.includes(userRole);
+  });
+
   return (
     <>
-      {/* Backdrop */}
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-500 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
-      {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-full w-80 bg-[#1A1A1A] z-[70] shadow-2xl transition-transform duration-500 ease-in-out transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex flex-col h-full">
 
-          {/* Header */}
           <div className="p-8 border-b border-white/5 flex items-center justify-between">
-
             <div
               onClick={() => {
                 onViewChange('dashboard');
@@ -97,14 +101,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}
               className="flex items-center gap-4 cursor-pointer"
             >
-              {/* Vereinslogo */}
               <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
-  <img
-    src="/logo.png"
-    alt="Vereinslogo"
-    className="w-8 h-8 object-contain"
-  />
-</div>
+                <img
+                  src="/logo.png"
+                  alt="Vereinslogo"
+                  className="w-8 h-8 object-contain"
+                />
+              </div>
 
               <div>
                 <span className="text-white font-bold block leading-none text-xl tracking-tight">
@@ -126,9 +129,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-grow py-8 px-4 space-y-2 overflow-y-auto">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => {
@@ -156,7 +158,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
 
-          {/* Footer */}
           <div className="p-8 border-t border-white/5">
             <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.2em] text-center">
               GuG Verein Management Systems
