@@ -180,3 +180,31 @@ export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () =>
     onUnauth
   );
 }
+// ================= MEMBERS =================
+
+export async function getMembers(onUnauthorized: () => void) {
+  return await apiRequest<any[]>(
+    '/gug/v1/members',
+    {},
+    onUnauthorized
+  );
+}
+
+export async function getMember(id: number, onUnauthorized: () => void) {
+  return await apiRequest<any>(
+    `/gug/v1/members/${id}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function updateMember(id: number, payload: any, onUnauthorized: () => void) {
+  return await apiRequest<any>(
+    `/gug/v1/members/${id}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
