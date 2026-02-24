@@ -9,10 +9,15 @@ interface PollItemProps {
   onUnauthorized: () => void;
 }
 
-const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthorized }) => {
-  const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
+const PollItem: React.FC<PollItemProps> = ({
+  poll,
+  user,
+  onRefresh,
+  onUnauthorized
+}) => {
+
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [isVoting, setIsVoting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isVisitor = user.role === AppRole.VISITOR;
@@ -20,7 +25,9 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
 
-  const handleOptionToggle = (id: number) => {
+  /* ---------------- OPTION TOGGLE ---------------- */
+
+  const handleOptionToggle = (id: string) => {
     if (poll.has_voted || isVoting || isVisitor) return;
 
     if (poll.is_multiple_choice) {
@@ -30,9 +37,14 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
           : [...prev, id]
       );
     } else {
-      setSelectedOptions([id]);
+      // Einzelwahl: genau eine Option aktiv
+      setSelectedOptions(prev =>
+        prev[0] === id ? [] : [id]
+      );
     }
   };
+
+  /* ---------------- VOTE ---------------- */
 
   const handleVote = async () => {
     if (selectedOptions.length === 0) return;
@@ -50,32 +62,31 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
     }
   };
 
+  /* ---------------- DELETE ---------------- */
+
   const handleDelete = async () => {
     if (!window.confirm('Diese Umfrage löschen?')) return;
-
-    setIsDeleting(true);
 
     try {
       await api.deletePoll(poll.id, onUnauthorized);
       onRefresh();
     } catch (err: any) {
       setError(err.message || 'Löschen fehlgeschlagen.');
-      setIsDeleting(false);
     }
   };
 
+  /* ---------------- RENDER ---------------- */
+
   return (
-    <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-white/5 mb-8 relative">
+    <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-white/5 mb-8">
 
       {/* HEADER */}
       <div className="flex justify-between items-start mb-6">
-        <div>
-          <span className="bg-[#B5A47A] text-black px-4 py-1 rounded-lg text-xs font-black uppercase tracking-widest">
-            {poll.target_date
-              ? `EVENT: ${new Date(poll.target_date).toLocaleDateString('de-DE')}`
-              : 'VOTING'}
-          </span>
-        </div>
+        <span className="bg-[#B5A47A] text-black px-4 py-1 rounded-lg text-xs font-black uppercase tracking-widest">
+          {poll.target_date
+            ? `EVENT: ${new Date(poll.target_date).toLocaleDateString('de-DE')}`
+            : 'VOTING'}
+        </span>
 
         {canModify && (
           <button
@@ -96,7 +107,8 @@ const PollItem: React.FC<PollItemProps> = ({ poll, user, onRefresh, onUnauthoriz
 
       {/* OPTIONS */}
       <div className="space-y-4">
-        {poll.options.map((option) => {
+        {poll.options.map(option => {
+
           const percentage =
             poll.total_votes > 0
               ? (option.votes / poll.total_votes) * 100
