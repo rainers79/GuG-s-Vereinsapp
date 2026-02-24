@@ -7,19 +7,9 @@ interface CalendarViewProps { polls: Poll[]; user: User; onRefresh: () => void; 
 const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) => {
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
-  const [yearPage, setYearPage] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newDate, setNewDate] = useState('');
-  const [newType, setNewType] = useState<'event' | 'task'>('event');
-  const [isPrivate, setIsPrivate] = useState(false);
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -110,9 +100,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
     );
   };
 
-  const startMonth = yearPage*2;
-  const monthsToShow = [startMonth, startMonth+1].filter(m=>m<12);
-
   return(
     <div className="max-w-4xl mx-auto pb-10 px-4">
 
@@ -127,8 +114,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
       )}
 
       {viewMode==='year' && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {monthsToShow.map(month=>(
+        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-8">
+          {monthNames.map((name,month)=>(
             <div key={month}
               onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),month,1));setViewMode('month');}}
               className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
@@ -136,7 +123,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
                 ? 'border-[#B5A47A] bg-[#B5A47A]/10'
                 : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
             >
-              <h4 className="font-black text-[#B5A47A] mb-4">{monthNames[month]}</h4>
+              <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
               {renderMonthGrid(currentDate.getFullYear(),month,true)}
             </div>
           ))}
