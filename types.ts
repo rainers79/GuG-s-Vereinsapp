@@ -99,3 +99,18 @@ export interface Member {
   roles: string[];
   meta: MemberMeta;
 }
+export type TaskStatus = 'open' | 'done';
+
+export interface Task {
+  id: number;
+  event_id?: number | null;
+  poll_id?: number | null;
+  title: string;
+  description?: string;
+  assigned_user_id: number;
+  role_tag?: string | null;
+  status: TaskStatus;
+  deadline_date?: string | null; // YYYY-MM-DD
+  created_by?: number;
+  created_at?: string;
+}
