@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Poll, ViewType } from './types';
 import * as api from './services/api';
-
+import MembersView from './components/MembersView';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import PollList from './components/PollList';
