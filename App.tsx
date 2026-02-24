@@ -89,6 +89,10 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
+const toggleSidebar = () => {
+  setIsSidebarOpen(prev => !prev);
+};
+  
   const renderContent = () => {
     switch (activeView) {
 
