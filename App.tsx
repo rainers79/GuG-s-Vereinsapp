@@ -11,6 +11,7 @@ import Notification from './components/Notification';
 import SettingsView from './components/SettingsView';
 import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
+import DashboardView from './components/DashboardView';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(api.getStoredUser());
@@ -20,13 +21,12 @@ const App: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [activeView, setActiveView] = useState<ViewType>('calendar');
+  const [activeView, setActiveView] = useState<ViewType>('dashboard');
   const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
 
-  /* -------------------- THEME -------------------- */
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -37,13 +37,11 @@ const App: React.FC = () => {
     localStorage.setItem('gug_theme', theme);
   }, [theme]);
 
-  /* -------------------- VERIFY -------------------- */
   const params = new URLSearchParams(window.location.search);
   const verifyUid = params.get('uid');
   const verifyToken = params.get('token');
   const isVerifyMode = !!verifyUid && !!verifyToken;
 
-  /* -------------------- AUTH -------------------- */
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
     setUser(null);
@@ -91,9 +89,17 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
-  /* -------------------- VIEW ROUTING -------------------- */
   const renderContent = () => {
     switch (activeView) {
+
+      case 'dashboard':
+        return (
+          <DashboardView
+            user={user!}
+            polls={polls}
+            onNavigate={setActiveView}
+          />
+        );
 
       case 'calendar':
         return (
@@ -142,7 +148,6 @@ const App: React.FC = () => {
     }
   };
 
-  /* -------------------- VERIFY PAGE -------------------- */
   if (isVerifyMode) {
     return (
       <VerifyPage
@@ -156,7 +161,6 @@ const App: React.FC = () => {
     );
   }
 
-  /* -------------------- LOADING SCREEN -------------------- */
   if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8] dark:bg-[#121212]">
@@ -165,7 +169,6 @@ const App: React.FC = () => {
     );
   }
 
-  /* -------------------- MAIN APP -------------------- */
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#F8F8F8] dark:bg-[#121212] dark:text-white">
 
