@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
 import * as api from '../services/api';
 import EventDetailView from './EventDetailView';
+import EventCreateModal from './EventCreateModal';
 
 interface CalendarViewProps { polls: Poll[]; user: User; onRefresh: () => void; }
 
@@ -10,7 +11,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const canCreate =
+    user.role === AppRole.SUPERADMIN ||
+    user.role === AppRole.VORSTAND;
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -60,7 +67,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   const renderMonthGrid=(year:number,month:number,isMini=false)=>{
     const daysInMonth=getDaysInMonth(year,month);
     const firstDay=getFirstDayOfMonth(year,month);
-    const days=[];
+    const days:(Date|null)[]=[];
     for(let i=0;i<firstDay;i++)days.push(null);
     for(let i=1;i<=daysInMonth;i++)days.push(new Date(year,month,i));
 
@@ -75,31 +82,107 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
           if(!d)return<div key={`empty-${idx}`}/>;
           const dayEvents=getEventsForDay(d);
           const isToday=isSameDay(new Date(),d);
+          const isSelectedDay = selectedDay ? isSameDay(selectedDay, d) : false;
 
           return(
             <div
               key={idx}
-              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all 
+              onClick={() => { setSelectedDay(d); setViewMode('day'); }}
+              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer 
               bg-white dark:bg-[#1E1E1E]
               border border-slate-200 dark:border-white/5
-              ${isToday?'ring-2 ring-[#B5A47A]':''}`}
+              hover:bg-slate-100 dark:hover:bg-white/10
+              ${isToday?'ring-2 ring-[#B5A47A]':''}
+              ${isSelectedDay?'outline outline-2 outline-[#B5A47A]/60':''}`}
             >
               <span className={`text-sm sm:text-xl font-black ${isToday?'text-[#B5A47A]':'text-slate-900 dark:text-white'}`}>
                 {d.getDate()}
               </span>
 
-              {dayEvents.map(ev => (
+              {dayEvents.slice(0,2).map(ev => (
                 <button
                   key={ev.id}
-                  onClick={() => setSelectedEvent(ev)}
-                  className="mt-1 text-[10px] font-bold text-[#B5A47A] hover:underline"
+                  onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
+                  className="mt-1 text-[10px] font-bold text-[#B5A47A] hover:underline max-w-[90%] truncate"
+                  title={ev.title}
                 >
                   {ev.title}
                 </button>
               ))}
+
+              {dayEvents.length > 2 && (
+                <div className="text-[9px] font-bold text-slate-400 mt-1">
+                  +{dayEvents.length - 2}
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderDayView = () => {
+    if (!selectedDay) {
+      return (
+        <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-8 border border-slate-200 dark:border-white/5">
+          <p className="text-slate-500 dark:text-slate-400 font-bold">
+            Kein Tag ausgewählt.
+          </p>
+        </div>
+      );
+    }
+
+    const dayEvents = getEventsForDay(selectedDay);
+
+    return (
+      <div className="space-y-6">
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setViewMode('month')}
+            className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-[#B5A47A]"
+          >
+            ← zurück
+          </button>
+
+          <div className="text-sm font-black text-slate-700 dark:text-slate-200">
+            {selectedDay.toLocaleDateString()}
+          </div>
+
+          {canCreate && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-[#B5A47A] text-black font-bold px-4 py-2 rounded-lg"
+            >
+              + Termin
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 border border-slate-200 dark:border-white/5">
+          {dayEvents.length === 0 ? (
+            <p className="text-slate-500 dark:text-slate-400 font-bold">
+              Keine Termine an diesem Tag.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {dayEvents.map(ev => (
+                <button
+                  key={ev.id}
+                  onClick={() => setSelectedEvent(ev)}
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#B5A47A] transition"
+                >
+                  <div className="font-black text-slate-900 dark:text-white">{ev.title}</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    {ev.description || 'Keine Beschreibung'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     );
   };
@@ -119,10 +202,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   return(
     <div className="max-w-4xl mx-auto pb-10 px-4">
 
-      <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl mb-10">
-        <button onClick={()=>setViewMode('month')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='month'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Monat</button>
-        <button onClick={()=>setViewMode('year')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='year'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Jahr</button>
-        <button onClick={()=>setViewMode('year-list')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode==='year-list'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Liste</button>
+      {showCreateModal && (
+        <EventCreateModal
+          user={user}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => { loadEvents(); onRefresh(); }}
+        />
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl">
+          <button onClick={()=>setViewMode('month')} className={`flex-1 py-3 px-6 rounded-xl font-bold ${viewMode==='month'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Monat</button>
+          <button onClick={()=>setViewMode('year')} className={`flex-1 py-3 px-6 rounded-xl font-bold ${viewMode==='year'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Jahr</button>
+          <button onClick={()=>setViewMode('year-list')} className={`flex-1 py-3 px-6 rounded-xl font-bold ${viewMode==='year-list'?'bg-[#B5A47A] text-black':'text-slate-700 dark:text-white'}`}>Liste</button>
+        </div>
+
+        {canCreate && viewMode !== 'day' && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-[#B5A47A] text-black font-bold px-4 py-3 rounded-xl"
+          >
+            + Termin
+          </button>
+        )}
       </div>
 
       {viewMode==='month' && (
@@ -131,38 +233,50 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
 
       {viewMode==='year' && (
         <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-8">
-          {monthNames.map((name,month)=>(
-            <div key={month}
-              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),month,1));setViewMode('month');}}
-              className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
-              ${hasEventsInMonth(currentDate.getFullYear(),month)
-                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
-            >
-              <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
-              {renderMonthGrid(currentDate.getFullYear(),month,true)}
-            </div>
-          ))}
+          {monthNames.map((name,month)=> {
+            const isActive = month === currentDate.getMonth();
+            return (
+              <div key={month}
+                onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),month,1));setViewMode('month');}}
+                className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
+                ${hasEventsInMonth(currentDate.getFullYear(),month)
+                  ? 'border-[#B5A47A] bg-[#B5A47A]/10'
+                  : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}
+                ${isActive ? 'ring-2 ring-[#B5A47A]' : ''}`}
+              >
+                <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
+                {renderMonthGrid(currentDate.getFullYear(),month,true)}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {viewMode==='year-list' && (
         <div className="space-y-4">
-          {monthNames.map((name,idx)=>(
-            <div key={idx}
-              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),idx,1));setViewMode('month');}}
-              className={`p-6 rounded-2xl cursor-pointer border transition-all flex justify-between items-center
-              ${hasEventsInMonth(currentDate.getFullYear(),idx)
-                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
-            >
-              <span className="font-black text-slate-900 dark:text-white">{name}</span>
-              {hasEventsInMonth(currentDate.getFullYear(),idx) && (
-                <span className="text-[#B5A47A] font-bold">Termine</span>
-              )}
-            </div>
-          ))}
+          {monthNames.map((name,idx)=> {
+            const isActive = idx === currentDate.getMonth();
+            return (
+              <div key={idx}
+                onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),idx,1));setViewMode('month');}}
+                className={`p-6 rounded-2xl cursor-pointer border transition-all flex justify-between items-center
+                ${hasEventsInMonth(currentDate.getFullYear(),idx)
+                  ? 'border-[#B5A47A] bg-[#B5A47A]/10'
+                  : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}
+                ${isActive ? 'ring-2 ring-[#B5A47A]' : ''}`}
+              >
+                <span className="font-black text-slate-900 dark:text-white">{name}</span>
+                {hasEventsInMonth(currentDate.getFullYear(),idx) && (
+                  <span className="text-[#B5A47A] font-bold">Termine</span>
+                )}
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {viewMode==='day' && (
+        renderDayView()
       )}
 
     </div>
