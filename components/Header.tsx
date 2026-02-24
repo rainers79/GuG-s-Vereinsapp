@@ -5,17 +5,22 @@ interface HeaderProps {
   user: User;
   onLogout: () => void;
   onOpenMenu: () => void;
+  onGoHome: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
+const Header: React.FC<HeaderProps> = ({
+  user,
+  onLogout,
+  onOpenMenu,
+  onGoHome
+}) => {
   return (
     <header className="bg-[#1A1A1A] text-white sticky top-0 z-50 border-b border-white/5">
-      
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        
+
         {/* LEFT SIDE */}
         <div className="flex items-center gap-4">
-          
+
           {/* Sidebar Toggle */}
           <button
             onClick={onOpenMenu}
@@ -26,9 +31,11 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
             </svg>
           </button>
 
-          {/* Logo + Title */}
-          <div className="flex items-center gap-3">
-
+          {/* Logo = Home Button */}
+          <button
+            onClick={onGoHome}
+            className="flex items-center gap-3 hover:opacity-80 transition-all"
+          >
             <div className="h-10 flex items-center">
               <img
                 src="/logo.png"
@@ -37,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
               />
             </div>
 
-            <div className="hidden sm:block leading-tight">
+            <div className="hidden sm:block leading-tight text-left">
               <div className="text-base font-semibold tracking-tight">
                 GuG Verein
               </div>
@@ -45,14 +52,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
                 Member Portal
               </div>
             </div>
+          </button>
 
-          </div>
         </div>
 
         {/* RIGHT SIDE */}
         <div className="flex items-center gap-5">
 
-          {/* User Info */}
           <div className="hidden md:block text-right">
             <div className="text-sm font-semibold leading-none">
               {user.displayName}
@@ -62,7 +68,6 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onOpenMenu }) => {
             </div>
           </div>
 
-          {/* Logout Button */}
           <button
             onClick={onLogout}
             title="Abmelden"
