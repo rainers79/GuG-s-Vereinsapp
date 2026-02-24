@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
 
-interface Props {
-  event: CalendarEvent;
-  user: User;
-  onBack: () => void;
-  onCreatePoll: (eventId: string) => void;
-  onCreateTasks: (eventId: string) => void;
-}
 
 type TabType = 'overview' | 'poll' | 'tasks';
 
