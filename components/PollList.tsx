@@ -7,6 +7,7 @@ import PollItem from './PollItem';
 interface PollListProps {
   polls: Poll[];
   user: User;
+  selectedPollId?: number | null;
   onRefresh: () => void;
   onUnauthorized: () => void;
 }
@@ -14,7 +15,7 @@ interface PollListProps {
 const PollList: React.FC<PollListProps> = ({ polls, user, onRefresh, onUnauthorized }) => {
   const [showCreate, setShowCreate] = useState(false);
   const canCreate = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
-
+const selectedPoll = polls.find(p => p.id === selectedPollId);
   return (
     <div className="space-y-8 sm:space-y-16 animate-in fade-in duration-1000 pb-20">
       <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-10">
@@ -59,7 +60,14 @@ const PollList: React.FC<PollListProps> = ({ polls, user, onRefresh, onUnauthori
         </div>
       )}
 
-      {polls.length === 0 ? (
+    {selectedPoll ? (
+  <PollItem 
+    poll={selectedPoll}
+    user={user}
+    onRefresh={onRefresh}
+    onUnauthorized={onUnauthorized}
+  />
+) : polls.length === 0 ? (
         <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl sm:rounded-[4rem] p-12 sm:p-32 text-center border-2 sm:border-4 border-dashed border-slate-100 dark:border-white/5 shadow-2xl">
           <h3 className="text-2xl sm:text-4xl font-black text-black dark:text-white uppercase tracking-tighter">Keine Umfragen</h3>
           <p className="text-slate-400 mt-4 text-sm sm:text-xl font-medium max-w-md mx-auto">Sobald es neue Themen gibt, erscheinen sie hier.</p>
