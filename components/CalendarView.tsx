@@ -9,7 +9,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
@@ -51,6 +50,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
   };
   const isSameDay=(d1:Date,d2:Date)=>d1.toDateString()===d2.toDateString();
   const getEventsForDay=(date:Date)=>allEventsCombined.filter(e=>isSameDay(new Date(e.date),date));
+
+  const hasEventsInMonth = (year:number, month:number) =>
+    allEventsCombined.some(e=>{
+      const d = new Date(e.date);
+      return d.getFullYear()===year && d.getMonth()===month;
+    });
 
   const renderMonthGrid=(year:number,month:number,isMini=false)=>{
     const daysInMonth=getDaysInMonth(year,month);
@@ -124,8 +129,44 @@ const CalendarView: React.FC<CalendarViewProps> = ({ polls, user, onRefresh }) =
         renderMonthGrid(currentDate.getFullYear(),currentDate.getMonth())
       )}
 
+      {viewMode==='year' && (
+        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-8">
+          {monthNames.map((name,month)=>(
+            <div key={month}
+              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),month,1));setViewMode('month');}}
+              className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
+              ${hasEventsInMonth(currentDate.getFullYear(),month)
+                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
+                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
+            >
+              <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
+              {renderMonthGrid(currentDate.getFullYear(),month,true)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {viewMode==='year-list' && (
+        <div className="space-y-4">
+          {monthNames.map((name,idx)=>(
+            <div key={idx}
+              onClick={()=>{setCurrentDate(new Date(currentDate.getFullYear(),idx,1));setViewMode('month');}}
+              className={`p-6 rounded-2xl cursor-pointer border transition-all flex justify-between items-center
+              ${hasEventsInMonth(currentDate.getFullYear(),idx)
+                ? 'border-[#B5A47A] bg-[#B5A47A]/10'
+                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'}`}
+            >
+              <span className="font-black text-slate-900 dark:text-white">{name}</span>
+              {hasEventsInMonth(currentDate.getFullYear(),idx) && (
+                <span className="text-[#B5A47A] font-bold">Termine</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
     </div>
   );
 };
 
-export default CalendarView;
+export default CalendarView;arView;
