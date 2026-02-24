@@ -1,3 +1,5 @@
+// components/CalendarView.tsx
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
 import * as api from '../services/api';
@@ -25,8 +27,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-const [showPollCreate, setShowPollCreate] = useState(false);
-const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(null);
+
+  const [showPollCreate, setShowPollCreate] = useState(false);
+  const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(null);
+
+  // ✅ NEU: Default-Datum fürs Modal + Auto-Open Event nach Save
+  const [createDefaultDate, setCreateDefaultDate] = useState<string>('');
+  const [openEventAfterCreate, setOpenEventAfterCreate] = useState<boolean>(false);
+
   const canCreate =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
@@ -75,6 +83,30 @@ const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(n
       const d = new Date(e.date);
       return d.getFullYear()===year && d.getMonth()===month;
     });
+
+  // ✅ NEU: sicheres YYYY-MM-DD (lokal, ohne TZ-Shift)
+  const formatDateYYYYMMDD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const openCreateForDate = (dateStr: string, autoOpenAfter = false) => {
+    setCreateDefaultDate(dateStr);
+    setOpenEventAfterCreate(autoOpenAfter);
+    setShowCreateModal(true);
+  };
+
+  const openCreateForSelectedDay = () => {
+    if (!selectedDay) {
+      // Fallback: ohne Datum
+      openCreateForDate('', false);
+      return;
+    }
+    // ✅ In Tagesansicht: Datum fix vorbefüllen und danach Event-Detail öffnen
+    openCreateForDate(formatDateYYYYMMDD(selectedDay), true);
+  };
 
   const renderMonthGrid=(year:number,month:number,isMini=false)=>{
     const daysInMonth=getDaysInMonth(year,month);
@@ -145,7 +177,7 @@ const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(n
 
           {canCreate && (
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreateForSelectedDay}
               className="bg-[#B5A47A] text-black font-bold px-4 py-2 rounded-lg"
             >
               + Termin
@@ -180,48 +212,48 @@ const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(n
   };
 
   // 🔥 POLL CREATE VIEW
-if (showPollCreate && pollEventContext) {
-  return (
-    <div className="max-w-4xl mx-auto px-4 pb-20">
-      <button
-        onClick={() => {
-          setShowPollCreate(false);
-          setPollEventContext(null);
-        }}
-        className="mb-6 text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
-      >
-        ← Zurück zum Event
-      </button>
+  if (showPollCreate && pollEventContext) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 pb-20">
+        <button
+          onClick={() => {
+            setShowPollCreate(false);
+            setPollEventContext(null);
+          }}
+          className="mb-6 text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
+        >
+          ← Zurück zum Event
+        </button>
 
-      <PollCreate
-        onSuccess={async () => {
-          await onRefresh();
-          setShowPollCreate(false);
-          setPollEventContext(null);
+        <PollCreate
+          onSuccess={async () => {
+            await onRefresh();
+            setShowPollCreate(false);
+            setPollEventContext(null);
+          }}
+          onUnauthorized={() => {}}
+        />
+      </div>
+    );
+  }
+
+  if (selectedEvent) {
+    return (
+      <EventDetailView
+        event={selectedEvent}
+        user={user}
+        onBack={() => setSelectedEvent(null)}
+        onCreatePoll={() => {
+          setPollEventContext(selectedEvent);
+          setShowPollCreate(true);
         }}
-        onUnauthorized={() => {}}
+        onOpenPoll={(pollId) => {
+          onOpenPoll(pollId);
+        }}
+        onCreateTasks={(id) => console.log('Create tasks for', id)}
       />
-    </div>
-  );
-}
-
-if (selectedEvent) {
-  return (
-    <EventDetailView
-      event={selectedEvent}
-      user={user}
-      onBack={() => setSelectedEvent(null)}
-      onCreatePoll={() => {
-        setPollEventContext(selectedEvent);
-        setShowPollCreate(true);
-      }}
-      onOpenPoll={(pollId) => {
-        onOpenPoll(pollId);
-      }}
-      onCreateTasks={(id) => console.log('Create tasks for', id)}
-    />
-  );
-}
+    );
+  }
 
   return(
     <div className="max-w-4xl mx-auto pb-10 px-4">
@@ -229,8 +261,26 @@ if (selectedEvent) {
       {showCreateModal && (
         <EventCreateModal
           user={user}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={() => { loadEvents(); onRefresh(); }}
+          defaultDate={createDefaultDate}
+          onClose={() => {
+            setShowCreateModal(false);
+            setCreateDefaultDate('');
+            setOpenEventAfterCreate(false);
+          }}
+          onCreated={async (createdEvent) => {
+            await loadEvents();
+            onRefresh();
+
+            setShowCreateModal(false);
+            setCreateDefaultDate('');
+
+            // ✅ Wenn aus Tagesansicht erstellt: direkt ins Detail (für Umfrage/Aufgaben)
+            if (openEventAfterCreate && createdEvent) {
+              setSelectedEvent(createdEvent);
+            }
+
+            setOpenEventAfterCreate(false);
+          }}
         />
       )}
 
@@ -244,7 +294,10 @@ if (selectedEvent) {
 
         {canCreate && viewMode !== 'day' && (
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              // ✅ außerhalb Day-View: kein Defaultdatum erzwingen
+              openCreateForDate('', false);
+            }}
             className="bg-[#B5A47A] text-black font-bold px-4 py-3 rounded-xl"
           >
             + Termin
