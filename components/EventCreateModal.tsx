@@ -1,20 +1,31 @@
-import React, { useState } from 'react';
+// components/EventCreateModal.tsx
+
+import React, { useEffect, useState } from 'react';
 import { CalendarEvent, User } from '../types';
 import * as api from '../services/api';
 
 interface Props {
   user: User;
+  defaultDate?: string; // ✅ NEU
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (createdEvent?: CalendarEvent) => void; // ✅ NEU: Event zurückgeben
 }
 
-const EventCreateModal: React.FC<Props> = ({ user, onClose, onCreated }) => {
+const EventCreateModal: React.FC<Props> = ({ user, defaultDate, onClose, onCreated }) => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
+
+  // ✅ NEU: Datum initial aus defaultDate übernehmen
+  const [date, setDate] = useState(defaultDate || '');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ falls defaultDate beim Öffnen gesetzt wird
+  useEffect(() => {
+    if (defaultDate) setDate(defaultDate);
+  }, [defaultDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +38,7 @@ const EventCreateModal: React.FC<Props> = ({ user, onClose, onCreated }) => {
     setError(null);
 
     try {
-      await api.createEvent({
+      const created = await api.createEvent({
         title,
         description,
         date,
@@ -38,7 +49,8 @@ const EventCreateModal: React.FC<Props> = ({ user, onClose, onCreated }) => {
         is_private: false
       }, () => {});
 
-      onCreated();
+      // ✅ Rückgabe für Auto-Open in CalendarView
+      onCreated(created);
       onClose();
 
     } catch (err: any) {
