@@ -15,6 +15,13 @@ interface Task {
   status?: string;
 }
 
+interface Member {
+  id: number;
+  display_name: string;
+  email: string;
+  username: string;
+}
+
 interface Props {
   event: CalendarEvent;
   user: User;
@@ -35,16 +42,19 @@ const EventDetailView: React.FC<Props> = ({
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [assignedUserId, setAssignedUserId] = useState<number | null>(null);
 
   const canManage =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
 
-  // 🔥 Tasks laden wenn Aufgaben-Tab aktiv wird
-  useEffect(() => {
-    if (activeTab !== 'tasks') return;
-
+  const loadTasks = () => {
     setLoadingTasks(true);
 
     fetch('https://api.gug-verein.at/wp-json/gug/v1/tasks', {
@@ -65,10 +75,64 @@ const EventDetailView: React.FC<Props> = ({
 
         setTasks(visibleTasks);
       })
-      .catch(err => console.error('Task Load Error:', err))
       .finally(() => setLoadingTasks(false));
+  };
 
-  }, [activeTab, event.id, user.id, canManage]);
+  const loadMembers = () => {
+    fetch('https://api.gug-verein.at/wp-json/gug/v1/members', {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+      }
+    })
+      .then(r => r.json())
+      .then((data: Member[]) => setMembers(data));
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'tasks') return;
+    loadTasks();
+    if (canManage) loadMembers();
+  }, [activeTab]);
+
+  const createTask = async () => {
+    if (!newTitle.trim() || !assignedUserId) return;
+
+    await fetch('https://api.gug-verein.at/wp-json/gug/v1/tasks', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('gug_token'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        event_id: event.id,
+        title: newTitle,
+        description: newDescription,
+        assigned_user_id: assignedUserId,
+        role_tag: ''
+      })
+    });
+
+    setNewTitle('');
+    setNewDescription('');
+    setAssignedUserId(null);
+    setShowCreateTask(false);
+    loadTasks();
+  };
+
+  const toggleTask = async (task: Task) => {
+    await fetch(`https://api.gug-verein.at/wp-json/gug/v1/tasks/${task.id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('gug_token'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status: task.status === 'done' ? 'open' : 'done'
+      })
+    });
+
+    loadTasks();
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-20">
@@ -137,7 +201,6 @@ const EventDetailView: React.FC<Props> = ({
                 <p className="mb-4 text-green-600 font-bold">
                   Umfrage ist verknüpft.
                 </p>
-
                 <button
                   onClick={() => onOpenPoll(event.linkedPollId!)}
                   className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black"
@@ -163,44 +226,88 @@ const EventDetailView: React.FC<Props> = ({
 
             {canManage && (
               <button
-                onClick={() => onCreateTasks(event.id)}
+                onClick={() => setShowCreateTask(!showCreateTask)}
                 className="bg-[#B5A47A] px-4 py-2 rounded-lg font-bold text-black mb-6"
               >
-                Aufgaben erstellen
+                Aufgabe erstellen
               </button>
             )}
 
-            {loadingTasks && (
-              <p className="text-slate-500 dark:text-slate-400">
-                Aufgaben werden geladen...
-              </p>
+            {showCreateTask && canManage && (
+              <div className="mb-6 space-y-4">
+                <input
+                  type="text"
+                  placeholder="Titel"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full p-3 rounded-lg border"
+                />
+                <textarea
+                  placeholder="Beschreibung"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  className="w-full p-3 rounded-lg border"
+                />
+                <select
+                  value={assignedUserId || ''}
+                  onChange={(e) => setAssignedUserId(Number(e.target.value))}
+                  className="w-full p-3 rounded-lg border"
+                >
+                  <option value="">Mitglied auswählen</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.display_name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={createTask}
+                  className="bg-black text-white px-4 py-2 rounded-lg"
+                >
+                  Speichern
+                </button>
+              </div>
             )}
 
+            {loadingTasks && <p>Aufgaben werden geladen...</p>}
+
             {!loadingTasks && tasks.length === 0 && (
-              <p className="text-slate-500 dark:text-slate-400">
-                Keine Aufgaben vorhanden.
-              </p>
+              <p>Keine Aufgaben vorhanden.</p>
             )}
 
             {!loadingTasks && tasks.length > 0 && (
               <div className="space-y-4">
-                {tasks.map(task => (
-                  <div
-                    key={task.id}
-                    className="p-4 rounded-xl bg-slate-100 dark:bg-[#111] border border-slate-200 dark:border-white/5"
-                  >
-                    <h4 className="font-bold mb-1">{task.title}</h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {task.description}
-                    </p>
+                {tasks.map(task => {
+                  const canToggle =
+                    canManage || task.assigned_user_id === user.id;
 
-                    {task.role_tag && (
-                      <p className="text-xs mt-2 text-[#B5A47A] font-bold">
-                        Rolle: {task.role_tag}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-4 rounded-xl border ${
+                        task.status === 'done'
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-slate-100 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold">{task.title}</h4>
+                          <p className="text-sm">{task.description}</p>
+                        </div>
+
+                        {canToggle && (
+                          <button
+                            onClick={() => toggleTask(task)}
+                            className="px-3 py-1 rounded-lg bg-[#B5A47A] text-black font-bold"
+                          >
+                            {task.status === 'done' ? 'Rückgängig' : 'Erledigt'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
