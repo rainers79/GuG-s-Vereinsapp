@@ -40,27 +40,30 @@ const MembersView: React.FC<Props> = ({ currentUserRole, onUnauthorized }) => {
     });
   };
 
-  const handleSave = async () => {
-    if (!selected) return;
-    setSaving(true);
+const handleSave = async () => {
+  if (!selected) return;
+  setSaving(true);
 
-    await api.updateMember(
-      selected.id,
-      {
-        first_name: selected.meta.first_name,
-        last_name: selected.meta.last_name,
-        birthday: selected.meta.birthday,
-        phone: selected.meta.phone,
-        address: selected.meta.address,
-        title: selected.meta.title,
-        email: selected.email,
-        role: selected.roles[0]
-      },
-      onUnauthorized
-    );
+  try {
+    await api.updateMember(selected.id, {
+      first_name: selected.meta.first_name,
+      last_name: selected.meta.last_name,
+      birthday: selected.meta.birthday,
+      phone: selected.meta.phone,
+      address: selected.meta.address,
+      title: selected.meta.title,
+      email: selected.email,
+      role: selected.roles[0]
+    }, onUnauthorized);
 
+    await loadMembers(); // 🔥 LISTE NEU LADEN
+
+  } catch (err) {
+    console.error(err);
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
   if (loading) {
     return (
