@@ -33,12 +33,10 @@ const PosView: React.FC<PosViewProps> = ({
   useEffect(() => {
     const load = async () => {
       try {
-        // FIX: getPosArticles erwartet (params, onUnauthorized)
         const data = await api.getPosArticles({}, onUnauthorized);
         setArticles(data.filter(a => a.is_active === 1));
-      } catch {
-        // bewusst still
-      } finally {
+      } catch {}
+      finally {
         setLoading(false);
       }
     };
@@ -110,9 +108,7 @@ const PosView: React.FC<PosViewProps> = ({
 
       setCart([]);
       setReceived('');
-    } catch {
-      // bewusst still
-    }
+    } catch {}
   };
 
   /* =====================================================
@@ -128,40 +124,40 @@ const PosView: React.FC<PosViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#F5E9D0]">
 
       {/* HEADER */}
-      <div className="bg-black text-white p-6 flex justify-between items-center">
-        <div className="font-black text-lg uppercase tracking-widest">
+      <div className="bg-black text-white p-4 flex justify-between items-center">
+        <div className="font-black uppercase tracking-widest text-sm">
           Kassa
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="text-sm">
+        <div className="flex items-center gap-4">
+          <div className="text-xs">
             {user.displayName}
           </div>
 
           <button
             onClick={onExit}
-            className="bg-white text-black px-6 py-3 font-black uppercase text-xs"
+            className="bg-white text-black px-4 py-2 font-black uppercase text-[10px]"
           >
             Zurück
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1">
+      {/* ARTICLE GRID */}
+      <div className="flex-1 overflow-y-auto p-4 pb-40">
 
-        {/* ARTICLE GRID */}
-        <div className="flex-1 p-8 overflow-y-auto grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
           {articles.map(article => (
             <button
               key={article.id}
               onClick={() => addToCart(article)}
-              className="bg-white border-2 border-black p-6 text-left font-black text-black text-sm"
+              className="bg-white border-2 border-black p-6 text-left font-black text-black text-sm active:scale-95 transition"
             >
-              <div className="mb-4">
+              <div className="mb-3">
                 {article.name}
               </div>
 
@@ -173,80 +169,67 @@ const PosView: React.FC<PosViewProps> = ({
 
         </div>
 
-        {/* ORDER PANEL */}
-        <div className="w-96 bg-white border-l-4 border-black p-6 flex flex-col">
+      </div>
 
-          <div className="font-black uppercase text-xs mb-4">
-            Bestellung
-          </div>
+      {/* STICKY CART PANEL */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black shadow-2xl p-4 space-y-3">
 
-          <div className="flex-1 overflow-y-auto space-y-4">
+        {/* Cart Items */}
+        <div className="max-h-32 overflow-y-auto space-y-2">
+          {cart.map(item => (
+            <div key={item.article.id} className="flex justify-between items-center text-sm font-bold">
 
-            {cart.map(item => (
-              <div key={item.article.id} className="flex justify-between items-center">
-
-                <div>
-                  <div className="font-bold text-sm">
-                    {item.article.name}
-                  </div>
-                  <div className="text-xs">
-                    {item.qty} × {(item.article.price_cents / 100).toFixed(2)} €
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => removeFromCart(item.article.id)}
-                    className="border px-3 py-1 text-xs"
-                  >
-                    -
-                  </button>
-                  <div className="font-bold">
-                    {item.qty}
-                  </div>
-                </div>
-
+              <div>
+                {item.qty} × {item.article.name}
               </div>
-            ))}
 
-          </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => removeFromCart(item.article.id)}
+                  className="border px-2 py-1 text-xs"
+                >
+                  -
+                </button>
+                <span>
+                  {(item.article.price_cents * item.qty / 100).toFixed(2)} €
+                </span>
+              </div>
 
-          {/* TOTAL */}
-          <div className="border-t-4 border-black pt-6 mt-6 space-y-4">
-
-            <div className="flex justify-between font-black text-lg">
-              <span>Summe</span>
-              <span>{(totalCents / 100).toFixed(2)} €</span>
             </div>
-
-            <div>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Erhalten"
-                value={received}
-                onChange={e => setReceived(e.target.value)}
-                className="w-full border-2 border-black p-3 font-bold"
-              />
-            </div>
-
-            <div className="flex justify-between font-bold">
-              <span>Rückgeld</span>
-              <span>
-                {(changeCents / 100).toFixed(2)} €
-              </span>
-            </div>
-
-            <button
-              onClick={handleSave}
-              className="w-full bg-black text-white py-4 font-black uppercase text-sm"
-            >
-              Bonieren
-            </button>
-
-          </div>
-
+          ))}
         </div>
+
+        {/* Total */}
+        <div className="flex justify-between font-black text-lg">
+          <span>Summe</span>
+          <span>{(totalCents / 100).toFixed(2)} €</span>
+        </div>
+
+        {/* Received */}
+        <input
+          type="number"
+          step="0.01"
+          placeholder="Erhalten"
+          value={received}
+          onChange={e => setReceived(e.target.value)}
+          className="w-full border-2 border-black p-3 font-bold text-lg"
+        />
+
+        {/* Change */}
+        <div className="flex justify-between font-bold">
+          <span>Rückgeld</span>
+          <span>
+            {(changeCents / 100).toFixed(2)} €
+          </span>
+        </div>
+
+        {/* Checkout */}
+        <button
+          onClick={handleSave}
+          className="w-full bg-black text-white py-4 font-black uppercase text-sm active:scale-95 transition"
+        >
+          Bonieren
+        </button>
 
       </div>
 
