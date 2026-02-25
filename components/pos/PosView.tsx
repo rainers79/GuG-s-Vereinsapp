@@ -1,3 +1,5 @@
+// components/pos/PosView.tsx
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { User, PosArticle } from '../../types';
 import * as api from '../../services/api';
@@ -31,15 +33,17 @@ const PosView: React.FC<PosViewProps> = ({
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await api.getPosArticles(onUnauthorized);
+        // FIX: getPosArticles erwartet (params, onUnauthorized)
+        const data = await api.getPosArticles({}, onUnauthorized);
         setArticles(data.filter(a => a.is_active === 1));
-      } catch {}
-      finally {
+      } catch {
+        // bewusst still
+      } finally {
         setLoading(false);
       }
     };
     load();
-  }, []);
+  }, [onUnauthorized]);
 
   /* =====================================================
      CART LOGIC
@@ -106,7 +110,9 @@ const PosView: React.FC<PosViewProps> = ({
 
       setCart([]);
       setReceived('');
-    } catch {}
+    } catch {
+      // bewusst still
+    }
   };
 
   /* =====================================================
