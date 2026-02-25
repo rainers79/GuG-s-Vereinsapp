@@ -15,6 +15,7 @@ import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 import PosView from './components/pos/PosView';
+import PosAdminView from './components/pos/PosAdminView';
 
 type ToastType = 'error' | 'success';
 
@@ -316,6 +317,13 @@ const App: React.FC = () => {
           />
         );
 
+case 'pos-admin':
+  return (
+    <PosAdminView
+      onUnauthorized={handleUnauthorized}
+    />
+  );
+        
       case 'pos':
         return (
           <PosView
