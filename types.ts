@@ -114,3 +114,9 @@ export interface Task {
   created_by?: number;
   created_at?: string;
 }
+export interface NotificationSettings {
+  chatEnabled: boolean;
+  pollEnabled: boolean;
+  chatPreview: boolean;
+  pollPreview: boolean;
+}
