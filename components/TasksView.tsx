@@ -27,20 +27,14 @@ interface TasksViewProps {
 }
 
 const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized }) => {
+
   const canCreate = userRole === AppRole.SUPERADMIN || userRole === AppRole.VORSTAND;
+  const canDelete = canCreate; // gleiche Berechtigung
 
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  const [showCreate, setShowCreate] = useState(false);
-  const [linkType, setLinkType] = useState<LinkType>('event');
-  const [linkId, setLinkId] = useState<string>('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [assignedUserId, setAssignedUserId] = useState<string>('');
-  const [deadlineDate, setDeadlineDate] = useState<string>('');
 
   const loadTasks = async () => {
     setLoading(true);
@@ -57,7 +51,6 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
 
   useEffect(() => {
     loadTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sortedTasks = useMemo(() => {
@@ -75,8 +68,6 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
   }, [tasks]);
 
   const toggleComplete = async (task: Task, completed: boolean) => {
-    setError(null);
-    setSuccess(null);
 
     const isAssigned = task.assigned_user_id === userId;
     if (!isAssigned && !canCreate) {
@@ -84,10 +75,10 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
       return;
     }
 
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed } : t)));
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed } : t));
 
     try {
-      await api.apiRequest<{ success: boolean; message?: string }>(
+      await api.apiRequest(
         `/gug/v1/tasks/${task.id}`,
         {
           method: 'POST',
@@ -97,230 +88,159 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
       );
       setSuccess(completed ? 'Aufgabe erledigt.' : 'Aufgabe wieder offen.');
     } catch (e: any) {
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed: task.completed } : t)));
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: task.completed } : t));
       setError(e?.message || 'Speichern fehlgeschlagen.');
     }
   };
 
-  const resetCreateForm = () => {
-    setLinkType('event');
-    setLinkId('');
-    setTitle('');
-    setDescription('');
-    setAssignedUserId('');
-    setDeadlineDate('');
-  };
+  /* =====================================================
+     NEU: DELETE TASK
+  ===================================================== */
 
-  const createTask = async () => {
-    setError(null);
-    setSuccess(null);
+  const deleteTask = async (task: Task) => {
 
-    if (!canCreate) {
-      setError('Keine Berechtigung zum Erstellen.');
+    if (!canDelete) {
+      setError('Keine Berechtigung zum Löschen.');
       return;
     }
 
-    const linkIdNum = parseInt(linkId, 10);
-    if (!linkIdNum || linkIdNum <= 0) {
-      setError('Bitte eine gültige ID für Event/Umfrage eingeben.');
+    if (!task.completed) {
+      setError('Nur erledigte Aufgaben können gelöscht werden.');
       return;
     }
 
-    const t = title.trim();
-    if (!t) {
-      setError('Titel ist Pflicht.');
-      return;
-    }
+    const confirmDelete = window.confirm(
+      `Erledigte Aufgabe "${task.title}" wirklich dauerhaft löschen?`
+    );
 
-    const assignedNum = assignedUserId.trim() ? parseInt(assignedUserId.trim(), 10) : 0;
-    if (assignedUserId.trim() && (!assignedNum || assignedNum <= 0)) {
-      setError('Assigned User ID muss eine Zahl sein (oder leer lassen).');
-      return;
-    }
+    if (!confirmDelete) return;
 
-    if (deadlineDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(deadlineDate.trim())) {
-      setError('Deadline Format muss YYYY-MM-DD sein (oder leer lassen).');
-      return;
-    }
+    const previousTasks = [...tasks];
 
-    const payload: any = {
-      title: t,
-      description: description,
-      assigned_user_id: assignedNum > 0 ? assignedNum : undefined,
-      deadline_date: deadlineDate.trim() ? deadlineDate.trim() : undefined
-    };
-
-    if (linkType === 'event') payload.event_id = linkIdNum;
-    if (linkType === 'poll') payload.poll_id = linkIdNum;
+    // Optimistisches UI Update
+    setTasks(prev => prev.filter(t => t.id !== task.id));
 
     try {
-      setLoading(true);
-      await api.apiRequest<{ success: boolean; id: number }>(
-        '/gug/v1/tasks',
-        {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        },
+      await api.apiRequest(
+        `/gug/v1/tasks/${task.id}`,
+        { method: 'DELETE' },
         onUnauthorized
       );
-      setSuccess('Aufgabe erstellt.');
-      setShowCreate(false);
-      resetCreateForm();
-      await loadTasks();
+
+      setSuccess('Aufgabe gelöscht.');
+
     } catch (e: any) {
-      setError(e?.message || 'Erstellen fehlgeschlagen.');
-    } finally {
-      setLoading(false);
+      setTasks(previousTasks);
+      setError(e?.message || 'Löschen fehlgeschlagen.');
     }
   };
 
   return (
     <div className="bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5 rounded-xl p-4 sm:p-6">
-      {/* Header – Mobile optimiert */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
-            Aufgaben
-          </h3>
-          <p className="text-slate-500 dark:text-slate-300 text-xs sm:text-sm mt-1 leading-relaxed">
-            Abhaken per Checkbox. Optional mit Deadline. Aufgaben sind immer einem Event oder einer Umfrage zugeordnet.
-          </p>
-        </div>
 
-        <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
-          <button
-            onClick={loadTasks}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-white dark:bg-[#121212] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/80 hover:bg-slate-50 dark:hover:bg-white/5 transition"
-            disabled={loading}
-          >
-            Aktualisieren
-          </button>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+          Aufgaben
+        </h3>
 
-          {canCreate && (
-            <button
-              onClick={() => {
-                setShowCreate((v) => !v);
-                setError(null);
-                setSuccess(null);
-              }}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A] hover:brightness-110 transition"
-            >
-              Neue Aufgabe
-            </button>
-          )}
-        </div>
+        <button
+          onClick={loadTasks}
+          className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-white dark:bg-[#121212] border border-slate-200 dark:border-white/10"
+        >
+          Aktualisieren
+        </button>
       </div>
 
       {error && (
-        <div className="mt-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+        <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-800 text-sm dark:bg-red-500/10 dark:text-red-200">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mt-4 p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+        <div className="mb-4 p-3 rounded-lg bg-emerald-50 text-emerald-900 text-sm dark:bg-emerald-500/10 dark:text-emerald-200">
           {success}
         </div>
       )}
 
-      <div className="mt-6">
-        {loading ? (
-          <div className="py-10 text-center text-slate-500 dark:text-white/60 text-sm">
-            Lädt…
-          </div>
-        ) : sortedTasks.length === 0 ? (
-          <div className="py-10 text-center text-slate-500 dark:text-white/60 text-sm">
-            Keine Aufgaben vorhanden.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {sortedTasks.map((t) => {
-              const linkLabel = t.event_id ? `Event #${t.event_id}` : t.poll_id ? `Umfrage #${t.poll_id}` : '—';
-              const isAssigned = t.assigned_user_id === userId;
-              const canToggle = isAssigned || canCreate;
+      {loading ? (
+        <div className="py-10 text-center text-slate-500 dark:text-white/60">
+          Lädt…
+        </div>
+      ) : sortedTasks.length === 0 ? (
+        <div className="py-10 text-center text-slate-500 dark:text-white/60">
+          Keine Aufgaben vorhanden.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sortedTasks.map((t) => {
 
-              return (
-                <div
-                  key={t.id}
-                  className={`border rounded-xl p-3 sm:p-4 transition ${
-                    t.completed
-                      ? 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5'
-                      : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#121212]'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={t.completed}
-                      disabled={!canToggle}
-                      onChange={(e) => toggleComplete(t, e.target.checked)}
-                      className="mt-1 h-6 w-6 sm:h-5 sm:w-5 rounded border-slate-300"
-                      title={!canToggle ? 'Keine Berechtigung' : 'Erledigt markieren'}
-                    />
+            const isAssigned = t.assigned_user_id === userId;
+            const canToggle = isAssigned || canCreate;
 
-                    <div className="flex-1">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
-                          <h4
-                            className={`text-sm sm:text-base font-extrabold ${
-                              t.completed
-                                ? 'text-slate-500 dark:text-white/60 line-through'
-                                : 'text-slate-900 dark:text-white'
-                            }`}
-                          >
-                            {t.title}
-                          </h4>
+            return (
+              <div
+                key={t.id}
+                className={`border rounded-xl p-4 transition ${
+                  t.completed
+                    ? 'bg-slate-50 dark:bg-white/5'
+                    : 'bg-white dark:bg-[#121212]'
+                }`}
+              >
+                <div className="flex items-start gap-3">
 
-                          {t.deadline_date && (
-                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-[#B5A47A]/15 text-[#B5A47A] self-start xs:self-auto">
-                              {t.deadline_date}
-                            </span>
-                          )}
-                        </div>
+                  <input
+                    type="checkbox"
+                    checked={t.completed}
+                    disabled={!canToggle}
+                    onChange={(e) => toggleComplete(t, e.target.checked)}
+                    className="mt-1 h-5 w-5"
+                  />
 
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-white/70">
-                            {linkLabel}
-                          </span>
+                  <div className="flex-1">
 
-                          {t.assigned_user_id && (
-                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-white/70">
-                              Assigned #{t.assigned_user_id}
-                            </span>
-                          )}
-                        </div>
+                    <div className="flex justify-between items-start gap-4">
+
+                      <div>
+                        <h4 className={`font-extrabold ${
+                          t.completed
+                            ? 'line-through text-slate-500 dark:text-white/60'
+                            : 'text-slate-900 dark:text-white'
+                        }`}>
+                          {t.title}
+                        </h4>
 
                         {t.description && (
-                          <p
-                            className={`text-xs sm:text-sm ${
-                              t.completed
-                                ? 'text-slate-500 dark:text-white/50'
-                                : 'text-slate-600 dark:text-white/70'
-                            }`}
-                          >
+                          <p className="text-sm text-slate-600 dark:text-white/70 mt-1">
                             {t.description}
                           </p>
                         )}
 
-                        <div className="text-[10px] text-slate-400 dark:text-white/40 font-bold uppercase tracking-widest">
+                        <div className="text-xs text-slate-400 mt-2">
                           #{t.id} • {t.created_at}
-                          {t.completed_at ? ` • ${t.completed_at}` : ''}
                         </div>
-
-                        {!canToggle && (
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-white/40">
-                            Nur Assigned User
-                          </div>
-                        )}
                       </div>
+
+                      {/* NEU: Delete Button */}
+                      {canDelete && t.completed && (
+                        <button
+                          onClick={() => deleteTask(t)}
+                          className="px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+                        >
+                          Löschen
+                        </button>
+                      )}
+
                     </div>
+
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
     </div>
   );
 };
