@@ -1,4 +1,3 @@
-system// components/Sidebar.tsx
 
 import React from 'react';
 import { AppRole, ViewType } from '../types';
