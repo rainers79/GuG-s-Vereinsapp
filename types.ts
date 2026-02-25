@@ -11,7 +11,8 @@ export type ViewType =
   | 'calendar'
   | 'members'
   | 'tasks'
-  | 'settings';
+  | 'settings'
+  | 'pos';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
