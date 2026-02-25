@@ -19,8 +19,15 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
   const [loading, setLoading] = useState(false);
 
   const loadArticles = async () => {
-    const data = await api.getPosArticles({ all: true }, onUnauthorized);
-    setArticles(data);
+    try {
+      setLoading(true);
+      const data = await api.getPosArticles({ all: true }, onUnauthorized);
+      setArticles(data);
+    } catch (e) {
+      console.error('Fehler beim Laden der Artikel');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -30,53 +37,65 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
   const createArticle = async () => {
     if (!name || !price) return;
 
-    await api.createPosArticle(
-      {
-        name,
-        category,
-        price_cents: Math.round(parseFloat(price) * 100),
-        is_active: true,
-        sort_order: 0
-      },
-      onUnauthorized
-    );
+    try {
+      await api.createPosArticle(
+        {
+          name,
+          category,
+          price_cents: Math.round(parseFloat(price) * 100),
+          is_active: true,
+          sort_order: 0
+        },
+        onUnauthorized
+      );
 
-    setName('');
-    setPrice('');
-    loadArticles();
+      setName('');
+      setPrice('');
+      loadArticles();
+    } catch (e) {
+      console.error('Fehler beim Anlegen');
+    }
   };
 
   const toggleActive = async (article: PosArticle) => {
-    await api.updatePosArticle(
-      article.id,
-      { is_active: article.is_active ? false : true },
-      onUnauthorized
-    );
-    loadArticles();
+    try {
+      await api.updatePosArticle(
+        article.id,
+        { is_active: article.is_active ? false : true },
+        onUnauthorized
+      );
+      loadArticles();
+    } catch (e) {
+      console.error('Fehler beim Aktualisieren');
+    }
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border">
+    <div className="bg-white text-black p-8 rounded-xl border border-black shadow-lg">
 
-      <h2 className="text-xl font-black mb-6">POS Verwaltung</h2>
+      <h2 className="text-2xl font-black mb-8 tracking-tight">
+        POS Verwaltung
+      </h2>
 
       {/* CREATE */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
 
         <input
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Artikelname"
-          className="border p-2"
+          className="border border-black p-3 bg-white text-black font-semibold placeholder-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-black"
         />
 
         <select
           value={category}
           onChange={e => setCategory(e.target.value as PosCategory)}
-          className="border p-2"
+          className="border border-black p-3 bg-white text-black font-semibold rounded focus:outline-none focus:ring-2 focus:ring-black"
         >
           {categories.map(c => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>
+              {c.toUpperCase()}
+            </option>
           ))}
         </select>
 
@@ -86,12 +105,12 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
           placeholder="Preis €"
           type="number"
           step="0.01"
-          className="border p-2"
+          className="border border-black p-3 bg-white text-black font-semibold placeholder-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-black"
         />
 
         <button
           onClick={createArticle}
-          className="bg-black text-white font-bold"
+          className="bg-black text-white font-black uppercase tracking-widest rounded hover:opacity-90 transition"
         >
           Anlegen
         </button>
@@ -99,32 +118,40 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
       </div>
 
       {/* LIST */}
-      <div className="space-y-2">
-        {articles.map(a => (
-          <div
-            key={a.id}
-            className="flex justify-between items-center border p-3 rounded"
-          >
-            <div>
-              <div className="font-bold">{a.name}</div>
-              <div className="text-sm text-gray-500">
-                {a.category} – {(a.price_cents / 100).toFixed(2)} €
-              </div>
-            </div>
-
-            <button
-              onClick={() => toggleActive(a)}
-              className={`px-4 py-2 text-xs font-bold ${
-                a.is_active
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-300'
-              }`}
+      {loading ? (
+        <div className="text-center py-10 font-semibold">
+          Lädt Artikel...
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {articles.map(a => (
+            <div
+              key={a.id}
+              className="flex justify-between items-center border border-black p-4 rounded bg-white"
             >
-              {a.is_active ? 'Aktiv' : 'Inaktiv'}
-            </button>
-          </div>
-        ))}
-      </div>
+              <div>
+                <div className="font-bold text-lg">
+                  {a.name}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {a.category.toUpperCase()} – {(a.price_cents / 100).toFixed(2)} €
+                </div>
+              </div>
+
+              <button
+                onClick={() => toggleActive(a)}
+                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded transition ${
+                  a.is_active
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-300 text-black'
+                }`}
+              >
+                {a.is_active ? 'Aktiv' : 'Inaktiv'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
     </div>
   );
