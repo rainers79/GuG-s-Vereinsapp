@@ -1,11 +1,9 @@
-// src/App.tsx
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Poll, ViewType } from './types';
+import { User, Poll, ViewType, NotificationSettings } from './types';
 import * as api from './services/api';
+
 import MembersView from './components/MembersView';
 import TasksView from './components/TasksView';
-
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import PollList from './components/PollList';
@@ -25,20 +23,45 @@ interface ToastItem {
   type: ToastType;
 }
 
+/* =====================================================
+   STORAGE KEYS
+===================================================== */
+
+const LS_NOTIFICATION_SETTINGS = 'gug_notification_settings';
 const LS_LAST_CHAT_ID = 'gug_last_chat_id';
 const LS_LAST_POLL_ID = 'gug_last_poll_id';
 
+/* =====================================================
+   DEFAULT SETTINGS
+===================================================== */
+
+const defaultNotificationSettings: NotificationSettings = {
+  chatEnabled: true,
+  pollEnabled: true,
+  chatPreview: true,
+  pollPreview: true
+};
+
 const App: React.FC = () => {
+
+  /* =====================================================
+     CORE STATE
+  ===================================================== */
+
   const [user, setUser] = useState<User | null>(api.getStoredUser());
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // bestehend (bleibt)
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // NEU: Toast Queue (mehrere Popups möglich)
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const [notificationSettings, setNotificationSettings] =
+    useState<NotificationSettings>(() => {
+      const stored = localStorage.getItem(LS_NOTIFICATION_SETTINGS);
+      return stored ? JSON.parse(stored) : defaultNotificationSettings;
+    });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -49,9 +72,32 @@ const App: React.FC = () => {
   );
 
   const userRef = useRef<User | null>(user);
+
+  /* =====================================================
+     EFFECTS
+  ===================================================== */
+
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      LS_NOTIFICATION_SETTINGS,
+      JSON.stringify(notificationSettings)
+    );
+  }, [notificationSettings]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
+    localStorage.setItem('gug_theme', theme);
+  }, [theme]);
+
+  /* =====================================================
+     TOAST HELPERS
+  ===================================================== */
 
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -62,20 +108,9 @@ const App: React.FC = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('gug_theme', theme);
-  }, [theme]);
-
-  const params = new URLSearchParams(window.location.search);
-  const verifyUid = params.get('uid');
-  const verifyToken = params.get('token');
-  const isVerifyMode = !!verifyUid && !!verifyToken;
+  /* =====================================================
+     AUTH + DATA LOAD
+  ===================================================== */
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
@@ -86,7 +121,6 @@ const App: React.FC = () => {
   }, []);
 
   const fetchAppData = useCallback(async () => {
-    setError(null);
     try {
       const currentUser = await api.getCurrentUser(handleUnauthorized);
       setUser(currentUser);
@@ -94,43 +128,19 @@ const App: React.FC = () => {
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
-      if (err?.status === 401 || err?.status === 403) {
-        handleUnauthorized();
-      } else {
-        setError(err?.message || 'Fehler beim Laden der Daten.');
-      }
+      setError(err?.message || 'Fehler beim Laden.');
     } finally {
       setLoading(false);
     }
   }, [handleUnauthorized]);
 
   useEffect(() => {
-    if (api.getToken()) {
-      fetchAppData();
-    } else {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (api.getToken()) fetchAppData();
+    else setLoading(false);
   }, []);
 
-  const handleLoginSuccess = async (loggedUser: User) => {
-    setUser(loggedUser);
-    await fetchAppData();
-  };
-
-  const handleLogout = () => {
-    api.clearToken();
-    setUser(null);
-    setPolls([]);
-    setIsSidebarOpen(false);
-  };
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
-  };
-
   /* =====================================================
-     NEU: GLOBAL WATCHER (CHAT + POLLS) -> Popups
+     GLOBAL WATCHER (CHAT + POLLS)
   ===================================================== */
 
   const getStoredNumber = (key: string): number => {
@@ -147,89 +157,93 @@ const App: React.FC = () => {
     const u = userRef.current;
     if (!u) return;
 
-    // ---- CHAT ----
-    try {
-      const msgs = await api.getChatMessages(handleUnauthorized);
+    /* ---------- CHAT ---------- */
+    if (notificationSettings.chatEnabled) {
+      try {
+        const msgs = await api.getChatMessages(handleUnauthorized);
 
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        const maxId = Math.max(...msgs.map(m => m.id || 0));
-        let lastSeen = getStoredNumber(LS_LAST_CHAT_ID);
+        if (msgs.length > 0) {
+          const maxId = Math.max(...msgs.map(m => m.id || 0));
+          const lastSeen = getStoredNumber(LS_LAST_CHAT_ID);
 
-        // beim ersten Lauf: nicht alles spammen -> nur "merken"
-        if (lastSeen === 0) {
-          setStoredNumber(LS_LAST_CHAT_ID, maxId);
-        } else if (maxId > lastSeen) {
-          const newOnes = msgs
-            .filter(m => (m.id || 0) > lastSeen)
-            .filter(m => (m.user_id || 0) !== u.id);
+          if (lastSeen === 0) {
+            setStoredNumber(LS_LAST_CHAT_ID, maxId);
+          } else if (maxId > lastSeen) {
 
-          if (newOnes.length > 0) {
-            const latest = newOnes[newOnes.length - 1];
-            const preview =
-              (latest.message || '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 80) + ((latest.message || '').length > 80 ? '…' : '');
+            const newMsgs = msgs.filter(
+              m => m.id > lastSeen && m.user_id !== u.id
+            );
 
-            pushToast(`Neue Chat-Nachricht von ${latest.display_name}: ${preview}`, 'success');
+            if (newMsgs.length > 0) {
+              const latest = newMsgs[newMsgs.length - 1];
+
+              if (notificationSettings.chatPreview) {
+                const preview =
+                  latest.message.slice(0, 80) +
+                  (latest.message.length > 80 ? '…' : '');
+                pushToast(
+                  `Neue Nachricht von ${latest.display_name}: ${preview}`
+                );
+              } else {
+                pushToast(
+                  `Neue Nachricht von ${latest.display_name}`
+                );
+              }
+            }
+
+            setStoredNumber(LS_LAST_CHAT_ID, maxId);
           }
-
-          setStoredNumber(LS_LAST_CHAT_ID, maxId);
         }
-      }
-    } catch {
-      // bewusst still -> keine Toast-Spam bei Netz-Problem
+      } catch {}
     }
 
-    // ---- POLLS ----
-    try {
-      const p = await api.getPolls(handleUnauthorized);
+    /* ---------- POLLS ---------- */
+    if (notificationSettings.pollEnabled) {
+      try {
+        const p = await api.getPolls(handleUnauthorized);
 
-      if (Array.isArray(p) && p.length > 0) {
-        const maxPollId = Math.max(...p.map(x => x.id || 0));
-        let lastPoll = getStoredNumber(LS_LAST_POLL_ID);
+        if (p.length > 0) {
+          const maxPollId = Math.max(...p.map(x => x.id || 0));
+          const lastPoll = getStoredNumber(LS_LAST_POLL_ID);
 
-        // beim ersten Lauf: nicht alles spammen -> nur "merken"
-        if (lastPoll === 0) {
-          setStoredNumber(LS_LAST_POLL_ID, maxPollId);
-        } else if (maxPollId > lastPoll) {
-          // neueste Umfrage suchen
-          const newest = [...p].sort((a, b) => (a.id || 0) - (b.id || 0)).pop();
-          if (newest) {
-            const q =
-              (newest.question || '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 90) + ((newest.question || '').length > 90 ? '…' : '');
-            pushToast(`Neue Umfrage verfügbar: ${q}`, 'success');
+          if (lastPoll === 0) {
+            setStoredNumber(LS_LAST_POLL_ID, maxPollId);
+          } else if (maxPollId > lastPoll) {
+
+            const newest = p.find(x => x.id === maxPollId);
+
+            if (newest) {
+              if (notificationSettings.pollPreview) {
+                const preview =
+                  newest.question.slice(0, 90) +
+                  (newest.question.length > 90 ? '…' : '');
+                pushToast(`Neue Umfrage: ${preview}`);
+              } else {
+                pushToast(`Eine neue Umfrage wurde erstellt`);
+              }
+            }
+
+            setStoredNumber(LS_LAST_POLL_ID, maxPollId);
           }
-          setStoredNumber(LS_LAST_POLL_ID, maxPollId);
-        }
-      }
 
-      // sync App-State (optional, aber praktisch)
-      setPolls(p);
-    } catch {
-      // still
+          setPolls(p);
+        }
+      } catch {}
     }
-  }, [handleUnauthorized, pushToast]);
+
+  }, [notificationSettings, handleUnauthorized, pushToast]);
 
   useEffect(() => {
     if (!user) return;
 
-    // sofort einmal prüfen (aber initial nur "merken", siehe Logic)
     checkGlobalUpdates();
-
-    // alle 5 Sekunden prüfen
-    const interval = setInterval(() => {
-      checkGlobalUpdates();
-    }, 5000);
-
+    const interval = setInterval(checkGlobalUpdates, 5000);
     return () => clearInterval(interval);
+
   }, [user, checkGlobalUpdates]);
 
   /* =====================================================
-     RENDER
+     RENDER LOGIC
   ===================================================== */
 
   const renderContent = () => {
@@ -270,7 +284,12 @@ const App: React.FC = () => {
 
       case 'settings':
         return (
-          <SettingsView theme={theme} onThemeChange={setTheme} />
+          <SettingsView
+            theme={theme}
+            onThemeChange={setTheme}
+            notificationSettings={notificationSettings}
+            setNotificationSettings={setNotificationSettings}
+          />
         );
 
       case 'members':
@@ -295,35 +314,25 @@ const App: React.FC = () => {
     }
   };
 
-  if (isVerifyMode) {
-    return (
-      <VerifyPage
-        uid={parseInt(verifyUid!)}
-        token={verifyToken!}
-        onDone={() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          window.location.reload();
-        }}
-      />
-    );
-  }
-
   if (loading && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8] dark:bg-[#121212]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B5A47A]"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        Lädt...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#F8F8F8] dark:bg-[#121212] dark:text-white">
+    <div className="min-h-screen flex flex-col">
 
-      {/* bestehende single notifications */}
-      {error && <Notification message={error} type="error" onClose={() => setError(null)} />}
-      {success && <Notification message={success} type="success" onClose={() => setSuccess(null)} />}
+      {error && (
+        <Notification message={error} type="error" onClose={() => setError(null)} />
+      )}
 
-      {/* NEU: Queue Notifications */}
+      {success && (
+        <Notification message={success} type="success" onClose={() => setSuccess(null)} />
+      )}
+
       {toasts.map(t => (
         <Notification
           key={t.id}
@@ -334,19 +343,9 @@ const App: React.FC = () => {
       ))}
 
       {!user ? (
-        <div className="flex-grow flex items-center justify-center p-4">
-          {isRegistering ? (
-            <RegisterForm
-              onBackToLogin={() => setIsRegistering(false)}
-              onSuccess={(msg) => setSuccess(msg)}
-            />
-          ) : (
-            <LoginForm
-              onLoginSuccess={handleLoginSuccess}
-              onShowRegister={() => setIsRegistering(true)}
-            />
-          )}
-        </div>
+        isRegistering
+          ? <RegisterForm onBackToLogin={() => setIsRegistering(false)} onSuccess={setSuccess} />
+          : <LoginForm onLoginSuccess={setUser} onShowRegister={() => setIsRegistering(true)} />
       ) : (
         <>
           <Sidebar
@@ -359,20 +358,17 @@ const App: React.FC = () => {
 
           <Header
             user={user}
-            onLogout={handleLogout}
-            onOpenMenu={toggleSidebar}
+            onLogout={() => {
+              api.clearToken();
+              setUser(null);
+            }}
+            onOpenMenu={() => setIsSidebarOpen(true)}
             onGoHome={() => setActiveView('dashboard')}
           />
 
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {renderContent()}
           </main>
-
-          <footer className="py-6 text-center border-t bg-white dark:bg-[#1A1A1A] border-slate-100 dark:border-white/5">
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-              GuG Verein | Member Portal v1.0
-            </p>
-          </footer>
         </>
       )}
     </div>
