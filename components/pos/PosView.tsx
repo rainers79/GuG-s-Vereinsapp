@@ -128,11 +128,11 @@ const PosView: React.FC<PosViewProps> = ({
   };
 
   if (loading) {
-    return <div className="p-10 font-bold">Lädt...</div>;
+    return <div className="p-10 font-bold text-black">Lädt...</div>;
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5E9D0]">
+    <div className="min-h-screen flex flex-col bg-[#F5E9D0] text-black">
 
       <div className="bg-black text-white p-4 flex justify-between items-center">
         <div className="font-black uppercase text-sm">Kassa</div>
@@ -163,40 +163,52 @@ const PosView: React.FC<PosViewProps> = ({
 
       {/* ARTICLES */}
       <div className="flex-1 overflow-y-auto p-4 pb-56">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {filteredArticles.map(article => (
-            <button
-              key={article.id}
-              onClick={() => addToCart(article)}
-              className="bg-white border-2 border-black p-6 font-black text-sm active:scale-95"
-            >
-              <div>{article.name}</div>
-              <div className="text-lg">
-                {(article.price_cents / 100).toFixed(2)} €
-              </div>
-            </button>
-          ))}
-        </div>
+        {filteredArticles.length === 0 ? (
+          <div className="p-6 bg-white border-2 border-black font-bold text-black">
+            Keine Artikel in dieser Kategorie.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {filteredArticles.map(article => (
+              <button
+                key={article.id}
+                onClick={() => addToCart(article)}
+                className="bg-white text-black border-2 border-black p-6 font-black text-sm active:scale-95"
+              >
+                <div className="text-black">{article.name}</div>
+                <div className="text-lg text-black">
+                  {(article.price_cents / 100).toFixed(2)} €
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* STICKY CART */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black p-4 space-y-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white text-black border-t-4 border-black p-4 space-y-3">
 
         <div className="max-h-28 overflow-y-auto space-y-2">
-          {cart.map(item => (
-            <div key={item.article.id} className="flex justify-between font-bold text-sm">
-              <div>{item.qty} × {item.article.name}</div>
-              <button
-                onClick={() => removeFromCart(item.article.id)}
-                className="border px-2 py-1 text-xs"
-              >
-                -
-              </button>
+          {cart.length === 0 ? (
+            <div className="text-sm font-bold text-black">
+              Warenkorb ist leer.
             </div>
-          ))}
+          ) : (
+            cart.map(item => (
+              <div key={item.article.id} className="flex justify-between font-bold text-sm text-black">
+                <div className="text-black">{item.qty} × {item.article.name}</div>
+                <button
+                  onClick={() => removeFromCart(item.article.id)}
+                  className="border border-black px-2 py-1 text-xs text-black"
+                >
+                  -
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
-        <div className="flex justify-between font-black text-lg">
+        <div className="flex justify-between font-black text-lg text-black">
           <span>Summe</span>
           <span>{(totalCents / 100).toFixed(2)} €</span>
         </div>
@@ -226,10 +238,10 @@ const PosView: React.FC<PosViewProps> = ({
           placeholder="Erhalten"
           value={received}
           onChange={e => setReceived(e.target.value)}
-          className="w-full border-2 border-black p-3 font-bold text-lg"
+          className="w-full border-2 border-black p-3 font-bold text-lg text-black bg-white"
         />
 
-        <div className="flex justify-between font-bold">
+        <div className="flex justify-between font-bold text-black">
           <span>Rückgeld</span>
           <span>{(changeCents / 100).toFixed(2)} €</span>
         </div>
