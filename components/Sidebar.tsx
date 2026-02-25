@@ -1,4 +1,4 @@
-// components/Sidebar.tsx
+system// components/Sidebar.tsx
 
 import React from 'react';
 import { AppRole, ViewType } from '../types';
@@ -43,9 +43,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'pos' as ViewType,
-      label: 'Kassa',
+      label: 'Boniersystem',
       roles: [AppRole.SUPERADMIN, AppRole.VORSTAND] // ✅ nur Vorstand/Superadmin
     },
+    {
+  id: 'pos-admin' as ViewType,
+  label: 'POS Verwaltung',
+  roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
+},
     {
       id: 'settings' as ViewType,
       label: 'Einstellungen'
