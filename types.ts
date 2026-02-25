@@ -83,6 +83,7 @@ export interface VoteResponse {
   message: string;
   poll: Poll;
 }
+
 export interface MemberMeta {
   first_name: string;
   last_name: string;
@@ -100,6 +101,7 @@ export interface Member {
   roles: string[];
   meta: MemberMeta;
 }
+
 export type TaskStatus = 'open' | 'done';
 
 export interface Task {
@@ -115,9 +117,61 @@ export interface Task {
   created_by?: number;
   created_at?: string;
 }
+
 export interface NotificationSettings {
   chatEnabled: boolean;
   pollEnabled: boolean;
   chatPreview: boolean;
   pollPreview: boolean;
+}
+
+/* =====================================================
+   POS TYPES (PHASE 1)
+===================================================== */
+
+export type PosCategory = 'food' | 'drink' | 'gug';
+
+export interface PosArticle {
+  id: number;
+  name: string;
+  category: PosCategory;
+  price_cents: number;
+  is_active: number;
+  sort_order: number;
+}
+
+export interface PosOrderItem {
+  article_id: number;
+  article_name_snapshot: string;
+  category_snapshot: PosCategory;
+  price_cents_snapshot: number;
+  qty: number;
+  line_total_cents: number;
+}
+
+export interface PosOrder {
+  id: number;
+  order_number: string;
+  waiter_user_id: number;
+  status: 'open' | 'paid' | 'canceled';
+  total_cents: number;
+  received_cents: number;
+  change_cents: number;
+  created_at: string;
+  paid_at: string | null;
+  note: string;
+  items: PosOrderItem[];
+}
+
+export interface PosDailyReport {
+  success: boolean;
+  date_from: string;
+  date_to: string;
+  total_cents: number;
+  orders_count: number;
+  breakdown_by_waiter: {
+    waiter_user_id: number;
+    total_cents: number;
+    orders_count: number;
+  }[];
 }
