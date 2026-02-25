@@ -15,6 +15,38 @@ import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 
+type PosViewProps = {
+  user: User;
+  onUnauthorized: () => void;
+};
+
+const PosView: React.FC<PosViewProps> = ({ user }) => {
+  return (
+    <div className="space-y-6">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="text-white font-black uppercase tracking-widest text-sm">
+          POS
+        </div>
+        <div className="text-white/70 mt-2 text-sm leading-relaxed">
+          Modul ist aktiv eingebunden. Nächster Schritt: echte POS-Oberfläche (Artikel-Kacheln, Zwischensumme, Zahlung, Speichern).
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="text-white font-black uppercase tracking-widest text-[11px]">
+          Angemeldet als
+        </div>
+        <div className="text-white mt-2 font-bold">
+          {user.displayName}
+        </div>
+        <div className="text-white/50 text-sm">
+          {user.username}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 type ToastType = 'error' | 'success';
 
 interface ToastItem {
@@ -305,6 +337,14 @@ const App: React.FC = () => {
           <TasksView
             userId={user!.id}
             userRole={user!.role}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
+
+      case 'pos':
+        return (
+          <PosView
+            user={user!}
             onUnauthorized={handleUnauthorized}
           />
         );
