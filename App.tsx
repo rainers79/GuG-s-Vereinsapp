@@ -97,12 +97,14 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
+
       case 'dashboard':
         return (
           <DashboardView
             user={user!}
             polls={polls}
             onNavigate={setActiveView}
+            onUnauthorized={handleUnauthorized}   {/* ✅ FIX */}
           />
         );
 
