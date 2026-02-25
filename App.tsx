@@ -100,13 +100,13 @@ const App: React.FC = () => {
 
       case 'dashboard':
         return (
-          <DashboardView
-            user={user!}
-            polls={polls}
-            onNavigate={setActiveView}
-            onUnauthorized={handleUnauthorized}   {/* ✅ FIX */}
-          />
-        );
+<DashboardView
+      user={user!}
+      polls={polls}
+      onNavigate={setActiveView}
+      onUnauthorized={handleUnauthorized}
+    />
+  );
 
       case 'calendar':
         return (
