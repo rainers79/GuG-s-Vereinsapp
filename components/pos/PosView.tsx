@@ -33,7 +33,7 @@ const PosView: React.FC<PosViewProps> = ({
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await api.getPosArticles({}, onUnauthorized);
+      const data = await api.getPosArticles({}, onUnauthorized);
         setArticles(data.filter(a => a.is_active === 1));
       } catch {}
       finally {
