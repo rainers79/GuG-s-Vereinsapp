@@ -13,6 +13,7 @@ export type ViewType =
   | 'tasks'
   | 'settings'
   | 'pos';
+  | 'pos-admin';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
