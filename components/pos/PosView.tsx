@@ -33,8 +33,18 @@ const PosView: React.FC<PosViewProps> = ({
   useEffect(() => {
     const load = async () => {
       try {
-      const data = await api.getPosArticles({}, onUnauthorized);
-        setArticles(data.filter(a => a.is_active === 1));
+        const data = await api.getPosArticles({}, onUnauthorized);
+
+        // ✅ FIX: WP liefert oft Strings ("1", "390") → robust normalisieren
+        const normalized = (Array.isArray(data) ? data : []).map((a: any) => ({
+          ...a,
+          id: Number(a.id),
+          price_cents: Number(a.price_cents),
+          is_active: Number(a.is_active),
+          sort_order: Number(a.sort_order)
+        })) as PosArticle[];
+
+        setArticles(normalized.filter(a => Number(a.is_active) === 1));
       } catch {}
       finally {
         setLoading(false);
