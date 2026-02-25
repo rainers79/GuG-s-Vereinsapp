@@ -1,17 +1,26 @@
-// components/DashboardView.tsx
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import { User, Poll, ViewType } from '../types';
 import { getCroppedImg } from '../utils/cropImage';
+import * as api from '../services/api';
 
 interface Props {
   user: User;
   polls: Poll[];
   onNavigate: (view: ViewType) => void;
+  onUnauthorized: () => void;
 }
 
-const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
+const DashboardView: React.FC<Props> = ({
+  user,
+  polls,
+  onNavigate,
+  onUnauthorized
+}) => {
+
+  /* =====================================================
+     PROFILE IMAGE STATE
+  ===================================================== */
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -21,9 +30,20 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const upcomingPolls = polls.filter(p => p.target_date);
+  /* =====================================================
+     CHAT STATE
+  ===================================================== */
 
-  /* Load existing image */
+  const [messages, setMessages] = useState<api.ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loadingChat, setLoadingChat] = useState(false);
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  /* =====================================================
+     LOAD PROFILE IMAGE
+  ===================================================== */
+
   useEffect(() => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
       headers: {
@@ -37,6 +57,44 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
         }
       });
   }, []);
+
+  /* =====================================================
+     CHAT LOGIC
+  ===================================================== */
+
+  const loadChat = async () => {
+    try {
+      const data = await api.getChatMessages(onUnauthorized);
+      setMessages(data);
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadChat();
+    const interval = setInterval(loadChat, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!newMessage.trim()) return;
+
+    setLoadingChat(true);
+    try {
+      await api.sendChatMessage(newMessage.trim(), onUnauthorized);
+      setNewMessage('');
+      await loadChat();
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  /* =====================================================
+     IMAGE CROP
+  ===================================================== */
 
   const onCropComplete = useCallback((_: any, croppedPixels: any) => {
     setCroppedAreaPixels(croppedPixels);
@@ -84,43 +142,42 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
     }
   };
 
+  /* =====================================================
+     UI
+  ===================================================== */
+
   return (
     <div className="space-y-10">
 
       {/* ================= PROFIL ================= */}
-      <div className="bg-white dark:bg-[#1E1E1E] rounded-3xl p-8 border shadow-xl">
+      <div className="app-card">
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 flex-col sm:flex-row">
 
-          {/* Avatar */}
-          <div className="relative">
+          <label className="cursor-pointer block">
+            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#B5A47A]">
 
-            <label className="cursor-pointer block">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#B5A47A]">
+              {profileImage ? (
+                <img src={profileImage} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
+                  {user.displayName.charAt(0)}
+                </div>
+              )}
 
-                {profileImage ? (
-                  <img src={profileImage} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
-                    {user.displayName.charAt(0)}
-                  </div>
-                )}
+            </div>
 
-              </div>
-
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleFileSelect(e.target.files[0]);
-                  }
-                }}
-              />
-            </label>
-
-          </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(e.target.files[0]);
+                }
+              }}
+            />
+          </label>
 
           <div>
             <h1 className="text-2xl font-black">{user.displayName}</h1>
@@ -129,6 +186,63 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
           </div>
 
         </div>
+      </div>
+
+      {/* ================= CHAT ================= */}
+      <div className="app-card space-y-4">
+
+        <h2 className="text-lg font-black">Globaler Chat</h2>
+
+        <div className="h-80 overflow-y-auto bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
+
+          {messages.map(msg => (
+            <div key={msg.id}>
+              <span className="text-xs font-bold text-[#B5A47A]">
+                {msg.display_name}
+              </span>
+              <div className="text-slate-800 dark:text-white">
+                {msg.message}
+              </div>
+            </div>
+          ))}
+
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="form-input flex-1"
+            placeholder="Nachricht schreiben..."
+          />
+
+          <button
+            onClick={handleSend}
+            disabled={loadingChat}
+            className="btn-primary"
+          >
+            Senden
+          </button>
+        </div>
+
+      </div>
+
+      {/* ================= NAVIGATION ================= */}
+      <div className="grid md:grid-cols-3 gap-6">
+
+        <div onClick={() => onNavigate('calendar')} className="app-card cursor-pointer">
+          <h3 className="font-black">Kalender</h3>
+        </div>
+
+        <div onClick={() => onNavigate('polls')} className="app-card cursor-pointer">
+          <h3 className="font-black">Umfragen</h3>
+        </div>
+
+        <div onClick={() => onNavigate('tasks')} className="app-card cursor-pointer">
+          <h3 className="font-black">Aufgaben</h3>
+        </div>
+
       </div>
 
       {/* ================= CROP MODAL ================= */}
@@ -162,7 +276,7 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
               <div className="flex gap-4">
                 <button
                   onClick={() => setSelectedImage(null)}
-                  className="px-4 py-2 rounded-lg bg-gray-400 text-white"
+                  className="btn-secondary"
                 >
                   Abbrechen
                 </button>
@@ -170,7 +284,7 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
                 <button
                   onClick={handleUpload}
                   disabled={uploading}
-                  className="px-4 py-2 rounded-lg bg-[#B5A47A] text-black font-bold"
+                  className="btn-primary"
                 >
                   {uploading ? 'Speichern...' : 'Speichern'}
                 </button>
@@ -180,21 +294,6 @@ const DashboardView: React.FC<Props> = ({ user, polls, onNavigate }) => {
           </div>
         </div>
       )}
-
-      {/* ================= KACHELN ================= */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <div onClick={() => onNavigate('calendar')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
-          <h3 className="font-black">Kalender</h3>
-        </div>
-
-        <div onClick={() => onNavigate('polls')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
-          <h3 className="font-black">Umfragen</h3>
-        </div>
-
-        <div onClick={() => onNavigate('tasks')} className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] border cursor-pointer">
-          <h3 className="font-black">Aufgaben</h3>
-        </div>
-      </div>
 
     </div>
   );
