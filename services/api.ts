@@ -112,7 +112,7 @@ export async function apiRequest<T>(
     return await response.json();
 
   } catch (error: any) {
-    if (error.status) throw error;
+    if (error?.status) throw error;
     throw { message: 'Netzwerkfehler. Bitte Verbindung prüfen.' } as ApiError;
   }
 }
@@ -405,7 +405,15 @@ export async function createPosOrder(
   received_cents: number;
   change_cents: number;
 }> {
-  return await apiRequest<any>(
+  return await apiRequest<{
+    success: boolean;
+    order_id: number;
+    order_number: string;
+    waiter_user_id: number;
+    total_cents: number;
+    received_cents: number;
+    change_cents: number;
+  }>(
     '/gug/v1/pos/orders',
     {
       method: 'POST',
