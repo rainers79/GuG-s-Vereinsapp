@@ -1,7 +1,7 @@
 // components/pos/PosView.tsx
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { User, PosArticle } from '../../types';
+import { User, PosArticle, PosCategory } from '../../types';
 import * as api from '../../services/api';
 
 interface PosViewProps {
@@ -15,6 +15,8 @@ interface CartItem {
   qty: number;
 }
 
+const categories: PosCategory[] = ['food', 'drink', 'gug'];
+
 const PosView: React.FC<PosViewProps> = ({
   user,
   onUnauthorized,
@@ -22,13 +24,10 @@ const PosView: React.FC<PosViewProps> = ({
 }) => {
 
   const [articles, setArticles] = useState<PosArticle[]>([]);
+  const [activeCategory, setActiveCategory] = useState<PosCategory>('food');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [received, setReceived] = useState<string>('');
   const [loading, setLoading] = useState(true);
-
-  /* =====================================================
-     LOAD ARTICLES
-  ===================================================== */
 
   useEffect(() => {
     const load = async () => {
@@ -43,9 +42,9 @@ const PosView: React.FC<PosViewProps> = ({
     load();
   }, [onUnauthorized]);
 
-  /* =====================================================
-     CART LOGIC
-  ===================================================== */
+  const filteredArticles = useMemo(() => {
+    return articles.filter(a => a.category === activeCategory);
+  }, [articles, activeCategory]);
 
   const addToCart = (article: PosArticle) => {
     setCart(prev => {
@@ -86,10 +85,6 @@ const PosView: React.FC<PosViewProps> = ({
 
   const changeCents = receivedCents - totalCents;
 
-  /* =====================================================
-     SAVE ORDER
-  ===================================================== */
-
   const handleSave = async () => {
     if (cart.length === 0) return;
     if (receivedCents < totalCents) return;
@@ -111,122 +106,97 @@ const PosView: React.FC<PosViewProps> = ({
     } catch {}
   };
 
-  /* =====================================================
-     RENDER
-  ===================================================== */
-
   if (loading) {
-    return (
-      <div className="p-10 text-black font-bold">
-        Lädt Artikel...
-      </div>
-    );
+    return <div className="p-10 font-bold">Lädt...</div>;
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5E9D0]">
 
-      {/* HEADER */}
       <div className="bg-black text-white p-4 flex justify-between items-center">
-        <div className="font-black uppercase tracking-widest text-sm">
-          Kassa
-        </div>
+        <div className="font-black uppercase text-sm">Kassa</div>
+        <button
+          onClick={onExit}
+          className="bg-white text-black px-4 py-2 font-black uppercase text-xs"
+        >
+          Zurück
+        </button>
+      </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-xs">
-            {user.displayName}
-          </div>
-
+      {/* CATEGORY TABS */}
+      <div className="flex border-b-2 border-black">
+        {categories.map(cat => (
           <button
-            onClick={onExit}
-            className="bg-white text-black px-4 py-2 font-black uppercase text-[10px]"
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`flex-1 py-3 font-black uppercase text-xs ${
+              activeCategory === cat
+                ? 'bg-black text-white'
+                : 'bg-white text-black'
+            }`}
           >
-            Zurück
+            {cat}
           </button>
-        </div>
+        ))}
       </div>
 
       {/* ARTICLE GRID */}
       <div className="flex-1 overflow-y-auto p-4 pb-40">
-
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-          {articles.map(article => (
+          {filteredArticles.map(article => (
             <button
               key={article.id}
               onClick={() => addToCart(article)}
-              className="bg-white border-2 border-black p-6 text-left font-black text-black text-sm active:scale-95 transition"
+              className="bg-white border-2 border-black p-6 font-black text-sm active:scale-95"
             >
-              <div className="mb-3">
-                {article.name}
-              </div>
-
+              <div>{article.name}</div>
               <div className="text-lg">
                 {(article.price_cents / 100).toFixed(2)} €
               </div>
             </button>
           ))}
-
         </div>
-
       </div>
 
-      {/* STICKY CART PANEL */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black shadow-2xl p-4 space-y-3">
+      {/* STICKY CART */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black p-4 space-y-3">
 
-        {/* Cart Items */}
         <div className="max-h-32 overflow-y-auto space-y-2">
           {cart.map(item => (
-            <div key={item.article.id} className="flex justify-between items-center text-sm font-bold">
-
-              <div>
-                {item.qty} × {item.article.name}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => removeFromCart(item.article.id)}
-                  className="border px-2 py-1 text-xs"
-                >
-                  -
-                </button>
-                <span>
-                  {(item.article.price_cents * item.qty / 100).toFixed(2)} €
-                </span>
-              </div>
-
+            <div key={item.article.id} className="flex justify-between font-bold text-sm">
+              <div>{item.qty} × {item.article.name}</div>
+              <button
+                onClick={() => removeFromCart(item.article.id)}
+                className="border px-2 py-1 text-xs"
+              >
+                -
+              </button>
             </div>
           ))}
         </div>
 
-        {/* Total */}
         <div className="flex justify-between font-black text-lg">
           <span>Summe</span>
           <span>{(totalCents / 100).toFixed(2)} €</span>
         </div>
 
-        {/* Received */}
         <input
           type="number"
           step="0.01"
           placeholder="Erhalten"
           value={received}
           onChange={e => setReceived(e.target.value)}
-          className="w-full border-2 border-black p-3 font-bold text-lg"
+          className="w-full border-2 border-black p-3 font-bold"
         />
 
-        {/* Change */}
         <div className="flex justify-between font-bold">
           <span>Rückgeld</span>
-          <span>
-            {(changeCents / 100).toFixed(2)} €
-          </span>
+          <span>{(changeCents / 100).toFixed(2)} €</span>
         </div>
 
-        {/* Checkout */}
         <button
           onClick={handleSave}
-          className="w-full bg-black text-white py-4 font-black uppercase text-sm active:scale-95 transition"
+          className="w-full bg-black text-white py-4 font-black uppercase"
         >
           Bonieren
         </button>
