@@ -8,28 +8,217 @@
   }
 }
 
-/* Custom Scrollbar für den Premium Look */
+/* =====================================================
+   DESIGN SYSTEM – GLOBAL COMPONENT LAYER
+   Mobile First • Premium Dark • Konsistent
+===================================================== */
+
+@layer components {
+
+  /* ===== Container ===== */
+
+  .app-container {
+    @apply bg-white dark:bg-[#1E1E1E]
+           border border-slate-100 dark:border-white/5
+           rounded-xl
+           p-4 sm:p-6;
+  }
+
+  .app-section {
+    @apply mt-6;
+  }
+
+  /* ===== Cards ===== */
+
+  .app-card {
+    @apply border border-slate-200 dark:border-white/10
+           rounded-xl
+           p-3 sm:p-4
+           transition
+           bg-white dark:bg-[#121212];
+  }
+
+  .app-card-muted {
+    @apply border border-slate-200 dark:border-white/10
+           rounded-xl
+           p-3 sm:p-4
+           transition
+           bg-slate-50 dark:bg-white/5;
+  }
+
+  /* ===== Headers / Layout ===== */
+
+  .mobile-stack {
+    @apply flex flex-col gap-4
+           sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .mobile-actions {
+    @apply flex flex-col xs:flex-row gap-2
+           w-full sm:w-auto;
+  }
+
+  /* ===== Buttons ===== */
+
+  .btn-primary {
+    @apply px-4 py-2
+           rounded-lg
+           text-xs
+           font-black
+           uppercase
+           tracking-widest
+           bg-brand-gold
+           text-brand-dark
+           hover:brightness-110
+           transition;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2
+           rounded-lg
+           text-xs
+           font-black
+           uppercase
+           tracking-widest
+           bg-white dark:bg-[#121212]
+           border border-slate-200 dark:border-white/10
+           text-slate-700 dark:text-white/80
+           hover:bg-slate-50 dark:hover:bg-white/5
+           transition;
+  }
+
+  .btn-mobile {
+    @apply w-full sm:w-auto;
+  }
+
+  /* ===== Form Elements ===== */
+
+  .form-label {
+    @apply block
+           text-xs
+           font-black
+           uppercase
+           tracking-widest
+           text-slate-600 dark:text-white/60
+           mb-2;
+  }
+
+  .form-input {
+    @apply w-full
+           px-3 py-2
+           rounded-lg
+           bg-white dark:bg-[#121212]
+           border border-slate-200 dark:border-white/10
+           text-slate-900 dark:text-white
+           focus:outline-none
+           focus:ring-2
+           focus:ring-brand-gold/40;
+  }
+
+  .form-textarea {
+    @apply form-input
+           min-h-[90px];
+  }
+
+  .form-select {
+    @apply form-input;
+  }
+
+  /* ===== Badges ===== */
+
+  .badge-default {
+    @apply text-[10px]
+           font-black
+           uppercase
+           tracking-widest
+           px-2 py-1
+           rounded-full
+           bg-slate-100
+           text-slate-700
+           dark:bg-white/10
+           dark:text-white/70;
+  }
+
+  .badge-gold {
+    @apply text-[10px]
+           font-black
+           uppercase
+           tracking-widest
+           px-2 py-1
+           rounded-full
+           bg-brand-gold/15
+           text-brand-gold;
+  }
+
+  /* ===== Meta Text ===== */
+
+  .meta-text {
+    @apply text-[10px]
+           font-bold
+           uppercase
+           tracking-widest
+           text-slate-400
+           dark:text-white/40;
+  }
+
+  /* ===== Alerts ===== */
+
+  .alert-error {
+    @apply mt-4
+           p-3
+           rounded-lg
+           border border-red-200
+           bg-red-50
+           text-red-800
+           text-sm
+           dark:border-red-500/30
+           dark:bg-red-500/10
+           dark:text-red-200;
+  }
+
+  .alert-success {
+    @apply mt-4
+           p-3
+           rounded-lg
+           border border-emerald-200
+           bg-emerald-50
+           text-emerald-900
+           text-sm
+           dark:border-emerald-500/30
+           dark:bg-emerald-500/10
+           dark:text-emerald-200;
+  }
+}
+
+/* =====================================================
+   Scrollbar Styling
+===================================================== */
+
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #B5A47A;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #a3936a;
 }
 
-/* Dark Mode Scrollbar */
 .dark ::-webkit-scrollbar-track {
   background: #111;
 }
+
 .dark ::-webkit-scrollbar-thumb {
   background: #B5A47A;
 }
+
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #a3936a;
 }
