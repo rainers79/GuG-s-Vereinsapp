@@ -1,8 +1,27 @@
-import { AppRole, User, Poll, WPUserResponse, ApiError, VoteResponse, RegistrationData, CalendarEvent } from '../types';
+import {
+  AppRole,
+  User,
+  Poll,
+  WPUserResponse,
+  ApiError,
+  VoteResponse,
+  RegistrationData,
+  CalendarEvent
+} from '../types';
+
+import type { Task } from '../types';
+
+/* =====================================================
+   CONFIG
+===================================================== */
 
 const API_BASE = 'https://api.gug-verein.at/wp-json';
 const TOKEN_KEY = 'gug_token';
 const USER_KEY = 'gug_user_data';
+
+/* =====================================================
+   ROLE MAPPING
+===================================================== */
 
 const mapWPRoleToAppRole = (wpRoles: any = []): AppRole => {
   const roles = Array.isArray(wpRoles) ? wpRoles : [];
@@ -10,6 +29,10 @@ const mapWPRoleToAppRole = (wpRoles: any = []): AppRole => {
   if (roles.includes('vorstand')) return AppRole.VORSTAND;
   return AppRole.USER;
 };
+
+/* =====================================================
+   TOKEN HANDLING
+===================================================== */
 
 export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
 
@@ -26,6 +49,10 @@ export const getStoredUser = (): User | null => {
   const data = localStorage.getItem(USER_KEY);
   return data ? JSON.parse(data) : null;
 };
+
+/* =====================================================
+   CORE REQUEST
+===================================================== */
 
 export async function apiRequest<T>(
   endpoint: string,
@@ -87,6 +114,10 @@ export async function apiRequest<T>(
   }
 }
 
+/* =====================================================
+   AUTH
+===================================================== */
+
 export async function login(username: string, password: string): Promise<User> {
   const data = await apiRequest<WPUserResponse>('/jwt-auth/v1/token', {
     method: 'POST',
@@ -98,16 +129,13 @@ export async function login(username: string, password: string): Promise<User> {
   return user;
 }
 
-export async function register(regData: RegistrationData): Promise<{ success: boolean, message: string }> {
-  return await apiRequest<{ success: boolean, message: string }>('/gug/v1/register', {
+export async function register(regData: RegistrationData): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>('/gug/v1/register', {
     method: 'POST',
     body: JSON.stringify(regData)
   });
 }
 
-/**
- * E-Mail Bestätigung aufrufen
- */
 export async function verifyEmail(uid: number, token: string): Promise<{ success: boolean; message: string }> {
   return await apiRequest<{ success: boolean; message: string }>(
     `/gug/v1/verify-email?uid=${uid}&token=${encodeURIComponent(token)}`,
@@ -129,6 +157,44 @@ export async function getCurrentUser(onUnauthorized: () => void): Promise<User> 
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
 }
+
+/* =====================================================
+   CHAT
+===================================================== */
+
+export interface ChatMessage {
+  id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  created_at: string;
+}
+
+export async function getChatMessages(onUnauthorized: () => void): Promise<ChatMessage[]> {
+  return await apiRequest<ChatMessage[]>(
+    '/gug/v1/chat',
+    {},
+    onUnauthorized
+  );
+}
+
+export async function sendChatMessage(
+  message: string,
+  onUnauthorized: () => void
+): Promise<{ success: boolean }> {
+  return await apiRequest<{ success: boolean }>(
+    '/gug/v1/chat',
+    {
+      method: 'POST',
+      body: JSON.stringify({ message })
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   POLLS
+===================================================== */
 
 export async function getPolls(onUnauthorized: () => void): Promise<Poll[]> {
   return await apiRequest<Poll[]>('/gug/v1/polls', {}, onUnauthorized);
@@ -164,7 +230,10 @@ export async function votePoll(pollId: number, optionIds: string[], onUnauth: ()
   );
 }
 
-// Kalender-Events API
+/* =====================================================
+   EVENTS
+===================================================== */
+
 export async function getEvents(onUnauthorized: () => void): Promise<CalendarEvent[]> {
   return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized)
     .catch(() => []);
@@ -180,7 +249,10 @@ export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () =>
     onUnauth
   );
 }
-// ================= MEMBERS =================
+
+/* =====================================================
+   MEMBERS
+===================================================== */
 
 export async function getMembers(onUnauthorized: () => void) {
   return await apiRequest<any[]>(
@@ -208,9 +280,10 @@ export async function updateMember(id: number, payload: any, onUnauthorized: () 
     onUnauthorized
   );
 }
-// ================= TASKS =================
 
-import type { Task } from '../types'; // falls du oben schon imports hast: Task dort ergänzen
+/* =====================================================
+   TASKS
+===================================================== */
 
 export async function getTasks(onUnauthorized: () => void): Promise<Task[]> {
   return await apiRequest<Task[]>(
@@ -220,7 +293,10 @@ export async function getTasks(onUnauthorized: () => void): Promise<Task[]> {
   );
 }
 
-export async function createTask(payload: Partial<Task>, onUnauthorized: () => void): Promise<{ success: boolean; id: number }> {
+export async function createTask(
+  payload: Partial<Task>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
   return await apiRequest<{ success: boolean; id: number }>(
     '/gug/v1/tasks',
     {
@@ -231,11 +307,11 @@ export async function createTask(payload: Partial<Task>, onUnauthorized: () => v
   );
 }
 
-/**
- * Task abhaken / Status ändern (assigned user darf das, Admin auch)
- * Backend Route müssen wir dafür ergänzen: POST /gug/v1/tasks/{id}
- */
-export async function updateTask(taskId: number, payload: Partial<Task>, onUnauthorized: () => void): Promise<{ success: boolean; message?: string }> {
+export async function updateTask(
+  taskId: number,
+  payload: Partial<Task>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message?: string }> {
   return await apiRequest<{ success: boolean; message?: string }>(
     `/gug/v1/tasks/${taskId}`,
     {
@@ -243,5 +319,7 @@ export async function updateTask(taskId: number, payload: Partial<Task>, onUnaut
       body: JSON.stringify(payload)
     },
     onUnauthorized
+  );
+}
   );
 }
