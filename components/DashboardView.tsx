@@ -37,6 +37,7 @@ const DashboardView: React.FC<Props> = ({
   const [messages, setMessages] = useState<api.ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loadingChat, setLoadingChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,7 +67,9 @@ const DashboardView: React.FC<Props> = ({
     try {
       const data = await api.getChatMessages(onUnauthorized);
       setMessages(data);
-    } catch {}
+    } catch (e: any) {
+      setChatError(e?.message || 'Chat konnte nicht geladen werden.');
+    }
   };
 
   useEffect(() => {
@@ -84,11 +87,15 @@ const DashboardView: React.FC<Props> = ({
     if (!msg) return;
     if (loadingChat) return;
 
+    setChatError(null);
     setLoadingChat(true);
+
     try {
       await api.sendChatMessage(msg, onUnauthorized);
       setNewMessage('');
       await loadChat();
+    } catch (e: any) {
+      setChatError(e?.message || 'Senden fehlgeschlagen.');
     } finally {
       setLoadingChat(false);
     }
@@ -160,12 +167,9 @@ const DashboardView: React.FC<Props> = ({
 
       {/* ================= PROFIL ================= */}
       <div className="app-card">
-
         <div className="flex items-center gap-6 flex-col sm:flex-row">
-
           <label className="cursor-pointer block">
             <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#B5A47A]">
-
               {profileImage ? (
                 <img src={profileImage} className="w-full h-full object-cover" />
               ) : (
@@ -173,7 +177,6 @@ const DashboardView: React.FC<Props> = ({
                   {user.displayName.charAt(0)}
                 </div>
               )}
-
             </div>
 
             <input
@@ -193,17 +196,20 @@ const DashboardView: React.FC<Props> = ({
             <p className="text-sm text-[#B5A47A] uppercase font-bold">{user.role}</p>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
-
         </div>
       </div>
 
       {/* ================= CHAT ================= */}
       <div className="app-card space-y-4">
-
         <h2 className="text-lg font-black">Globaler Chat</h2>
 
-        <div className="h-80 overflow-y-auto bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
+        {chatError && (
+          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            {chatError}
+          </div>
+        )}
 
+        <div className="h-80 overflow-y-auto bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
           {messages.map(msg => (
             <div key={msg.id}>
               <span className="text-xs font-bold text-[#B5A47A]">
@@ -214,7 +220,6 @@ const DashboardView: React.FC<Props> = ({
               </div>
             </div>
           ))}
-
           <div ref={chatEndRef} />
         </div>
 
@@ -234,35 +239,28 @@ const DashboardView: React.FC<Props> = ({
             disabled={loadingChat || !newMessage.trim()}
             className="btn-primary"
           >
-            Senden
+            {loadingChat ? '...' : 'Senden'}
           </button>
         </div>
-
       </div>
 
       {/* ================= NAVIGATION ================= */}
       <div className="grid md:grid-cols-3 gap-6">
-
         <div onClick={() => onNavigate('calendar')} className="app-card cursor-pointer">
           <h3 className="font-black">Kalender</h3>
         </div>
-
         <div onClick={() => onNavigate('polls')} className="app-card cursor-pointer">
           <h3 className="font-black">Umfragen</h3>
         </div>
-
         <div onClick={() => onNavigate('tasks')} className="app-card cursor-pointer">
           <h3 className="font-black">Aufgaben</h3>
         </div>
-
       </div>
 
       {/* ================= CROP MODAL ================= */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-
           <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-2xl w-[90%] max-w-lg">
-
             <div className="relative w-full h-80 bg-black rounded-xl overflow-hidden">
               <Cropper
                 image={selectedImage}
