@@ -6,7 +6,10 @@ import {
   ApiError,
   VoteResponse,
   RegistrationData,
-  CalendarEvent
+  CalendarEvent,
+  PosArticle,
+  PosOrder,
+  PosDailyReport
 } from '../types';
 
 import type { Task } from '../types';
@@ -318,6 +321,128 @@ export async function updateTask(
       method: 'POST',
       body: JSON.stringify(payload)
     },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   POS
+===================================================== */
+
+export async function getPosArticles(
+  params: { category?: 'food' | 'drink' | 'gug'; all?: boolean } = {},
+  onUnauthorized: () => void
+): Promise<PosArticle[]> {
+
+  const q: string[] = [];
+  if (params.category) q.push(`category=${encodeURIComponent(params.category)}`);
+  if (params.all) q.push(`all=1`);
+
+  const query = q.length ? `?${q.join('&')}` : '';
+
+  return await apiRequest<PosArticle[]>(
+    `/gug/v1/pos/articles${query}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createPosArticle(
+  payload: {
+    name: string;
+    category: 'food' | 'drink' | 'gug';
+    price_cents: number;
+    is_active?: boolean;
+    sort_order?: number;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/pos/articles',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updatePosArticle(
+  id: number,
+  payload: Partial<{
+    name: string;
+    category: 'food' | 'drink' | 'gug';
+    price_cents: number;
+    is_active: boolean;
+    sort_order: number;
+  }>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/articles/${id}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function createPosOrder(
+  payload: {
+    items: { article_id: number; qty: number }[];
+    received_cents?: number;
+    waiter_user_id?: number;
+    note?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  order_id: number;
+  order_number: string;
+  waiter_user_id: number;
+  total_cents: number;
+  received_cents: number;
+  change_cents: number;
+}> {
+  return await apiRequest<any>(
+    '/gug/v1/pos/orders',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getPosOrders(
+  params: { date?: string; waiter_user_id?: number } = {},
+  onUnauthorized: () => void
+): Promise<PosOrder[]> {
+
+  const q: string[] = [];
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
+  if (params.waiter_user_id) q.push(`waiter_user_id=${encodeURIComponent(String(params.waiter_user_id))}`);
+
+  const query = q.length ? `?${q.join('&')}` : '';
+
+  return await apiRequest<PosOrder[]>(
+    `/gug/v1/pos/orders${query}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function getPosDailyReport(
+  params: { date?: string } = {},
+  onUnauthorized: () => void
+): Promise<PosDailyReport> {
+
+  const query = params.date ? `?date=${encodeURIComponent(params.date)}` : '';
+
+  return await apiRequest<PosDailyReport>(
+    `/gug/v1/pos/reports/daily${query}`,
+    {},
     onUnauthorized
   );
 }
