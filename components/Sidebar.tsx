@@ -40,6 +40,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       label: 'Aufgaben'
     },
     {
+      id: 'pos' as ViewType,
+      label: 'Kassa',
+      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND, AppRole.USER]
+    },
+    {
       id: 'settings' as ViewType,
       label: 'Einstellungen'
     }
