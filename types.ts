@@ -4,7 +4,6 @@ export enum AppRole {
   USER = 'USER',
   VISITOR = 'VISITOR'
 }
-
 export type ViewType =
   | 'dashboard'
   | 'polls'
@@ -12,7 +11,7 @@ export type ViewType =
   | 'members'
   | 'tasks'
   | 'settings'
-  | 'pos';
+  | 'pos'
   | 'pos-admin';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
