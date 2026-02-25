@@ -16,6 +16,7 @@ interface CartItem {
 }
 
 const categories: PosCategory[] = ['food', 'drink', 'gug'];
+const quickAmounts = [5, 10, 20, 50];
 
 const PosView: React.FC<PosViewProps> = ({
   user,
@@ -85,6 +86,16 @@ const PosView: React.FC<PosViewProps> = ({
 
   const changeCents = receivedCents - totalCents;
 
+  const addQuickAmount = (amount: number) => {
+    const current = parseFloat(received || '0') || 0;
+    const newValue = current + amount;
+    setReceived(newValue.toFixed(2));
+  };
+
+  const setExact = () => {
+    setReceived((totalCents / 100).toFixed(2));
+  };
+
   const handleSave = async () => {
     if (cart.length === 0) return;
     if (receivedCents < totalCents) return;
@@ -140,8 +151,8 @@ const PosView: React.FC<PosViewProps> = ({
         ))}
       </div>
 
-      {/* ARTICLE GRID */}
-      <div className="flex-1 overflow-y-auto p-4 pb-40">
+      {/* ARTICLES */}
+      <div className="flex-1 overflow-y-auto p-4 pb-56">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {filteredArticles.map(article => (
             <button
@@ -161,7 +172,7 @@ const PosView: React.FC<PosViewProps> = ({
       {/* STICKY CART */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black p-4 space-y-3">
 
-        <div className="max-h-32 overflow-y-auto space-y-2">
+        <div className="max-h-28 overflow-y-auto space-y-2">
           {cart.map(item => (
             <div key={item.article.id} className="flex justify-between font-bold text-sm">
               <div>{item.qty} × {item.article.name}</div>
@@ -180,13 +191,32 @@ const PosView: React.FC<PosViewProps> = ({
           <span>{(totalCents / 100).toFixed(2)} €</span>
         </div>
 
+        {/* QUICK AMOUNTS */}
+        <div className="grid grid-cols-5 gap-2">
+          {quickAmounts.map(amount => (
+            <button
+              key={amount}
+              onClick={() => addQuickAmount(amount)}
+              className="bg-black text-white py-2 font-black text-xs"
+            >
+              +{amount}€
+            </button>
+          ))}
+          <button
+            onClick={setExact}
+            className="bg-green-600 text-white py-2 font-black text-xs"
+          >
+            Exact
+          </button>
+        </div>
+
         <input
           type="number"
           step="0.01"
           placeholder="Erhalten"
           value={received}
           onChange={e => setReceived(e.target.value)}
-          className="w-full border-2 border-black p-3 font-bold"
+          className="w-full border-2 border-black p-3 font-bold text-lg"
         />
 
         <div className="flex justify-between font-bold">
