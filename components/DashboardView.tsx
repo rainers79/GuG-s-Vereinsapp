@@ -80,15 +80,24 @@ const DashboardView: React.FC<Props> = ({
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    const msg = newMessage.trim();
+    if (!msg) return;
+    if (loadingChat) return;
 
     setLoadingChat(true);
     try {
-      await api.sendChatMessage(newMessage.trim(), onUnauthorized);
+      await api.sendChatMessage(msg, onUnauthorized);
       setNewMessage('');
       await loadChat();
     } finally {
       setLoadingChat(false);
+    }
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -213,13 +222,16 @@ const DashboardView: React.FC<Props> = ({
           <input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleChatKeyDown}
             className="form-input flex-1"
             placeholder="Nachricht schreiben..."
+            disabled={loadingChat}
           />
 
           <button
+            type="button"
             onClick={handleSend}
-            disabled={loadingChat}
+            disabled={loadingChat || !newMessage.trim()}
             className="btn-primary"
           >
             Senden
@@ -275,6 +287,7 @@ const DashboardView: React.FC<Props> = ({
 
               <div className="flex gap-4">
                 <button
+                  type="button"
                   onClick={() => setSelectedImage(null)}
                   className="btn-secondary"
                 >
@@ -282,6 +295,7 @@ const DashboardView: React.FC<Props> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleUpload}
                   disabled={uploading}
                   className="btn-primary"
