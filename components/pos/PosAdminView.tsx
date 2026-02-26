@@ -10,12 +10,21 @@ interface Props {
 
 const categories: PosCategory[] = ['food', 'drink', 'gug'];
 
-const normalizeHex = (v: string): string => {
-  if (!v) return '#ffffff';
-  const val = String(v).trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(val)) return val;
-  if (/^[0-9a-fA-F]{6}$/.test(val)) return `#${val}`;
-  return '#ffffff';
+/* =====================================================
+   FESTE FARBPALETTE (KEIN HEX)
+===================================================== */
+
+const COLOR_PALETTE = [
+  { key: 'gold', class: 'bg-brand-gold' },
+  { key: 'food', class: 'bg-pos-food' },
+  { key: 'drink', class: 'bg-pos-drink' },
+  { key: 'gug', class: 'bg-pos-gug' },
+  { key: 'dark', class: 'bg-brand-dark' },
+];
+
+const getColorClass = (key?: string) => {
+  const found = COLOR_PALETTE.find(c => c.key === key);
+  return found ? found.class : 'bg-brand-gold';
 };
 
 const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
@@ -24,7 +33,7 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<PosCategory>('food');
   const [price, setPrice] = useState('');
-  const [bgColor, setBgColor] = useState<string>('#ffffff');
+  const [colorKey, setColorKey] = useState<string>('gold');
   const [loading, setLoading] = useState(false);
 
   const loadArticles = async () => {
@@ -32,7 +41,7 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
       setLoading(true);
       const data = await api.getPosArticles({ all: true }, onUnauthorized);
       setArticles(Array.isArray(data) ? data : []);
-    } catch (e) {
+    } catch {
       console.error('Fehler beim Laden der Artikel');
     } finally {
       setLoading(false);
@@ -60,42 +69,48 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
         price_cents: Math.round(p * 100),
         is_active: true,
         sort_order: 0,
-        bg_color: normalizeHex(bgColor)
+        bg_color: colorKey
       };
 
       await api.createPosArticle(payload, onUnauthorized);
 
       setName('');
       setPrice('');
-      setBgColor('#ffffff');
+      setColorKey('gold');
       loadArticles();
-    } catch (e) {
+    } catch {
       console.error('Fehler beim Anlegen');
     }
   };
 
   const toggleActive = async (article: PosArticle) => {
     try {
-      const payload: any = { is_active: article.is_active ? false : true };
-      await api.updatePosArticle(article.id, payload, onUnauthorized);
+      await api.updatePosArticle(
+        article.id,
+        { is_active: !article.is_active },
+        onUnauthorized
+      );
       loadArticles();
-    } catch (e) {
+    } catch {
       console.error('Fehler beim Aktualisieren');
     }
   };
 
-  const updateColor = async (articleId: number, color: string) => {
+  const updateColor = async (articleId: number, key: string) => {
     try {
-      const payload: any = { bg_color: normalizeHex(color) };
-      await api.updatePosArticle(articleId, payload, onUnauthorized);
+      await api.updatePosArticle(
+        articleId,
+        { bg_color: key },
+        onUnauthorized
+      );
       loadArticles();
-    } catch (e) {
+    } catch {
       console.error('Fehler beim Speichern der Farbe');
     }
   };
 
   return (
-    <div className="bg-white text-black p-8 rounded-xl border border-black shadow-lg">
+    <div className="bg-pos-surface text-pos-text p-8 rounded-pos border border-pos-border shadow-pos">
 
       <h2 className="text-2xl font-black mb-8 tracking-tight">
         POS Verwaltung
@@ -108,13 +123,13 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Artikelname"
-          className="border border-black p-3 bg-white text-black font-semibold placeholder-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-black"
+          className="form-input rounded-posSm"
         />
 
         <select
           value={category}
           onChange={e => setCategory(e.target.value as PosCategory)}
-          className="border border-black p-3 bg-white text-black font-semibold rounded focus:outline-none focus:ring-2 focus:ring-black"
+          className="form-select rounded-posSm"
         >
           {categories.map(c => (
             <option key={c} value={c}>
@@ -129,33 +144,30 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
           placeholder="Preis €"
           type="number"
           step="0.01"
-          className="border border-black p-3 bg-white text-black font-semibold placeholder-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-black"
+          className="form-input rounded-posSm"
         />
 
-        {/* ✅ NEU: Farbe */}
-        <div className="flex items-center gap-3 border border-black p-3 rounded bg-white">
-          <input
-            type="color"
-            value={normalizeHex(bgColor)}
-            onChange={(e) => setBgColor(e.target.value)}
-            className="h-10 w-12 p-0 border-0 bg-transparent cursor-pointer"
-            aria-label="Button Farbe"
-          />
-          <input
-            value={normalizeHex(bgColor)}
-            onChange={(e) => setBgColor(e.target.value)}
-            placeholder="#ffffff"
-            className="flex-1 border border-black px-3 py-2 rounded font-semibold text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black"
-          />
+        {/* PALETTE */}
+        <div className="flex items-center gap-3 bg-white rounded-posSm p-3 border border-pos-border">
+          {COLOR_PALETTE.map(color => (
+            <button
+              key={color.key}
+              type="button"
+              onClick={() => setColorKey(color.key)}
+              className={`
+                w-10 h-10 rounded-full border-2 transition
+                ${color.class}
+                ${colorKey === color.key ? 'border-black scale-110' : 'border-transparent'}
+              `}
+            />
+          ))}
         </div>
 
         <button
           onClick={createArticle}
           disabled={!canCreate}
-          className={`font-black uppercase tracking-widest rounded transition ${
-            canCreate
-              ? 'bg-black text-white hover:opacity-90'
-              : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+          className={`btn-primary rounded-posSm ${
+            !canCreate ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
           Anlegen
@@ -169,57 +181,53 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
           Lädt Artikel...
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {articles.map(a => (
             <div
               key={a.id}
-              className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border border-black p-4 rounded bg-white"
+              className="flex flex-col md:flex-row md:justify-between md:items-center gap-6 border border-pos-border p-5 rounded-pos bg-pos-surface shadow-pos"
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-5">
 
-                {/* ✅ Swatch */}
                 <div
-                  className="w-12 h-12 border border-black rounded"
-                  style={{ backgroundColor: normalizeHex(a.bg_color || '#ffffff') }}
-                  title={normalizeHex(a.bg_color || '#ffffff')}
+                  className={`w-14 h-14 rounded-posSm ${getColorClass(a.bg_color)}`}
                 />
 
                 <div>
                   <div className="font-bold text-lg">
                     {a.name}
                   </div>
-                  <div className="text-sm text-gray-600">
+
+                  <div className="text-sm text-pos-muted">
                     {a.category.toUpperCase()} – {(a.price_cents / 100).toFixed(2)} €
-                    {' '}
-                    <span className="text-gray-400">
+                    <span className="ml-2 text-pos-muted/60">
                       • ID #{a.id}
                     </span>
                   </div>
 
-                  {/* ✅ Inline-Farbänderung */}
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-600">
-                      Farbe
-                    </span>
-                    <input
-                      type="color"
-                      value={normalizeHex(a.bg_color || '#ffffff')}
-                      onChange={(e) => updateColor(a.id, e.target.value)}
-                      className="h-8 w-10 p-0 border-0 bg-transparent cursor-pointer"
-                      aria-label="Artikel Farbe"
-                    />
-                    <span className="text-xs font-mono text-gray-700">
-                      {normalizeHex(a.bg_color || '#ffffff')}
-                    </span>
+                  {/* INLINE PALETTE */}
+                  <div className="mt-3 flex items-center gap-3">
+                    {COLOR_PALETTE.map(color => (
+                      <button
+                        key={color.key}
+                        type="button"
+                        onClick={() => updateColor(a.id, color.key)}
+                        className={`
+                          w-6 h-6 rounded-full border transition
+                          ${color.class}
+                          ${a.bg_color === color.key ? 'border-black scale-110' : 'border-transparent'}
+                        `}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => toggleActive(a)}
-                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded transition ${
+                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded-posSm transition ${
                   a.is_active
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-pos-success text-white'
                     : 'bg-gray-300 text-black'
                 }`}
               >
