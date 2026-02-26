@@ -138,6 +138,7 @@ export interface PosArticle {
   price_cents: number;
   is_active: number;
   sort_order: number;
+  bg_color?: string; // ✅ NEU: Button-Hintergrundfarbe (z.B. "#ffffff")
 }
 
 export interface PosOrderItem {
