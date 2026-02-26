@@ -356,6 +356,7 @@ export async function createPosArticle(
     price_cents: number;
     is_active?: boolean;
     sort_order?: number;
+    bg_color?: string; // ✅ HINZUGEFÜGT
   },
   onUnauthorized: () => void
 ): Promise<{ success: boolean; id: number }> {
@@ -377,6 +378,7 @@ export async function updatePosArticle(
     price_cents: number;
     is_active: boolean;
     sort_order: number;
+    bg_color: string; // ✅ HINZUGEFÜGT
   }>,
   onUnauthorized: () => void
 ): Promise<{ success: boolean; message: string }> {
