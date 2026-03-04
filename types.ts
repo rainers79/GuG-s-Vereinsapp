@@ -176,3 +176,13 @@ export interface PosDailyReport {
     orders_count: number;
   }[];
 }
+
+export interface ChatMessage {
+  id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  created_at: string;
+  profile_image_url?: string;
+  receiver_id?: number | null;
+}
