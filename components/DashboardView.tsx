@@ -113,7 +113,7 @@ const loadOlderMessages = async () => {
 
   try {
 
-    const oldestId = messages[0].id;
+const oldestId = messages.length ? messages[0].id : 999999;
 
     const older = await api.getChatMessagesBefore(
       oldestId,
