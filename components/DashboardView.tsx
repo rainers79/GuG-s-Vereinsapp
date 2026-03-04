@@ -40,6 +40,7 @@ const DashboardView: React.FC<Props> = ({
   const [chatError, setChatError] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
 
   /* =====================================================
@@ -64,58 +65,71 @@ const DashboardView: React.FC<Props> = ({
      CHAT LOGIC
   ===================================================== */
 
-  const loadChat = async () => {
-    try {
-      const data = await api.getChatMessages(onUnauthorized);
-      setMessages(data);
-    } catch (e: any) {
-      setChatError(e?.message || 'Chat konnte nicht geladen werden.');
-    }
-  };
+const loadChat = async () => {
+  try {
+    const data = await api.getChatMessages(onUnauthorized);
+    setMessages(data);
+  } catch (e: any) {
+    setChatError(e?.message || 'Chat konnte nicht geladen werden.');
+  }
+};
 
-  useEffect(() => {
-    loadChat();
-    const interval = setInterval(loadChat, 5000);
-    return () => clearInterval(interval);
-  }, []);
+useEffect(() => {
+  loadChat();
+  const interval = setInterval(loadChat, 5000);
+  return () => clearInterval(interval);
+}, []);
 
-  useEffect(() => {
+/* =====================================================
+   CHAT SCROLL LOGIC (MOBILE SAFE)
+===================================================== */
+
+useEffect(() => {
+
+  const container = chatContainerRef.current;
+  if (!container) return;
 
   if (firstChatLoad.current) {
     firstChatLoad.current = false;
     return;
   }
 
-  chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const threshold = 80;
+
+  const isNearBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+
+  if (isNearBottom) {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }
 
 }, [messages]);
 
-  const handleSend = async () => {
-    const msg = newMessage.trim();
-    if (!msg) return;
-    if (loadingChat) return;
+const handleSend = async () => {
+  const msg = newMessage.trim();
+  if (!msg) return;
+  if (loadingChat) return;
 
-    setChatError(null);
-    setLoadingChat(true);
+  setChatError(null);
+  setLoadingChat(true);
 
-    try {
-      await api.sendChatMessage(msg, onUnauthorized);
-      setNewMessage('');
-      await loadChat();
-    } catch (e: any) {
-      setChatError(e?.message || 'Senden fehlgeschlagen.');
-    } finally {
-      setLoadingChat(false);
-    }
-  };
+  try {
+    await api.sendChatMessage(msg, onUnauthorized);
+    setNewMessage('');
+    await loadChat();
+  } catch (e: any) {
+    setChatError(e?.message || 'Senden fehlgeschlagen.');
+  } finally {
+    setLoadingChat(false);
+  }
+};
 
-  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
+const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleSend();
+  }
+};
   /* =====================================================
      IMAGE CROP
   ===================================================== */
