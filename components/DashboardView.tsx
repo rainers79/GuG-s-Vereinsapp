@@ -34,6 +34,7 @@ const DashboardView: React.FC<Props> = ({
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
   const loadingOlderMessages = useRef(false);
+  const [privateReceiver, setPrivateReceiver] = useState<{ id:number,name:string } | null>(null);
 
   /* =====================================================
      LOAD PROFILE IMAGE
@@ -160,7 +161,28 @@ useEffect(() => {
     setLoadingChat(true);
 
     try {
-      await api.sendChatMessage(msg, onUnauthorized);
+      if (privateReceiver) {
+
+  await api.apiRequest(
+    '/gug/v1/chat',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        message: msg,
+        receiver_id: privateReceiver.id
+      })
+    },
+    onUnauthorized
+  );
+
+} else {
+
+  await api.sendChatMessage(msg, onUnauthorized);
+
+}
+
+      setPrivateReceiver(null);
+      
       setNewMessage('');
       await loadChat();
     } catch (e: any) {
@@ -302,6 +324,18 @@ useEffect(() => {
 
         <h2 className="text-lg font-black">Globaler Chat</h2>
 
+        {privateReceiver && (
+  <div className="text-sm bg-yellow-100 text-black p-2 rounded">
+    Private Nachricht an <b>{privateReceiver.name}</b>
+    <button
+      className="ml-3 text-red-600"
+      onClick={() => setPrivateReceiver(null)}
+    >
+      abbrechen
+    </button>
+  </div>
+)}
+
         {chatError && (
           <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
             {chatError}
@@ -364,6 +398,20 @@ useEffect(() => {
                   <div className="text-slate-800 dark:text-white">
                     {msg.message}
                   </div>
+
+                  {msg.user_id !== user.id && (
+  <button
+    className="text-xs text-blue-500 mt-1"
+    onClick={() =>
+      setPrivateReceiver({
+        id: msg.user_id,
+        name: msg.display_name
+      })
+    }
+  >
+    PN
+  </button>
+)}
 
                 </div>
 
