@@ -39,7 +39,7 @@ const DashboardView: React.FC<Props> = ({
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const firstChatLoad = useRef(true);
 
   /* =====================================================
      LOAD PROFILE IMAGE
