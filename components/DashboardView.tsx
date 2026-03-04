@@ -327,6 +327,13 @@ const loadOlderMessages = async () => {
           </div>
         )}
 
+<button
+  onClick={loadOlderMessages}
+  className="text-xs text-gray-400 hover:text-white mb-2"
+>
+  ältere Nachrichten laden
+</button>
+        
         <div
           ref={chatContainerRef}
           className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm"
