@@ -66,24 +66,24 @@ const DashboardView: React.FC<Props> = ({
 
   useEffect(() => {
 
-    const container = chatContainerRef.current;
-    if (!container) return;
+  const container = chatContainerRef.current;
+  if (!container) return;
 
-    if (firstChatLoad.current) {
-      firstChatLoad.current = false;
-      return;
-    }
+  if (firstChatLoad.current) {
+    firstChatLoad.current = false;
+    return;
+  }
 
-    const threshold = 80;
+  const threshold = 80;
 
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  const isNearBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
 
-    if (isNearBottom) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
+  if (isNearBottom) {
+    container.scrollTop = container.scrollHeight;
+  }
 
-  }, [messages]);
+}, [messages]);
 
   const handleSend = async () => {
     const msg = newMessage.trim();
