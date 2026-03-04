@@ -31,9 +31,12 @@ const DashboardView: React.FC<Props> = ({
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
+
+  /* =====================================================
+     LOAD PROFILE IMAGE
+  ===================================================== */
 
   useEffect(() => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
@@ -48,6 +51,10 @@ const DashboardView: React.FC<Props> = ({
         }
       });
   }, []);
+
+  /* =====================================================
+     CHAT LOAD
+  ===================================================== */
 
   const loadChat = async () => {
     try {
@@ -64,28 +71,38 @@ const DashboardView: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, []);
 
+  /* =====================================================
+     CHAT SCROLL
+  ===================================================== */
+
   useEffect(() => {
 
-  const container = chatContainerRef.current;
-  if (!container) return;
+    const container = chatContainerRef.current;
+    if (!container) return;
 
-  if (firstChatLoad.current) {
-    firstChatLoad.current = false;
-    return;
-  }
+    if (firstChatLoad.current) {
+      firstChatLoad.current = false;
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
 
-  const threshold = 80;
+    const threshold = 80;
 
-  const isNearBottom =
-    container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
 
-  if (isNearBottom) {
-    container.scrollTop = container.scrollHeight;
-  }
+    if (isNearBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
 
-}, [messages]);
+  }, [messages]);
+
+  /* =====================================================
+     SEND MESSAGE
+  ===================================================== */
 
   const handleSend = async () => {
+
     const msg = newMessage.trim();
     if (!msg) return;
     if (loadingChat) return;
@@ -102,6 +119,7 @@ const DashboardView: React.FC<Props> = ({
     } finally {
       setLoadingChat(false);
     }
+
   };
 
   const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -111,37 +129,49 @@ const DashboardView: React.FC<Props> = ({
     }
   };
 
+  /* =====================================================
+     IMAGE CROP
+  ===================================================== */
+
   const onCropComplete = useCallback((_: any, croppedPixels: any) => {
     setCroppedAreaPixels(croppedPixels);
   }, []);
 
   const handleFileSelect = (file: File) => {
+
     const reader = new FileReader();
     reader.readAsDataURL(file);
+
     reader.onload = () => {
       setSelectedImage(reader.result as string);
     };
+
   };
 
   const handleUpload = async () => {
+
     if (!selectedImage || !croppedAreaPixels) return;
 
     setUploading(true);
     setError(null);
 
     try {
+
       const croppedBlob = await getCroppedImg(selectedImage, croppedAreaPixels);
 
       const formData = new FormData();
       formData.append('file', croppedBlob, 'profile.jpg');
 
-      const response = await fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
-        },
-        body: formData
-      });
+      const response = await fetch(
+        'https://api.gug-verein.at/wp-json/gug/v1/profile-image',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+          },
+          body: formData
+        }
+      );
 
       const data = await response.json();
 
@@ -151,26 +181,48 @@ const DashboardView: React.FC<Props> = ({
       setSelectedImage(null);
 
     } catch (err: any) {
+
       setError(err.message || 'Upload fehlgeschlagen');
+
     } finally {
+
       setUploading(false);
+
     }
+
   };
+
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <div className="space-y-10">
 
+      {/* PROFILE */}
+
       <div className="app-card">
         <div className="flex items-center gap-6 flex-col sm:flex-row">
+
           <label className="cursor-pointer block">
+
             <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#B5A47A]">
+
               {profileImage ? (
-                <img src={profileImage} className="w-full h-full object-cover" />
+
+                <img
+                  src={profileImage}
+                  className="w-full h-full object-cover"
+                />
+
               ) : (
+
                 <div className="w-full h-full bg-gradient-to-br from-[#B5A47A] to-[#8E7D56] flex items-center justify-center text-3xl font-black text-[#1A1A1A]">
                   {user.displayName.charAt(0)}
                 </div>
+
               )}
+
             </div>
 
             <input
@@ -183,6 +235,7 @@ const DashboardView: React.FC<Props> = ({
                 }
               }}
             />
+
           </label>
 
           <div>
@@ -190,14 +243,18 @@ const DashboardView: React.FC<Props> = ({
             <p className="text-sm text-[#B5A47A] uppercase font-bold">{user.role}</p>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
+
         </div>
       </div>
 
+      {/* CHAT */}
+
       <div className="app-card space-y-4">
+
         <h2 className="text-lg font-black">Globaler Chat</h2>
 
         {chatError && (
-          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
             {chatError}
           </div>
         )}
@@ -207,40 +264,72 @@ const DashboardView: React.FC<Props> = ({
           className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm"
         >
 
-          {messages.map(msg => (
-            <div key={msg.id} className="flex items-start gap-3">
+          {messages.map(msg => {
 
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
-                {(msg as any).profile_image_url ? (
-                  <img
-                    src={(msg as any).profile_image_url}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#1A1A1A]">
-                    {msg.display_name.charAt(0)}
+            const time = new Date(msg.created_at).toLocaleTimeString(
+              'de-AT',
+              { hour: '2-digit', minute: '2-digit' }
+            );
+
+            return (
+
+              <div key={msg.id} className="flex items-start gap-3">
+
+                {/* Avatar */}
+
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+
+                  {(msg as any).profile_image_url ? (
+
+                    <img
+                      src={(msg as any).profile_image_url}
+                      className="w-full h-full object-cover"
+                    />
+
+                  ) : (
+
+                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#1A1A1A]">
+                      {msg.display_name.charAt(0)}
+                    </div>
+
+                  )}
+
+                </div>
+
+                {/* Message */}
+
+                <div className="flex-1">
+
+                  <div className="flex justify-between items-center">
+
+                    <span className="text-xs font-bold text-[#B5A47A]">
+                      {msg.display_name}
+                    </span>
+
+                    <span className="text-xs text-gray-400">
+                      {time}
+                    </span>
+
                   </div>
-                )}
-              </div>
 
-              <div>
-                <div className="text-xs font-bold text-[#B5A47A]">
-                  {msg.display_name}
+                  <div className="text-slate-800 dark:text-white">
+                    {msg.message}
+                  </div>
+
                 </div>
 
-                <div className="text-slate-800 dark:text-white">
-                  {msg.message}
-                </div>
               </div>
 
-            </div>
-          ))}
+            );
 
-          <div ref={chatEndRef} />
+          })}
 
         </div>
 
+        {/* INPUT */}
+
         <div className="flex gap-2">
+
           <input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -258,19 +347,36 @@ const DashboardView: React.FC<Props> = ({
           >
             {loadingChat ? '...' : 'Senden'}
           </button>
+
         </div>
+
       </div>
 
+      {/* NAVIGATION */}
+
       <div className="grid md:grid-cols-3 gap-6">
-        <div onClick={() => onNavigate('calendar')} className="app-card cursor-pointer">
+
+        <div
+          onClick={() => onNavigate('calendar')}
+          className="app-card cursor-pointer"
+        >
           <h3 className="font-black">Kalender</h3>
         </div>
-        <div onClick={() => onNavigate('polls')} className="app-card cursor-pointer">
+
+        <div
+          onClick={() => onNavigate('polls')}
+          className="app-card cursor-pointer"
+        >
           <h3 className="font-black">Umfragen</h3>
         </div>
-        <div onClick={() => onNavigate('tasks')} className="app-card cursor-pointer">
+
+        <div
+          onClick={() => onNavigate('tasks')}
+          className="app-card cursor-pointer"
+        >
           <h3 className="font-black">Aufgaben</h3>
         </div>
+
       </div>
 
     </div>
