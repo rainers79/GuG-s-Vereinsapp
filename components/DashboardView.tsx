@@ -100,52 +100,37 @@ const DashboardView: React.FC<Props> = ({
   }, [messages]);
 
 /* =====================================================
-   LOAD OLDER CHAT MESSAGES
+   LOAD OLDER MESSAGES BUTTON
 ===================================================== */
 
-useEffect(() => {
+const loadOlderMessages = async () => {
 
-  const container = chatContainerRef.current;
-  if (!container) return;
+  if (!messages.length) return;
 
-  const handleScroll = async () => {
+  if (loadingOlderMessages.current) return;
 
-    if (container.scrollTop > 50) return;
+  loadingOlderMessages.current = true;
 
-    if (loadingOlderMessages.current) return;
+  try {
 
-    if (!messages.length) return;
+    const oldestId = messages[0].id;
 
-    loadingOlderMessages.current = true;
+    const older = await api.getChatMessagesBefore(
+      oldestId,
+      onUnauthorized
+    );
 
-    try {
-
-      const oldestId = messages[0].id;
-
-      const older = await api.getChatMessagesBefore(
-        oldestId,
-        onUnauthorized
-      );
-
-      if (older.length > 0) {
-        setMessages(prev => [...older, ...prev]);
-      }
-
-    } catch (e) {
-      console.error("Could not load older messages", e);
+    if (older.length > 0) {
+      setMessages(prev => [...older, ...prev]);
     }
 
-    loadingOlderMessages.current = false;
+  } catch (e) {
+    console.error("Could not load older messages", e);
+  }
 
-  };
+  loadingOlderMessages.current = false;
 
-  container.addEventListener('scroll', handleScroll);
-
-  return () => {
-    container.removeEventListener('scroll', handleScroll);
-  };
-
-}, [messages]);
+};
   
   /* =====================================================
      SEND MESSAGE
