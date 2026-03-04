@@ -18,10 +18,6 @@ const DashboardView: React.FC<Props> = ({
   onUnauthorized
 }) => {
 
-  /* =====================================================
-     PROFILE IMAGE STATE
-  ===================================================== */
-
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
@@ -29,10 +25,6 @@ const DashboardView: React.FC<Props> = ({
   const [zoom, setZoom] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  /* =====================================================
-     CHAT STATE
-  ===================================================== */
 
   const [messages, setMessages] = useState<api.ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -42,10 +34,6 @@ const DashboardView: React.FC<Props> = ({
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
-
-  /* =====================================================
-     LOAD PROFILE IMAGE
-  ===================================================== */
 
   useEffect(() => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
@@ -61,78 +49,67 @@ const DashboardView: React.FC<Props> = ({
       });
   }, []);
 
-  /* =====================================================
-     CHAT LOGIC
-  ===================================================== */
+  const loadChat = async () => {
+    try {
+      const data = await api.getChatMessages(onUnauthorized);
+      setMessages(data);
+    } catch (e: any) {
+      setChatError(e?.message || 'Chat konnte nicht geladen werden.');
+    }
+  };
 
-const loadChat = async () => {
-  try {
-    const data = await api.getChatMessages(onUnauthorized);
-    setMessages(data);
-  } catch (e: any) {
-    setChatError(e?.message || 'Chat konnte nicht geladen werden.');
-  }
-};
+  useEffect(() => {
+    loadChat();
+    const interval = setInterval(loadChat, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-useEffect(() => {
-  loadChat();
-  const interval = setInterval(loadChat, 5000);
-  return () => clearInterval(interval);
-}, []);
+  useEffect(() => {
 
-/* =====================================================
-   CHAT SCROLL LOGIC (MOBILE SAFE)
-===================================================== */
+    const container = chatContainerRef.current;
+    if (!container) return;
 
-useEffect(() => {
+    if (firstChatLoad.current) {
+      firstChatLoad.current = false;
+      return;
+    }
 
-  const container = chatContainerRef.current;
-  if (!container) return;
+    const threshold = 80;
 
-  if (firstChatLoad.current) {
-    firstChatLoad.current = false;
-    return;
-  }
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
 
-  const threshold = 80;
+    if (isNearBottom) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
 
-  const isNearBottom =
-    container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }, [messages]);
 
-  if (isNearBottom) {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }
+  const handleSend = async () => {
+    const msg = newMessage.trim();
+    if (!msg) return;
+    if (loadingChat) return;
 
-}, [messages]);
+    setChatError(null);
+    setLoadingChat(true);
 
-const handleSend = async () => {
-  const msg = newMessage.trim();
-  if (!msg) return;
-  if (loadingChat) return;
+    try {
+      await api.sendChatMessage(msg, onUnauthorized);
+      setNewMessage('');
+      await loadChat();
+    } catch (e: any) {
+      setChatError(e?.message || 'Senden fehlgeschlagen.');
+    } finally {
+      setLoadingChat(false);
+    }
+  };
 
-  setChatError(null);
-  setLoadingChat(true);
-
-  try {
-    await api.sendChatMessage(msg, onUnauthorized);
-    setNewMessage('');
-    await loadChat();
-  } catch (e: any) {
-    setChatError(e?.message || 'Senden fehlgeschlagen.');
-  } finally {
-    setLoadingChat(false);
-  }
-};
-
-const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    handleSend();
-  }
-};
-  /* =====================================================
-     IMAGE CROP
-  ===================================================== */
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   const onCropComplete = useCallback((_: any, croppedPixels: any) => {
     setCroppedAreaPixels(croppedPixels);
@@ -180,14 +157,9 @@ const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     }
   };
 
-  /* =====================================================
-     UI
-  ===================================================== */
-
   return (
     <div className="space-y-10">
 
-      {/* ================= PROFIL ================= */}
       <div className="app-card">
         <div className="flex items-center gap-6 flex-col sm:flex-row">
           <label className="cursor-pointer block">
@@ -221,7 +193,6 @@ const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         </div>
       </div>
 
-      {/* ================= CHAT ================= */}
       <div className="app-card space-y-4">
         <h2 className="text-lg font-black">Globaler Chat</h2>
 
@@ -231,18 +202,42 @@ const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
           </div>
         )}
 
-   <div className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
+        <div
+          ref={chatContainerRef}
+          className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm"
+        >
+
           {messages.map(msg => (
-            <div key={msg.id}>
-              <span className="text-xs font-bold text-[#B5A47A]">
-                {msg.display_name}
-              </span>
-              <div className="text-slate-800 dark:text-white">
-                {msg.message}
+            <div key={msg.id} className="flex items-start gap-3">
+
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                {(msg as any).profile_image_url ? (
+                  <img
+                    src={(msg as any).profile_image_url}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#1A1A1A]">
+                    {msg.display_name.charAt(0)}
+                  </div>
+                )}
               </div>
+
+              <div>
+                <div className="text-xs font-bold text-[#B5A47A]">
+                  {msg.display_name}
+                </div>
+
+                <div className="text-slate-800 dark:text-white">
+                  {msg.message}
+                </div>
+              </div>
+
             </div>
           ))}
+
           <div ref={chatEndRef} />
+
         </div>
 
         <div className="flex gap-2">
@@ -266,7 +261,6 @@ const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         </div>
       </div>
 
-      {/* ================= NAVIGATION ================= */}
       <div className="grid md:grid-cols-3 gap-6">
         <div onClick={() => onNavigate('calendar')} className="app-card cursor-pointer">
           <h3 className="font-black">Kalender</h3>
@@ -278,56 +272,6 @@ const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
           <h3 className="font-black">Aufgaben</h3>
         </div>
       </div>
-
-      {/* ================= CROP MODAL ================= */}
-      {selectedImage && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-2xl w-[90%] max-w-lg">
-            <div className="relative w-full h-80 bg-black rounded-xl overflow-hidden">
-              <Cropper
-                image={selectedImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            </div>
-
-            <div className="mt-4 flex justify-between items-center">
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-              />
-
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setSelectedImage(null)}
-                  className="btn-secondary"
-                >
-                  Abbrechen
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="btn-primary"
-                >
-                  {uploading ? 'Speichern...' : 'Speichern'}
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );
