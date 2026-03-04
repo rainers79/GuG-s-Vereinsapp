@@ -39,6 +39,7 @@ const DashboardView: React.FC<Props> = ({
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
 
   /* =====================================================
@@ -79,8 +80,15 @@ const DashboardView: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+
+  if (firstChatLoad.current) {
+    firstChatLoad.current = false;
+    return;
+  }
+
+  chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+}, [messages]);
 
   const handleSend = async () => {
     const msg = newMessage.trim();
@@ -209,7 +217,7 @@ const DashboardView: React.FC<Props> = ({
           </div>
         )}
 
-        <div className="h-80 overflow-y-auto bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
+   <div className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm">
           {messages.map(msg => (
             <div key={msg.id}>
               <span className="text-xs font-bold text-[#B5A47A]">
