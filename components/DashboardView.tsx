@@ -58,20 +58,33 @@ const DashboardView: React.FC<Props> = ({
      CHAT LOAD
   ===================================================== */
 
-  const loadChat = async () => {
-    try {
-      const data = await api.getChatMessages(onUnauthorized);
-      setMessages(data);
-    } catch (e: any) {
-      setChatError(e?.message || 'Chat konnte nicht geladen werden.');
-    }
-  };
+const loadChat = async () => {
+  try {
 
-  useEffect(() => {
-    loadChat();
-    const interval = setInterval(loadChat, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    const data = await api.getChatMessages(onUnauthorized);
+
+    setMessages(prev => {
+
+      // wenn noch nichts geladen ist (erste Ladung)
+      if (prev.length === 0) {
+        return data;
+      }
+
+      // vorhandene IDs merken
+      const existingIds = new Set(prev.map(m => m.id));
+
+      // nur neue Nachrichten holen
+      const newMessages = data.filter(m => !existingIds.has(m.id));
+
+      // alte behalten + neue anhängen
+      return [...prev, ...newMessages];
+
+    });
+
+  } catch (e: any) {
+    setChatError(e?.message || 'Chat konnte nicht geladen werden.');
+  }
+};
 
   /* =====================================================
      CHAT SCROLL
