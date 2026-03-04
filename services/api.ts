@@ -173,9 +173,13 @@ export interface ChatMessage {
   display_name: string;
   message: string;
   created_at: string;
+  profile_image_url?: string;   // NEU
 }
 
-export async function getChatMessages(onUnauthorized: () => void): Promise<ChatMessage[]> {
+export async function getChatMessages(
+  onUnauthorized: () => void
+): Promise<ChatMessage[]> {
+
   return await apiRequest<ChatMessage[]>(
     '/gug/v1/chat',
     {},
@@ -183,10 +187,31 @@ export async function getChatMessages(onUnauthorized: () => void): Promise<ChatM
   );
 }
 
+/* =====================================================
+   NEU: ÄLTERE CHAT NACHRICHTEN LADEN (Pagination)
+===================================================== */
+
+export async function getChatMessagesBefore(
+  beforeId: number,
+  onUnauthorized: () => void
+): Promise<ChatMessage[]> {
+
+  return await apiRequest<ChatMessage[]>(
+    `/gug/v1/chat?before=${beforeId}`,
+    {},
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   SEND CHAT MESSAGE
+===================================================== */
+
 export async function sendChatMessage(
   message: string,
   onUnauthorized: () => void
 ): Promise<{ success: boolean }> {
+
   return await apiRequest<{ success: boolean }>(
     '/gug/v1/chat',
     {
