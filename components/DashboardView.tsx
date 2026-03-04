@@ -33,6 +33,7 @@ const DashboardView: React.FC<Props> = ({
 
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
+  const loadingOlderMessages = useRef(false);
 
   /* =====================================================
      LOAD PROFILE IMAGE
@@ -97,6 +98,54 @@ const DashboardView: React.FC<Props> = ({
 
   }, [messages]);
 
+/* =====================================================
+   LOAD OLDER CHAT MESSAGES
+===================================================== */
+
+useEffect(() => {
+
+  const container = chatContainerRef.current;
+  if (!container) return;
+
+  const handleScroll = async () => {
+
+    if (container.scrollTop > 50) return;
+
+    if (loadingOlderMessages.current) return;
+
+    if (!messages.length) return;
+
+    loadingOlderMessages.current = true;
+
+    try {
+
+      const oldestId = messages[0].id;
+
+      const older = await api.getChatMessagesBefore(
+        oldestId,
+        onUnauthorized
+      );
+
+      if (older.length > 0) {
+        setMessages(prev => [...older, ...prev]);
+      }
+
+    } catch (e) {
+      console.error("Could not load older messages", e);
+    }
+
+    loadingOlderMessages.current = false;
+
+  };
+
+  container.addEventListener('scroll', handleScroll);
+
+  return () => {
+    container.removeEventListener('scroll', handleScroll);
+  };
+
+}, [messages]);
+  
   /* =====================================================
      SEND MESSAGE
   ===================================================== */
