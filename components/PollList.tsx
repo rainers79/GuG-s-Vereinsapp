@@ -9,6 +9,7 @@ interface PollListProps {
   selectedPollId?: number | null;
   onRefresh: () => void;
   onUnauthorized: () => void;
+  onBackToProjects?: () => void;
 }
 
 const PollList: React.FC<PollListProps> = ({ 
