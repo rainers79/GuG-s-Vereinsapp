@@ -151,6 +151,12 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     return projects.find(p => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
+  // ✅ WICHTIG: Active Project immer persistieren (auch bei Auto-Select)
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    localStorage.setItem('gug_active_project', String(selectedProjectId));
+  }, [selectedProjectId]);
+
   const sortedProjects = useMemo(() => {
     const now = new Date();
     const list = [...projects];
@@ -261,6 +267,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const handleWheelClick = (item: WheelItem) => {
     if (item.comingSoon) return;
     if (!selectedProjectId) return;
+
+    // ✅ Sicherheit: beim Navigieren immer aktives Projekt fix setzen
+    localStorage.setItem('gug_active_project', String(selectedProjectId));
+
     if (item.view) onNavigate(item.view);
   };
 
@@ -294,6 +304,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
       if (newId) {
         setSelectedProjectId(newId);
+        localStorage.setItem('gug_active_project', String(newId));
       }
     } catch (e: any) {
       setError(e?.message || 'Projekt konnte nicht erstellt werden.');
@@ -340,10 +351,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     setAssignResult(null);
 
     try {
+      // ✅ FIX: Backend erwartet "type" (nicht item_type)
       const payload = {
         project_id: selectedProjectId,
-        item_type: assignType,
-        item_id: assignType === 'event' ? String(assignId) : Number(assignId)
+        type: assignType,
+        item_id: Number(assignId)
       };
 
       await api.apiRequest<{ success: boolean; message?: string }>(
@@ -356,6 +368,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       );
 
       setAssignResult('Zuordnung gespeichert.');
+
+      // optional: Daten neu laden, damit Dropdowns aktuell bleiben
+      await loadAssignableData();
     } catch (e: any) {
       setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
     } finally {
@@ -592,10 +607,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                 <button
                   key={p.id}
                   type="button"
-               onClick={() => {
-  setSelectedProjectId(p.id);
-  localStorage.setItem("gug_active_project", String(p.id));
-}}
+                  onClick={() => {
+                    setSelectedProjectId(p.id);
+                    localStorage.setItem('gug_active_project', String(p.id));
+                  }}
                   className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
                     isActive
                       ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
