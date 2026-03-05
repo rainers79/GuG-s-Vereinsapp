@@ -37,6 +37,31 @@ const DashboardView: React.FC<Props> = ({
   const [privateReceiver, setPrivateReceiver] = useState<{ id:number,name:string } | null>(null);
 
   /* =====================================================
+     DATE FORMAT HELPER (NEU)
+  ===================================================== */
+
+  const formatChatDate = (dateString: string) => {
+
+    const messageDate = new Date(dateString);
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (messageDate >= today) return "Heute";
+    if (messageDate >= yesterday) return "Gestern";
+
+    return messageDate.toLocaleDateString('de-AT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+
+  };
+
+  /* =====================================================
      LOAD PROFILE IMAGE
   ===================================================== */
 
@@ -54,50 +79,51 @@ const DashboardView: React.FC<Props> = ({
       });
   }, []);
 
-/* =====================================================
-   CHAT LOAD
-===================================================== */
+  /* =====================================================
+     CHAT LOAD
+  ===================================================== */
 
-const loadChat = async () => {
-  try {
+  const loadChat = async () => {
+    try {
 
-    const data = await api.getChatMessages(onUnauthorized);
+      const data = await api.getChatMessages(onUnauthorized);
 
-    setMessages(prev => {
+      setMessages(prev => {
 
-      if (prev.length === 0) {
-        return data;
-      }
+        if (prev.length === 0) {
+          return data;
+        }
 
-      const existingIds = new Set(prev.map(m => m.id));
-      const newMessages = data.filter(m => !existingIds.has(m.id));
+        const existingIds = new Set(prev.map(m => m.id));
+        const newMessages = data.filter(m => !existingIds.has(m.id));
 
-      const merged = [...prev, ...newMessages];
-      merged.sort((a, b) => a.id - b.id);
-      return merged;
+        const merged = [...prev, ...newMessages];
+        merged.sort((a, b) => a.id - b.id);
+        return merged;
 
-    });
+      });
 
-  } catch (e: any) {
-    setChatError(e?.message || 'Chat konnte nicht geladen werden.');
-  }
-};
+    } catch (e: any) {
+      setChatError(e?.message || 'Chat konnte nicht geladen werden.');
+    }
+  };
 
-/* =====================================================
-   CHAT INITIAL LOAD
-===================================================== */
+  /* =====================================================
+     CHAT INITIAL LOAD
+  ===================================================== */
 
-useEffect(() => {
+  useEffect(() => {
 
-  loadChat();
-
-  const interval = setInterval(() => {
     loadChat();
-  }, 3000);
 
-  return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      loadChat();
+    }, 3000);
 
-}, []);
+    return () => clearInterval(interval);
+
+  }, []);
+
   /* =====================================================
      CHAT SCROLL
   ===================================================== */
@@ -124,55 +150,53 @@ useEffect(() => {
 
   }, [messages]);
 
-/* =====================================================
-   LOAD OLDER MESSAGES BUTTON
-===================================================== */
+  /* =====================================================
+     LOAD OLDER MESSAGES
+  ===================================================== */
 
-const loadOlderMessages = async () => {
+  const loadOlderMessages = async () => {
 
-console.log("LOAD OLDER CLICKED");
-  
-  if (!messages.length) return;
-  if (loadingOlderMessages.current) return;
+    if (!messages.length) return;
+    if (loadingOlderMessages.current) return;
 
-  const container = chatContainerRef.current;
-  const oldHeight = container?.scrollHeight || 0;
+    const container = chatContainerRef.current;
+    const oldHeight = container?.scrollHeight || 0;
 
-  loadingOlderMessages.current = true;
+    loadingOlderMessages.current = true;
 
-  try {
+    try {
 
-    const oldestId = Math.min(...messages.map(m => m.id));
+      const oldestId = Math.min(...messages.map(m => m.id));
 
-    const older = await api.getChatMessagesBefore(
-      oldestId,
-      onUnauthorized
-    );
+      const older = await api.getChatMessagesBefore(
+        oldestId,
+        onUnauthorized
+      );
 
-    if (older.length > 0) {
+      if (older.length > 0) {
 
-      setMessages(prev => {
-        const merged = [...older, ...prev];
-        merged.sort((a,b)=>a.id-b.id);
-        return merged;
-      });
+        setMessages(prev => {
+          const merged = [...older, ...prev];
+          merged.sort((a,b)=>a.id-b.id);
+          return merged;
+        });
 
-      requestAnimationFrame(() => {
-        if (!container) return;
-        const newHeight = container.scrollHeight;
-        container.scrollTop = newHeight - oldHeight;
-      });
+        requestAnimationFrame(() => {
+          if (!container) return;
+          const newHeight = container.scrollHeight;
+          container.scrollTop = newHeight - oldHeight;
+        });
 
+      }
+
+    } catch (e) {
+      console.error("Could not load older messages", e);
     }
 
-  } catch (e) {
-    console.error("Could not load older messages", e);
-  }
+    loadingOlderMessages.current = false;
 
-  loadingOlderMessages.current = false;
+  };
 
-};
-  
   /* =====================================================
      SEND MESSAGE
   ===================================================== */
@@ -187,34 +211,39 @@ console.log("LOAD OLDER CLICKED");
     setLoadingChat(true);
 
     try {
+
       if (privateReceiver) {
 
-  await api.apiRequest(
-    '/gug/v1/chat',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        message: msg,
-        receiver_id: privateReceiver.id
-      })
-    },
-    onUnauthorized
-  );
+        await api.apiRequest(
+          '/gug/v1/chat',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              message: msg,
+              receiver_id: privateReceiver.id
+            })
+          },
+          onUnauthorized
+        );
 
-} else {
+      } else {
 
-  await api.sendChatMessage(msg, onUnauthorized);
+        await api.sendChatMessage(msg, onUnauthorized);
 
-}
+      }
 
       setPrivateReceiver(null);
-      
       setNewMessage('');
       await loadChat();
+
     } catch (e: any) {
+
       setChatError(e?.message || 'Senden fehlgeschlagen.');
+
     } finally {
+
       setLoadingChat(false);
+
     }
 
   };
@@ -351,16 +380,16 @@ console.log("LOAD OLDER CLICKED");
         <h2 className="text-lg font-black">Globaler Chat</h2>
 
         {privateReceiver && (
-  <div className="text-sm bg-yellow-100 text-black p-2 rounded">
-    Private Nachricht an <b>{privateReceiver.name}</b>
-    <button
-      className="ml-3 text-red-600"
-      onClick={() => setPrivateReceiver(null)}
-    >
-      abbrechen
-    </button>
-  </div>
-)}
+          <div className="text-sm bg-yellow-100 text-black p-2 rounded">
+            Private Nachricht an <b>{privateReceiver.name}</b>
+            <button
+              className="ml-3 text-red-600"
+              onClick={() => setPrivateReceiver(null)}
+            >
+              abbrechen
+            </button>
+          </div>
+        )}
 
         {chatError && (
           <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
@@ -368,95 +397,103 @@ console.log("LOAD OLDER CLICKED");
           </div>
         )}
 
-<button
-  onClick={loadOlderMessages}
-  className="text-xs text-gray-400 hover:text-white mb-2"
->
-  ältere Nachrichten laden
-</button>
-        
+        <button
+          onClick={loadOlderMessages}
+          className="text-xs text-gray-400 hover:text-white mb-2"
+        >
+          ältere Nachrichten laden
+        </button>
+
         <div
           ref={chatContainerRef}
           className="h-80 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-[#121212] rounded-xl p-4 space-y-3 text-sm"
         >
 
-          {messages.map(msg => {
+          {messages.map((msg, index) => {
 
             const time = new Date(msg.created_at).toLocaleTimeString(
               'de-AT',
               { hour: '2-digit', minute: '2-digit' }
             );
 
+            const currentDate = formatChatDate(msg.created_at);
+            const prevDate =
+              index > 0 ? formatChatDate(messages[index - 1].created_at) : null;
+
+            const showDivider = currentDate !== prevDate;
+
             return (
+              <React.Fragment key={msg.id}>
 
-              <div key={msg.id} className="flex items-start gap-3">
+                {showDivider && (
+                  <div className="text-center text-xs text-gray-400 my-3">
+                    {currentDate}
+                  </div>
+                )}
 
-                {/* Avatar */}
+                <div className="flex items-start gap-3">
 
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
 
-                  {(msg as any).profile_image_url ? (
+                    {(msg as any).profile_image_url ? (
 
-                    <img
-                      src={(msg as any).profile_image_url}
-                      className="w-full h-full object-cover"
-                    />
+                      <img
+                        src={(msg as any).profile_image_url}
+                        className="w-full h-full object-cover"
+                      />
 
-                  ) : (
+                    ) : (
 
-                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#1A1A1A]">
-                      {msg.display_name.charAt(0)}
+                      <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#1A1A1A]">
+                        {msg.display_name.charAt(0)}
+                      </div>
+
+                    )}
+
+                  </div>
+
+                  <div className="flex-1">
+
+                    <div className="flex justify-between items-center">
+
+                      <span className="text-xs font-bold text-[#B5A47A]">
+                        {msg.display_name}
+                      </span>
+
+                      <span className="text-xs text-gray-400">
+                        {time}
+                      </span>
+
                     </div>
 
-                  )}
+                    <div className="text-slate-800 dark:text-white">
+                      {msg.message}
+                    </div>
 
-                </div>
-
-                {/* Message */}
-
-                <div className="flex-1">
-
-                  <div className="flex justify-between items-center">
-
-                    <span className="text-xs font-bold text-[#B5A47A]">
-                      {msg.display_name}
-                    </span>
-
-                    <span className="text-xs text-gray-400">
-                      {time}
-                    </span>
+                    {msg.user_id !== user.id && (
+                      <button
+                        className="text-xs text-blue-500 mt-1"
+                        onClick={() =>
+                          setPrivateReceiver({
+                            id: msg.user_id,
+                            name: msg.display_name
+                          })
+                        }
+                      >
+                        PN
+                      </button>
+                    )}
 
                   </div>
 
-                  <div className="text-slate-800 dark:text-white">
-                    {msg.message}
-                  </div>
-
-                  {msg.user_id !== user.id && (
-  <button
-    className="text-xs text-blue-500 mt-1"
-    onClick={() =>
-      setPrivateReceiver({
-        id: msg.user_id,
-        name: msg.display_name
-      })
-    }
-  >
-    PN
-  </button>
-)}
-
                 </div>
 
-              </div>
-
+              </React.Fragment>
             );
 
           })}
 
         </div>
-
-        {/* INPUT */}
 
         <div className="flex gap-2">
 
