@@ -118,10 +118,7 @@ const App: React.FC = () => {
       const currentUser = await api.getCurrentUser(handleUnauthorized);
       setUser(currentUser);
 
-     const projectIdRaw = localStorage.getItem("gug_active_project");
-const projectId = projectIdRaw ? parseInt(projectIdRaw) : undefined;
-
-const pollData = await api.getPolls(handleUnauthorized, projectId);
+     const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
       setError(err?.message || 'Fehler beim Laden.');
