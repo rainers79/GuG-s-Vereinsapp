@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AppRole, ViewType } from '../types';
 
@@ -24,6 +23,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       label: 'Home'
     },
     {
+      id: 'projects' as ViewType,
+      label: 'Projekte'
+    },
+    {
       id: 'calendar' as ViewType,
       label: 'Kalender'
     },
@@ -43,13 +46,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'pos' as ViewType,
       label: 'Boniersystem',
-      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND] // ✅ nur Vorstand/Superadmin
+      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
     },
     {
-  id: 'pos-admin' as ViewType,
-  label: 'POS Verwaltung',
-  roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
-},
+      id: 'pos-admin' as ViewType,
+      label: 'POS Verwaltung',
+      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
+    },
     {
       id: 'settings' as ViewType,
       label: 'Einstellungen'
