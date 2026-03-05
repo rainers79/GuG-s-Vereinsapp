@@ -298,16 +298,17 @@ const App: React.FC = () => {
           />
         );
 
-      case 'polls':
-        return (
-          <PollList
-            polls={polls}
-            user={user!}
-            selectedPollId={selectedPollId}
-            onRefresh={fetchAppData}
-            onUnauthorized={handleUnauthorized}
-          />
-        );
+case 'polls':
+  return (
+    <PollList
+      polls={polls}
+      user={user!}
+      selectedPollId={selectedPollId}
+      onRefresh={fetchAppData}
+      onUnauthorized={handleUnauthorized}
+      onBackToProjects={() => setActiveView('projects')}
+    />
+  );
 
       case 'settings':
         return (
