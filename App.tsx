@@ -14,6 +14,7 @@ import SettingsView from './components/SettingsView';
 import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
+import ProjectsView from './components/ProjectsView';   // NEU
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -46,10 +47,6 @@ const defaultNotificationSettings: NotificationSettings = {
 
 const App: React.FC = () => {
 
-  /* =====================================================
-     CORE STATE
-  ===================================================== */
-
   const [user, setUser] = useState<User | null>(api.getStoredUser());
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -75,10 +72,6 @@ const App: React.FC = () => {
 
   const userRef = useRef<User | null>(user);
 
-  /* =====================================================
-     EFFECTS
-  ===================================================== */
-
   useEffect(() => {
     userRef.current = user;
   }, [user]);
@@ -103,10 +96,6 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
-  /* =====================================================
-     TOAST HELPERS
-  ===================================================== */
-
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
     setToasts(prev => [...prev, { id, message, type }]);
@@ -115,10 +104,6 @@ const App: React.FC = () => {
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
-
-  /* =====================================================
-     AUTH + DATA LOAD
-  ===================================================== */
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
@@ -147,10 +132,6 @@ const App: React.FC = () => {
     else setLoading(false);
   }, []);
 
-  /* =====================================================
-     GLOBAL WATCHER (CHAT + POLLS)
-  ===================================================== */
-
   const getStoredNumber = (key: string): number => {
     const raw = localStorage.getItem(key);
     const n = raw ? parseInt(raw, 10) : 0;
@@ -162,100 +143,131 @@ const App: React.FC = () => {
   };
 
   const checkGlobalUpdates = useCallback(async () => {
+
     const u = userRef.current;
     if (!u) return;
 
-    /* ---------- CHAT ---------- */
     if (notificationSettings.chatEnabled) {
       try {
+
         const msgs = await api.getChatMessages(handleUnauthorized);
 
         if (msgs.length > 0) {
+
           const maxId = Math.max(...msgs.map(m => m.id || 0));
           const lastSeen = getStoredNumber(LS_LAST_CHAT_ID);
 
           if (lastSeen === 0) {
             setStoredNumber(LS_LAST_CHAT_ID, maxId);
-          } else if (maxId > lastSeen) {
+          }
+          else if (maxId > lastSeen) {
 
             const newMsgs = msgs.filter(
               m => m.id > lastSeen && m.user_id !== u.id
             );
 
             if (newMsgs.length > 0) {
+
               const latest = newMsgs[newMsgs.length - 1];
 
               if (notificationSettings.chatPreview) {
+
                 const preview =
                   latest.message.slice(0, 80) +
                   (latest.message.length > 80 ? '…' : '');
+
                 pushToast(
                   `Neue Nachricht von ${latest.display_name}: ${preview}`
                 );
+
               } else {
+
                 pushToast(
                   `Neue Nachricht von ${latest.display_name}`
                 );
+
               }
+
             }
 
             setStoredNumber(LS_LAST_CHAT_ID, maxId);
+
           }
+
         }
+
       } catch {}
+
     }
 
-    /* ---------- POLLS ---------- */
     if (notificationSettings.pollEnabled) {
+
       try {
+
         const p = await api.getPolls(handleUnauthorized);
 
         if (p.length > 0) {
+
           const maxPollId = Math.max(...p.map(x => x.id || 0));
           const lastPoll = getStoredNumber(LS_LAST_POLL_ID);
 
           if (lastPoll === 0) {
+
             setStoredNumber(LS_LAST_POLL_ID, maxPollId);
-          } else if (maxPollId > lastPoll) {
+
+          }
+          else if (maxPollId > lastPoll) {
 
             const newest = p.find(x => x.id === maxPollId);
 
             if (newest) {
+
               if (notificationSettings.pollPreview) {
+
                 const preview =
                   newest.question.slice(0, 90) +
                   (newest.question.length > 90 ? '…' : '');
+
                 pushToast(`Neue Umfrage: ${preview}`);
+
               } else {
+
                 pushToast(`Eine neue Umfrage wurde erstellt`);
+
               }
+
             }
 
             setStoredNumber(LS_LAST_POLL_ID, maxPollId);
+
           }
 
           setPolls(p);
+
         }
+
       } catch {}
+
     }
 
   }, [notificationSettings, handleUnauthorized, pushToast]);
 
   useEffect(() => {
+
     if (!user) return;
 
     checkGlobalUpdates();
+
     const interval = setInterval(checkGlobalUpdates, 5000);
+
     return () => clearInterval(interval);
 
   }, [user, checkGlobalUpdates]);
 
-  /* =====================================================
-     RENDER LOGIC
-  ===================================================== */
-
   const renderContent = () => {
+
     switch (activeView) {
+
       case 'dashboard':
         return (
           <DashboardView
@@ -263,6 +275,13 @@ const App: React.FC = () => {
             polls={polls}
             onNavigate={setActiveView}
             onUnauthorized={handleUnauthorized}
+          />
+        );
+
+      case 'projects':
+        return (
+          <ProjectsView
+            onNavigate={setActiveView}
           />
         );
 
@@ -317,13 +336,13 @@ const App: React.FC = () => {
           />
         );
 
-case 'pos-admin':
-  return (
-    <PosAdminView
-      onUnauthorized={handleUnauthorized}
-    />
-  );
-        
+      case 'pos-admin':
+        return (
+          <PosAdminView
+            onUnauthorized={handleUnauthorized}
+          />
+        );
+
       case 'pos':
         return (
           <PosView
@@ -338,7 +357,9 @@ case 'pos-admin':
 
       default:
         return null;
+
     }
+
   };
 
   if (loading && !user) {
@@ -352,6 +373,7 @@ case 'pos-admin':
   const isPosMode = !!user && activeView === 'pos';
 
   if (isPosMode) {
+
     return (
       <div className="min-h-screen w-full bg-[#F5E9D0]">
 
@@ -378,9 +400,11 @@ case 'pos-admin':
 
       </div>
     );
+
   }
 
   return (
+
     <div className="min-h-screen flex flex-col">
 
       {error && (
@@ -427,10 +451,14 @@ case 'pos-admin':
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {renderContent()}
           </main>
+
         </>
       )}
+
     </div>
+
   );
+
 };
 
 export default App;
