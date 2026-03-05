@@ -4,8 +4,10 @@ export enum AppRole {
   USER = 'USER',
   VISITOR = 'VISITOR'
 }
+
 export type ViewType =
   | 'dashboard'
+  | 'projects'
   | 'polls'
   | 'calendar'
   | 'members'
@@ -113,7 +115,7 @@ export interface Task {
   assigned_user_id: number;
   role_tag?: string | null;
   status: TaskStatus;
-  deadline_date?: string | null; // YYYY-MM-DD
+  deadline_date?: string | null;
   created_by?: number;
   created_at?: string;
 }
@@ -138,7 +140,7 @@ export interface PosArticle {
   price_cents: number;
   is_active: number;
   sort_order: number;
-  bg_color?: string; // ✅ NEU: Button-Hintergrundfarbe (z.B. "#ffffff")
+  bg_color?: string;
 }
 
 export interface PosOrderItem {
