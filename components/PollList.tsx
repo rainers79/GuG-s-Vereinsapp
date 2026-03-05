@@ -17,7 +17,8 @@ const PollList: React.FC<PollListProps> = ({
   user, 
   selectedPollId, 
   onRefresh, 
-  onUnauthorized 
+  onUnauthorized,
+  onBackToProjects
 }) => {
   const [showCreate, setShowCreate] = useState(false);
   const canCreate =
@@ -29,6 +30,15 @@ const PollList: React.FC<PollListProps> = ({
   return (
     <div className="space-y-8 sm:space-y-16 animate-in fade-in duration-1000 pb-20">
 
+{onBackToProjects && (
+  <button
+    onClick={onBackToProjects}
+    className="bg-[#B5A47A] text-black font-bold px-6 py-3 rounded-xl"
+  >
+    ← Zurück zu Projekte
+  </button>
+)}
+      
       {canCreate && (
         <button
           onClick={() => setShowCreate(!showCreate)}
