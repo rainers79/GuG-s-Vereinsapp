@@ -54,9 +54,9 @@ const DashboardView: React.FC<Props> = ({
       });
   }, []);
 
-  /* =====================================================
-     CHAT LOAD
-  ===================================================== */
+/* =====================================================
+   CHAT LOAD
+===================================================== */
 
 const loadChat = async () => {
   try {
@@ -65,21 +65,16 @@ const loadChat = async () => {
 
     setMessages(prev => {
 
-      // wenn noch nichts geladen ist (erste Ladung)
       if (prev.length === 0) {
         return data;
       }
 
-      // vorhandene IDs merken
       const existingIds = new Set(prev.map(m => m.id));
-
-      // nur neue Nachrichten holen
       const newMessages = data.filter(m => !existingIds.has(m.id));
 
-      // alte behalten + neue anhängen
-   const merged = [...prev, ...newMessages];
-merged.sort((a, b) => a.id - b.id);
-return merged;
+      const merged = [...prev, ...newMessages];
+      merged.sort((a, b) => a.id - b.id);
+      return merged;
 
     });
 
@@ -88,6 +83,21 @@ return merged;
   }
 };
 
+/* =====================================================
+   CHAT INITIAL LOAD
+===================================================== */
+
+useEffect(() => {
+
+  loadChat();
+
+  const interval = setInterval(() => {
+    loadChat();
+  }, 3000);
+
+  return () => clearInterval(interval);
+
+}, []);
   /* =====================================================
      CHAT SCROLL
   ===================================================== */
