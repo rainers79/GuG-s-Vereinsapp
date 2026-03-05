@@ -592,7 +592,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setSelectedProjectId(p.id)}
+               onClick={() => {
+  setSelectedProjectId(p.id);
+  localStorage.setItem("gug_active_project", String(p.id));
+}}
                   className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
                     isActive
                       ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
