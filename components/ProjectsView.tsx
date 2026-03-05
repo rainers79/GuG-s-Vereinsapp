@@ -62,7 +62,7 @@ const wheelItems: WheelItem[] = [
   { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
-  { label: 'Rechnungen (coming soon)', comingSoon: true, actionKey: 'invoices' },
+  { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
   { label: 'Einkaufsliste (coming soon)', comingSoon: true, actionKey: 'shopping' },
   { label: 'Kernteam (coming soon)', comingSoon: true, actionKey: 'coreteam' },
   { label: 'Chat Verlauf (coming soon)', comingSoon: true, actionKey: 'chatlog' },
