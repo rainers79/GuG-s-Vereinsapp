@@ -120,6 +120,8 @@ return merged;
 
 const loadOlderMessages = async () => {
 
+console.log("LOAD OLDER CLICKED");
+  
   if (!messages.length) return;
   if (loadingOlderMessages.current) return;
 
