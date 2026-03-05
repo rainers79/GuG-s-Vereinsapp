@@ -77,7 +77,9 @@ const loadChat = async () => {
       const newMessages = data.filter(m => !existingIds.has(m.id));
 
       // alte behalten + neue anhängen
-      return [...prev, ...newMessages];
+   const merged = [...prev, ...newMessages];
+merged.sort((a, b) => a.id - b.id);
+return merged;
 
     });
 
@@ -119,14 +121,16 @@ const loadChat = async () => {
 const loadOlderMessages = async () => {
 
   if (!messages.length) return;
-
   if (loadingOlderMessages.current) return;
+
+  const container = chatContainerRef.current;
+  const oldHeight = container?.scrollHeight || 0;
 
   loadingOlderMessages.current = true;
 
   try {
 
-const oldestId = messages.length ? messages[0].id : 999999;
+    const oldestId = Math.min(...messages.map(m => m.id));
 
     const older = await api.getChatMessagesBefore(
       oldestId,
@@ -134,7 +138,19 @@ const oldestId = messages.length ? messages[0].id : 999999;
     );
 
     if (older.length > 0) {
-      setMessages(prev => [...older, ...prev]);
+
+      setMessages(prev => {
+        const merged = [...older, ...prev];
+        merged.sort((a,b)=>a.id-b.id);
+        return merged;
+      });
+
+      requestAnimationFrame(() => {
+        if (!container) return;
+        const newHeight = container.scrollHeight;
+        container.scrollTop = newHeight - oldHeight;
+      });
+
     }
 
   } catch (e) {
