@@ -226,8 +226,23 @@ export async function sendChatMessage(
    POLLS
 ===================================================== */
 
-export async function getPolls(onUnauthorized: () => void): Promise<Poll[]> {
-  return await apiRequest<Poll[]>('/gug/v1/polls', {}, onUnauthorized);
+export async function getPolls(
+  onUnauthorized: () => void
+): Promise<Poll[]> {
+
+  const projectId = localStorage.getItem("gug_active_project");
+
+  let endpoint = "/gug/v1/polls";
+
+  if (projectId) {
+    endpoint += "?project_id=" + projectId;
+  }
+
+  return await apiRequest<Poll[]>(
+    endpoint,
+    {},
+    onUnauthorized
+  );
 }
 
 export async function createPoll(payload: any, onUnauth: () => void): Promise<Poll> {
