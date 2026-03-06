@@ -475,15 +475,44 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           style={{ cursor: item.comingSoon ? "default" : "pointer" }}
         >
 
-          <path
-            d={path}
-            fill={color}
-            stroke="#ffffff"
-            strokeWidth="3"
-            style={{
-              filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.7))"
-            }}
-          />
+<defs>
+
+{wheelColors.map((color, i) => (
+
+<radialGradient
+key={i}
+id={`grad-${i}`}
+cx="50%"
+cy="30%"
+r="80%"
+>
+
+<stop offset="0%" stopColor="#ffffff" />
+
+<stop offset="25%" stopColor={color} />
+
+<stop offset="65%" stopColor={color} />
+
+<stop offset="100%" stopColor="#00000066" />
+
+</radialGradient>
+
+))}
+
+</defs>
+          
+<path
+  d={path}
+  fill={`url(#grad-${i})`}
+  stroke="#ffffff"
+  strokeWidth="3"
+  style={{
+    filter:
+      hoveredIndex === i
+        ? "drop-shadow(0 10px 18px rgba(0,0,0,0.9))"
+        : "drop-shadow(0 6px 10px rgba(0,0,0,0.7))"
+  }}
+/>
 
           <text
             x={label.x}
