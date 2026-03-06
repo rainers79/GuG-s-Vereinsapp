@@ -457,16 +457,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   }}
 />
 
-                  <text
-                    x={textX}
-                    y={textY}
-                    fill="#B5A47A"
-                    fontSize="12"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ pointerEvents: 'none' }}
-                  >
+<text
+  x={textX}
+  y={textY}
+  fill="#000000"
+  fontSize="12"
+  fontWeight="bold"
+  textAnchor="middle"
+  dominantBaseline="middle"
+  style={{ pointerEvents: 'none' }}
+>
                     {item.label}
                   </text>
                 </g>
