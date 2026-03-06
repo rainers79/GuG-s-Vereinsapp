@@ -450,6 +450,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   }
   stroke="#1A1A1A"
   strokeWidth="2"
+  style={{
+    filter: isHovered
+      ? "brightness(1.1) drop-shadow(0px 4px 6px rgba(0,0,0,0.4))"
+      : "brightness(0.95) drop-shadow(0px 2px 4px rgba(0,0,0,0.35))"
+  }}
 />
 
                   <text
