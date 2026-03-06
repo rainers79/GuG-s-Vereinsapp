@@ -10,7 +10,6 @@
 
 /* =====================================================
    DESIGN SYSTEM – GLOBAL COMPONENT LAYER
-   Mobile First • Premium Dark • Konsistent
 ===================================================== */
 
 @layer components {
@@ -46,7 +45,7 @@
            bg-slate-50 dark:bg-white/5;
   }
 
-  /* ===== Headers / Layout ===== */
+  /* ===== Headers ===== */
 
   .mobile-stack {
     @apply flex flex-col gap-4
@@ -58,40 +57,108 @@
            w-full sm:w-auto;
   }
 
-  /* ===== Buttons ===== */
+  /* =====================================================
+     3D BUTTON SYSTEM
+  ===================================================== */
 
   .btn-primary {
-    @apply px-4 py-2
-           rounded-lg
-           text-xs
-           font-black
-           uppercase
-           tracking-widest
-           bg-brand-gold
-           text-brand-dark
-           hover:brightness-110
-           transition;
+
+    background: linear-gradient(
+      to bottom,
+      #e7d4a3 0%,
+      #d6c08c 45%,
+      #b5a47a 100%
+    );
+
+    color: #1A1A1A;
+
+    padding: 10px 18px;
+
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+
+    border-radius: 10px;
+
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.4),
+      inset 0 -3px 0 rgba(0,0,0,0.2),
+      0 4px 10px rgba(0,0,0,0.3);
+
+    transition: all 0.15s ease;
+
   }
 
-  .btn-secondary {
-    @apply px-4 py-2
-           rounded-lg
-           text-xs
-           font-black
-           uppercase
-           tracking-widest
-           bg-white dark:bg-[#121212]
-           border border-slate-200 dark:border-white/10
-           text-slate-700 dark:text-white/80
-           hover:bg-slate-50 dark:hover:bg-white/5
-           transition;
+  .btn-primary:hover {
+
+    transform: translateY(-2px) scale(1.03);
+
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.5),
+      inset 0 -3px 0 rgba(0,0,0,0.25),
+      0 8px 18px rgba(0,0,0,0.35);
+
   }
+
+  .btn-primary:active {
+
+    transform: translateY(1px) scale(0.98);
+
+    box-shadow:
+      inset 0 3px 4px rgba(0,0,0,0.4);
+
+  }
+
+  /* ===== Secondary Button ===== */
+
+  .btn-secondary {
+
+    background: linear-gradient(
+      to bottom,
+      #3a3a3a,
+      #2b2b2b
+    );
+
+    color: white;
+
+    padding: 10px 18px;
+
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+
+    border-radius: 10px;
+
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.15),
+      inset 0 -3px 0 rgba(0,0,0,0.5),
+      0 4px 10px rgba(0,0,0,0.5);
+
+    transition: all 0.15s ease;
+
+  }
+
+  .btn-secondary:hover {
+
+    transform: translateY(-2px);
+
+  }
+
+  .btn-secondary:active {
+
+    transform: translateY(1px);
+
+  }
+
+  /* ===== Mobile ===== */
 
   .btn-mobile {
     @apply w-full sm:w-auto;
   }
 
-  /* ===== Form Elements ===== */
+  /* ===== Form ===== */
 
   .form-label {
     @apply block
@@ -148,17 +215,6 @@
            rounded-full
            bg-brand-gold/15
            text-brand-gold;
-  }
-
-  /* ===== Meta Text ===== */
-
-  .meta-text {
-    @apply text-[10px]
-           font-bold
-           uppercase
-           tracking-widest
-           text-slate-400
-           dark:text-white/40;
   }
 
   /* ===== Alerts ===== */
