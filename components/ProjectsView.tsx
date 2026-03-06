@@ -466,14 +466,18 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       const color = wheelColors[i]
 
       return (
-
-        <g
-          key={i}
-          onClick={() => handleWheelClick(item)}
-          onMouseEnter={() => setHoveredIndex(i)}
-          onMouseLeave={() => setHoveredIndex(null)}
-          style={{ cursor: item.comingSoon ? "default" : "pointer" }}
-        >
+<g
+  key={i}
+  onClick={() => handleWheelClick(item)}
+  onMouseEnter={() => setHoveredIndex(i)}
+  onMouseLeave={() => setHoveredIndex(null)}
+  transform={
+    hoveredIndex === i
+      ? `translate(${getSliceLift(i, wheelItems.length).dx}, ${getSliceLift(i, wheelItems.length).dy}) scale(1.05)`
+      : "scale(1)"
+  }
+  style={{ cursor: item.comingSoon ? "default" : "pointer", transition: "all 0.2s ease" }}
+>
 
 <defs>
 
