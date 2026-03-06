@@ -70,22 +70,21 @@ const wheelItems: WheelItem[] = [
 ];
 
 const center = 200;
-const wheelOuterRadius = 158;
-const wheelInnerRadius = 78;
 const centerRadius = 48;
-const ringThickness = wheelOuterRadius - wheelInnerRadius;
-const ringMidRadius = wheelInnerRadius + ringThickness / 2;
-const segmentGapDeg = 8;
+const buttonThickness = 54;
+const buttonRadius = 118;
+const labelRadius = 118;
+const segmentGapDeg = 10;
 
 const wheelColors = [
   '#2D8CFF',
   '#FF9A2B',
   '#FF4FB3',
-  '#E6C26A',
-  '#9A5CFF',
-  '#4CD964',
-  '#FF4B4B',
-  '#2ED3C6'
+  '#E6A61A',
+  '#7C3AED',
+  '#65C431',
+  '#F44336',
+  '#53B62C'
 ];
 
 const safeDate = (raw?: string | null): Date | null => {
@@ -156,7 +155,6 @@ const createArcPath = (
   const start = polarToCartesian(cx, cy, radius, startDeg);
   const end = polarToCartesian(cx, cy, radius, endDeg);
   const largeArcFlag = endDeg - startDeg > 180 ? 1 : 0;
-
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 };
 
@@ -245,11 +243,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     wheelGroupRef.current.animate(
       [
-        { transform: 'rotate(-14deg) scale(0.96)' },
+        { transform: 'rotate(-12deg) scale(0.97)' },
         { transform: 'rotate(0deg) scale(1)' }
       ],
       {
-        duration: 320,
+        duration: 280,
         easing: 'ease-out'
       }
     );
@@ -402,7 +400,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       );
 
       setAssignResult('Zuordnung gespeichert.');
-
       await loadAssignableData();
     } catch (e: any) {
       setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
@@ -447,35 +444,47 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           <svg width="400" height="400" viewBox="0 0 400 400">
             <defs>
               {wheelColors.map((color, i) => (
-                <linearGradient
-                  key={`grad-${i}`}
-                  id={`wheelGrad-${i}`}
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                  <stop offset="8%" stopColor="#ffffff" stopOpacity="0.92" />
-                  <stop offset="20%" stopColor="#ffffff" stopOpacity="0.55" />
-                  <stop offset="34%" stopColor={color} stopOpacity="1" />
-                  <stop offset="78%" stopColor={color} stopOpacity="1" />
-                  <stop offset="100%" stopColor="#000000" stopOpacity="0.34" />
-                </linearGradient>
+                <g key={`defs-${i}`}>
+                  <linearGradient
+                    id={`segmentBase-${i}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
+                    <stop offset="8%" stopColor="#ffffff" stopOpacity="0.9" />
+                    <stop offset="18%" stopColor={color} stopOpacity="1" />
+                    <stop offset="72%" stopColor={color} stopOpacity="1" />
+                    <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
+                  </linearGradient>
+
+                  <linearGradient
+                    id={`segmentGloss-${i}`}
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+                    <stop offset="45%" stopColor="#ffffff" stopOpacity="0.38" />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                  </linearGradient>
+                </g>
               ))}
 
               <radialGradient id="centerGrad" cx="34%" cy="26%" r="90%">
                 <stop offset="0%" stopColor="#fff6dd" />
-                <stop offset="45%" stopColor="#ead6a6" />
+                <stop offset="48%" stopColor="#ead6a6" />
                 <stop offset="100%" stopColor="#b79f69" />
               </radialGradient>
 
-              <filter id="segmentShadow" x="-40%" y="-40%" width="180%" height="180%">
-                <feDropShadow dx="0" dy="9" stdDeviation="7" floodColor="#000000" floodOpacity="0.42" />
+              <filter id="segmentShadow" x="-60%" y="-60%" width="220%" height="220%">
+                <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#000000" floodOpacity="0.42" />
               </filter>
 
-              <filter id="segmentShadowHover" x="-40%" y="-40%" width="180%" height="180%">
-                <feDropShadow dx="0" dy="12" stdDeviation="9" floodColor="#000000" floodOpacity="0.52" />
+              <filter id="segmentShadowHover" x="-60%" y="-60%" width="220%" height="220%">
+                <feDropShadow dx="0" dy="12" stdDeviation="9" floodColor="#000000" floodOpacity="0.56" />
               </filter>
 
               <filter id="centerShadow" x="-40%" y="-40%" width="180%" height="180%">
@@ -489,19 +498,34 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                 const startDeg = i * sliceAngle + segmentGapDeg / 2;
                 const endDeg = (i + 1) * sliceAngle - segmentGapDeg / 2;
 
-                const basePath = createArcPath(center, center, ringMidRadius, startDeg, endDeg);
-                const highlightPath = createArcPath(center, center, ringMidRadius - ringThickness * 0.18, startDeg + 1.1, endDeg - 1.1);
-                const innerGlossPath = createArcPath(center, center, ringMidRadius - ringThickness * 0.28, startDeg + 1.8, endDeg - 1.8);
+                const baseArc = createArcPath(center, center, buttonRadius, startDeg, endDeg);
+                const glossArc = createArcPath(
+                  center,
+                  center,
+                  buttonRadius - buttonThickness * 0.2,
+                  startDeg + 1.2,
+                  endDeg - 1.2
+                );
+                const shineArc = createArcPath(
+                  center,
+                  center,
+                  buttonRadius - buttonThickness * 0.32,
+                  startDeg + 2.4,
+                  endDeg - 2.4
+                );
 
                 const midDeg = i * sliceAngle + sliceAngle / 2;
                 const midRad = (midDeg - 90) * (Math.PI / 180);
 
-                const textRadius = ringMidRadius;
-                const textX = center + textRadius * Math.cos(midRad);
-                const textY = center + textRadius * Math.sin(midRad);
+                const textX = center + labelRadius * Math.cos(midRad);
+                const textY = center + labelRadius * Math.sin(midRad);
 
                 const isHovered = hoveredIndex === i && !item.comingSoon;
                 const lift = getSliceLift(i, wheelItems.length);
+
+                const hoverTranslate = isHovered
+                  ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.08)`
+                  : undefined;
 
                 return (
                   <g
@@ -510,47 +534,43 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     onMouseEnter={() => setHoveredIndex(i)}
                     onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => handleWheelClick(item)}
-                    transform={
-                      isHovered
-                        ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.08)`
-                        : undefined
-                    }
+                    transform={hoverTranslate}
                     style={{
                       transition: 'transform 180ms ease',
                       transformOrigin: `${center}px ${center}px`
                     }}
                   >
                     <path
-                      d={basePath}
+                      d={baseArc}
                       fill="none"
-                      stroke="rgba(0,0,0,0.38)"
-                      strokeWidth={ringThickness + 10}
+                      stroke="rgba(0,0,0,0.42)"
+                      strokeWidth={buttonThickness + 8}
                       strokeLinecap="round"
                       filter={isHovered ? 'url(#segmentShadowHover)' : 'url(#segmentShadow)'}
                     />
 
                     <path
-                      d={basePath}
+                      d={baseArc}
                       fill="none"
-                      stroke={`url(#wheelGrad-${i % wheelColors.length})`}
-                      strokeWidth={ringThickness}
+                      stroke={`url(#segmentBase-${i % wheelColors.length})`}
+                      strokeWidth={buttonThickness}
                       strokeLinecap="round"
                     />
 
                     <path
-                      d={highlightPath}
+                      d={glossArc}
                       fill="none"
-                      stroke="rgba(255,255,255,0.72)"
-                      strokeWidth={Math.max(8, ringThickness * 0.22)}
+                      stroke={`url(#segmentGloss-${i % wheelColors.length})`}
+                      strokeWidth={Math.max(10, buttonThickness * 0.24)}
                       strokeLinecap="round"
                       style={{ pointerEvents: 'none' }}
                     />
 
                     <path
-                      d={innerGlossPath}
+                      d={shineArc}
                       fill="none"
-                      stroke="rgba(255,255,255,0.22)"
-                      strokeWidth={Math.max(4, ringThickness * 0.1)}
+                      stroke="rgba(255,255,255,0.18)"
+                      strokeWidth={Math.max(5, buttonThickness * 0.1)}
                       strokeLinecap="round"
                       style={{ pointerEvents: 'none' }}
                     />
