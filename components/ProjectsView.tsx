@@ -509,7 +509,8 @@ r="80%"
   d={path}
   fill={`url(#grad-${i})`}
   stroke="#ffffff"
-  strokeWidth="3"
+  strokeWidth="5"
+  strokeLinejoin="round"
   style={{
     filter:
       hoveredIndex === i
