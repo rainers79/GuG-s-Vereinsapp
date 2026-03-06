@@ -69,8 +69,22 @@ const wheelItems: WheelItem[] = [
   { label: 'Mehr (coming soon)', comingSoon: true, actionKey: 'more' }
 ];
 
-const radius = 180;
+const outerRadius = 145;
+const innerRadius = 48;
+const centerRadius = 48;
 const center = 200;
+const segmentGapDeg = 2.4;
+
+const wheelColors = [
+  '#2D8CFF',
+  '#FF9A2B',
+  '#FF4FB3',
+  '#E6C26A',
+  '#9A5CFF',
+  '#4CD964',
+  '#FF4B4B',
+  '#2ED3C6'
+];
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -122,6 +136,55 @@ const wrapLines = (text: string, maxLineLen = 14): string[] => {
   return lines.slice(0, 3);
 };
 
+const polarToCartesian = (cx: number, cy: number, radius: number, angleDeg: number) => {
+  const angleRad = (angleDeg - 90) * (Math.PI / 180);
+  return {
+    x: cx + radius * Math.cos(angleRad),
+    y: cy + radius * Math.sin(angleRad)
+  };
+};
+
+const createDonutSlicePath = (
+  index: number,
+  total: number,
+  cx: number,
+  cy: number,
+  rOuter: number,
+  rInner: number,
+  gapDeg: number
+) => {
+  const sliceAngle = 360 / total;
+  const startDeg = index * sliceAngle + gapDeg / 2;
+  const endDeg = (index + 1) * sliceAngle - gapDeg / 2;
+
+  const outerStart = polarToCartesian(cx, cy, rOuter, startDeg);
+  const outerEnd = polarToCartesian(cx, cy, rOuter, endDeg);
+  const innerEnd = polarToCartesian(cx, cy, rInner, endDeg);
+  const innerStart = polarToCartesian(cx, cy, rInner, startDeg);
+
+  const largeArcFlag = endDeg - startDeg > 180 ? 1 : 0;
+
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
+    'Z'
+  ].join(' ');
+};
+
+const getSliceLift = (index: number, total: number) => {
+  const sliceAngle = 360 / total;
+  const midDeg = index * sliceAngle + sliceAngle / 2;
+  const midRad = (midDeg - 90) * (Math.PI / 180);
+  const lift = 10;
+
+  return {
+    dx: Math.cos(midRad) * lift,
+    dy: Math.sin(midRad) * lift
+  };
+};
+
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -145,13 +208,13 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const loadedOnce = useRef(false);
+  const wheelGroupRef = useRef<SVGGElement | null>(null);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find(p => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
-  // ✅ WICHTIG: Active Project immer persistieren (auch bei Auto-Select)
   useEffect(() => {
     if (!selectedProjectId) return;
     localStorage.setItem('gug_active_project', String(selectedProjectId));
@@ -190,34 +253,20 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
-  const createSlicePath = (index: number, total: number) => {
-    const startAngle = (index / total) * 2 * Math.PI;
-    const endAngle = ((index + 1) / total) * 2 * Math.PI;
+  useEffect(() => {
+    if (!wheelGroupRef.current) return;
 
-    const x1 = center + radius * Math.cos(startAngle);
-    const y1 = center + radius * Math.sin(startAngle);
-
-    const x2 = center + radius * Math.cos(endAngle);
-    const y2 = center + radius * Math.sin(endAngle);
-
-    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
-
-    return `
-      M ${center} ${center}
-      L ${x1} ${y1}
-      A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}
-      Z
-    `;
-  };
-
-  const getSliceLift = (index: number, total: number) => {
-    const midAngle = ((index + 0.5) / total) * 2 * Math.PI;
-    const lift = 10;
-    return {
-      dx: Math.cos(midAngle) * lift,
-      dy: Math.sin(midAngle) * lift
-    };
-  };
+    wheelGroupRef.current.animate(
+      [
+        { transform: 'rotate(-16deg)' },
+        { transform: 'rotate(0deg)' }
+      ],
+      {
+        duration: 340,
+        easing: 'ease-out'
+      }
+    );
+  }, [selectedProjectId]);
 
   const loadProjects = async () => {
     setError(null);
@@ -268,7 +317,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     if (item.comingSoon) return;
     if (!selectedProjectId) return;
 
-    // ✅ Sicherheit: beim Navigieren immer aktives Projekt fix setzen
     localStorage.setItem('gug_active_project', String(selectedProjectId));
 
     if (item.view) onNavigate(item.view);
@@ -351,7 +399,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     setAssignResult(null);
 
     try {
-      // ✅ FIX: Backend erwartet "type" (nicht item_type)
       const payload = {
         project_id: selectedProjectId,
         type: assignType,
@@ -369,7 +416,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
       setAssignResult('Zuordnung gespeichert.');
 
-      // optional: Daten neu laden, damit Dropdowns aktuell bleiben
       await loadAssignableData();
     } catch (e: any) {
       setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
@@ -411,85 +457,153 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
       <div className="flex justify-center items-center py-10">
         <div className="relative">
-          <svg width="400" height="400">
-            {wheelItems.map((item, i) => {
-              const path = createSlicePath(i, wheelItems.length);
-              const midAngle = ((i + 0.5) / wheelItems.length) * 2 * Math.PI;
-              const textX = center + radius * 0.62 * Math.cos(midAngle);
-              const textY = center + radius * 0.62 * Math.sin(midAngle);
-
-              const isHovered = hoveredIndex === i && !item.comingSoon;
-              const lift = getSliceLift(i, wheelItems.length);
-
-              return (
-                <g
-                  key={i}
-                  className={`${item.comingSoon ? 'opacity-40' : 'cursor-pointer'} transition-transform duration-200`}
-                  onMouseEnter={() => setHoveredIndex(i)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  onClick={() => handleWheelClick(item)}
-                  transform={
-                    isHovered
-                      ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.02)`
-                      : undefined
-                  }
+          <svg width="400" height="400" viewBox="0 0 400 400">
+            <defs>
+              {wheelColors.map((color, i) => (
+                <linearGradient
+                  key={`grad-${i}`}
+                  id={`wheelGrad-${i}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
                 >
-<path
-  d={path}
-  fill={
-    [
-      "#2D8CFF",
-      "#FF9A2B",
-      "#FF4FB3",
-      "#E6C26A",
-      "#9A5CFF",
-      "#4CD964",
-      "#FF4B4B",
-      "#2ED3C6"
-    ][i % 8]
-  }
-  stroke="#1A1A1A"
-  strokeWidth="2"
-  style={{
-    filter: isHovered
-      ? "brightness(1.1) drop-shadow(0px 4px 6px rgba(0,0,0,0.4))"
-      : "brightness(0.95) drop-shadow(0px 2px 4px rgba(0,0,0,0.35))"
-  }}
-/>
-
-<text
-  x={textX}
-  y={textY}
-  fill="#000000"
-  fontSize="12"
-  fontWeight="bold"
-  textAnchor="middle"
-  dominantBaseline="middle"
-  style={{ pointerEvents: 'none' }}
->
-                    {item.label}
-                  </text>
-                </g>
-              );
-            })}
-
-            <circle cx={center} cy={center} r="60" fill="#B5A47A" />
-
-            <text
-              x={center}
-              y={center}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontWeight="bold"
-              fill="#1A1A1A"
-              fontSize="12"
-            >
-              {centerLines.map((line, idx) => (
-                <tspan key={idx} x={center} dy={idx === 0 ? 0 : 14}>
-                  {line}
-                </tspan>
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+                  <stop offset="12%" stopColor={color} stopOpacity="1" />
+                  <stop offset="72%" stopColor={color} stopOpacity="1" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0.26" />
+                </linearGradient>
               ))}
-            </text>
+
+              <radialGradient id="centerGrad" cx="35%" cy="28%" r="85%">
+                <stop offset="0%" stopColor="#f4e3b8" />
+                <stop offset="62%" stopColor="#d8c18a" />
+                <stop offset="100%" stopColor="#a99563" />
+              </radialGradient>
+
+              <filter id="wheelShadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.45" />
+              </filter>
+
+              <filter id="wheelShadowHover" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#000000" floodOpacity="0.5" />
+              </filter>
+
+              <filter id="centerShadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#000000" floodOpacity="0.35" />
+              </filter>
+            </defs>
+
+            <g ref={wheelGroupRef} style={{ transformOrigin: `${center}px ${center}px` }}>
+              {wheelItems.map((item, i) => {
+                const path = createDonutSlicePath(
+                  i,
+                  wheelItems.length,
+                  center,
+                  center,
+                  outerRadius,
+                  innerRadius,
+                  segmentGapDeg
+                );
+
+                const sliceAngle = 360 / wheelItems.length;
+                const midDeg = i * sliceAngle + sliceAngle / 2;
+                const midRad = (midDeg - 90) * (Math.PI / 180);
+
+                const textRadius = innerRadius + (outerRadius - innerRadius) * 0.56;
+                const textX = center + textRadius * Math.cos(midRad);
+                const textY = center + textRadius * Math.sin(midRad);
+
+                const isHovered = hoveredIndex === i && !item.comingSoon;
+                const lift = getSliceLift(i, wheelItems.length);
+
+                return (
+                  <g
+                    key={i}
+                    className={`${item.comingSoon ? 'opacity-65' : 'cursor-pointer'}`}
+                    onMouseEnter={() => setHoveredIndex(i)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    onClick={() => handleWheelClick(item)}
+                    transform={
+                      isHovered
+                        ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.03)`
+                        : undefined
+                    }
+                    style={{ transition: 'transform 180ms ease' }}
+                  >
+                    <path
+                      d={path}
+                      fill={`url(#wheelGrad-${i % wheelColors.length})`}
+                      stroke="rgba(0,0,0,0.45)"
+                      strokeWidth="2.2"
+                      filter={isHovered ? 'url(#wheelShadowHover)' : 'url(#wheelShadow)'}
+                    />
+
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.28)"
+                      strokeWidth="1"
+                      style={{ pointerEvents: 'none' }}
+                    />
+
+                    <text
+                      x={textX}
+                      y={textY}
+                      fill="#000000"
+                      fontSize="12"
+                      fontWeight="900"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {item.label}
+                    </text>
+                  </g>
+                );
+              })}
+
+              <circle
+                cx={center}
+                cy={center}
+                r={centerRadius}
+                fill="url(#centerGrad)"
+                stroke="rgba(0,0,0,0.25)"
+                strokeWidth="2"
+                filter="url(#centerShadow)"
+              />
+
+              <circle
+                cx={center}
+                cy={center}
+                r={centerRadius - 1}
+                fill="none"
+                stroke="rgba(255,255,255,0.22)"
+                strokeWidth="1"
+                style={{ pointerEvents: 'none' }}
+              />
+
+              <text
+                x={center}
+                y={center}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontWeight="900"
+                fill="#1A1A1A"
+                fontSize="12"
+                style={{ pointerEvents: 'none' }}
+              >
+                {centerLines.map((line, idx) => (
+                  <tspan
+                    key={idx}
+                    x={center}
+                    dy={idx === 0 ? (centerLines.length > 1 ? -((centerLines.length - 1) * 7) : 0) : 14}
+                  >
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            </g>
           </svg>
         </div>
       </div>
