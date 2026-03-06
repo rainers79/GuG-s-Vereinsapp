@@ -455,6 +455,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 const innerStart = polarToCartesian(center, center, centerRadius, startAngle)
 const innerEnd = polarToCartesian(center, center, centerRadius, endAngle)
 
+const innerStart = polarToCartesian(center, center, centerRadius, startAngle)
+const innerEnd = polarToCartesian(center, center, centerRadius, endAngle)
+
 const path = `
 M ${start.x} ${start.y}
 A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
