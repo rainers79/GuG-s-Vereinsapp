@@ -71,10 +71,8 @@ const wheelItems: WheelItem[] = [
 
 const center = 200;
 const centerRadius = 70;
-const buttonThickness = 54;
 const buttonRadius = 170;
 const labelRadius = 125;
-const segmentGapDeg = 10;
 
 const wheelColors = [
   '#2D8CFF',
@@ -96,7 +94,11 @@ const safeDate = (raw?: string | null): Date | null => {
 const formatDate = (raw?: string | null) => {
   const d = safeDate(raw);
   if (!d) return '';
-  return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('de-AT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 };
 
 const pickProjectDate = (p: Project): Date | null => {
@@ -137,25 +139,17 @@ const wrapLines = (text: string, maxLineLen = 14): string[] => {
   return lines.slice(0, 3);
 };
 
-const polarToCartesian = (cx: number, cy: number, radius: number, angleDeg: number) => {
+const polarToCartesian = (
+  cx: number,
+  cy: number,
+  radius: number,
+  angleDeg: number
+) => {
   const angleRad = (angleDeg - 90) * (Math.PI / 180);
   return {
     x: cx + radius * Math.cos(angleRad),
     y: cy + radius * Math.sin(angleRad)
   };
-};
-
-const createArcPath = (
-  cx: number,
-  cy: number,
-  radius: number,
-  startDeg: number,
-  endDeg: number
-) => {
-  const start = polarToCartesian(cx, cy, radius, startDeg);
-  const end = polarToCartesian(cx, cy, radius, endDeg);
-  const largeArcFlag = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 };
 
 const getSliceLift = (index: number, total: number) => {
@@ -410,7 +404,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="space-y-10">
-
       <div className="app-card">
         <div className="flex flex-col md:flex-row gap-6 md:items-end md:justify-between">
           <div>
@@ -439,144 +432,133 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         )}
       </div>
 
-<div className="flex justify-center items-center py-10">
+      <div className="flex justify-center items-center py-10">
+        <svg width="400" height="400" viewBox="0 0 400 400">
+          <defs>
+            {wheelColors.map((color, i) => (
+              <radialGradient
+                key={i}
+                id={`grad-${i}`}
+                cx="50%"
+                cy="30%"
+                r="80%"
+              >
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="25%" stopColor={color} />
+                <stop offset="65%" stopColor={color} />
+                <stop offset="100%" stopColor="#00000066" />
+              </radialGradient>
+            ))}
+          </defs>
 
-  <svg width="400" height="400">
+          <g ref={wheelGroupRef}>
+            {wheelItems.map((item, i) => {
+              const startAngle = (i / wheelItems.length) * 360;
+              const endAngle = ((i + 1) / wheelItems.length) * 360;
 
-    {wheelItems.map((item, i) => {
+              const start = polarToCartesian(center, center, buttonRadius, startAngle);
+              const end = polarToCartesian(center, center, buttonRadius, endAngle);
 
-      const startAngle = (i / wheelItems.length) * 360
-      const endAngle = ((i + 1) / wheelItems.length) * 360
+              const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
 
-      const start = polarToCartesian(center, center, buttonRadius, startAngle)
-      const end = polarToCartesian(center, center, buttonRadius, endAngle)
+              const innerStart = polarToCartesian(center, center, centerRadius, startAngle);
+              const innerEnd = polarToCartesian(center, center, centerRadius, endAngle);
 
-      const largeArc = endAngle - startAngle <= 180 ? 0 : 1
-const innerStart = polarToCartesian(center, center, centerRadius, startAngle)
-const innerEnd = polarToCartesian(center, center, centerRadius, endAngle)
-
-const innerStart = polarToCartesian(center, center, centerRadius, startAngle)
-const innerEnd = polarToCartesian(center, center, centerRadius, endAngle)
-
-const path = `
+              const path = `
 M ${start.x} ${start.y}
 A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
 L ${innerEnd.x} ${innerEnd.y}
 A ${centerRadius} ${centerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
 Z
-`
-      `
+`;
 
-      const mid = (startAngle + endAngle) / 2
-      const label = polarToCartesian(center, center, labelRadius, mid)
+              const mid = (startAngle + endAngle) / 2;
+              const label = polarToCartesian(center, center, labelRadius, mid);
+              const lift = getSliceLift(i, wheelItems.length);
 
-      const color = wheelColors[i]
+              return (
+                <g
+                  key={i}
+                  onClick={() => handleWheelClick(item)}
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  transform={
+                    hoveredIndex === i
+                      ? `translate(${lift.dx}, ${lift.dy}) scale(1.05)`
+                      : 'scale(1)'
+                  }
+                  style={{
+                    cursor: item.comingSoon ? 'default' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <path
+                    d={path}
+                    fill={`url(#grad-${i})`}
+                    stroke="none"
+                    style={{
+                      filter:
+                        hoveredIndex === i
+                          ? 'drop-shadow(0 10px 18px rgba(0,0,0,0.9))'
+                          : 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))'
+                    }}
+                  />
 
-      return (
-<g
-  key={i}
-  onClick={() => handleWheelClick(item)}
-  onMouseEnter={() => setHoveredIndex(i)}
-  onMouseLeave={() => setHoveredIndex(null)}
-  transform={
-    hoveredIndex === i
-      ? `translate(${getSliceLift(i, wheelItems.length).dx}, ${getSliceLift(i, wheelItems.length).dy}) scale(1.05)`
-      : "scale(1)"
-  }
-  style={{ cursor: item.comingSoon ? "default" : "pointer", transition: "all 0.2s ease" }}
->
+                  <line
+                    x1={innerStart.x}
+                    y1={innerStart.y}
+                    x2={start.x}
+                    y2={start.y}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                  />
 
-<defs>
+                  <text
+                    x={label.x}
+                    y={label.y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#000"
+                    fontWeight="900"
+                    fontSize="13"
+                  >
+                    {item.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
 
-{wheelColors.map((color, i) => (
+          <circle
+            cx={center}
+            cy={center}
+            r={centerRadius}
+            fill="#d6c39a"
+            stroke="#ffffff"
+            strokeWidth="3"
+          />
 
-<radialGradient
-key={i}
-id={`grad-${i}`}
-cx="50%"
-cy="30%"
-r="80%"
->
-
-<stop offset="0%" stopColor="#ffffff" />
-
-<stop offset="25%" stopColor={color} />
-
-<stop offset="65%" stopColor={color} />
-
-<stop offset="100%" stopColor="#00000066" />
-
-</radialGradient>
-
-))}
-
-</defs>
-          
-<path
-  d={path}
-  fill={`url(#grad-${i})`}
-  stroke="none"
-  strokeLinecap="round"
-  strokeLinejoin="round"
-  style={{
-    filter:
-      hoveredIndex === i
-        ? "drop-shadow(0 10px 18px rgba(0,0,0,0.9))"
-        : "drop-shadow(0 6px 10px rgba(0,0,0,0.7))"
-  }}
-/>
-
-<line
-  x1={center}
-  y1={center}
-  x2={start.x}
-  y2={start.y}
-  stroke="#ffffff"
-  strokeWidth="2"
-/>
-  
           <text
-            x={label.x}
-            y={label.y}
+            x={center}
+            y={center}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#000"
             fontWeight="900"
-            fontSize="13"
+            fontSize="14"
           >
-            {item.label}
+            {centerLines.map((line, idx) => (
+              <tspan
+                key={idx}
+                x={center}
+                dy={idx === 0 ? (centerLines.length > 1 ? -((centerLines.length - 1) * 7) : 0) : 14}
+              >
+                {line}
+              </tspan>
+            ))}
           </text>
-
-        </g>
-
-      )
-
-    })}
-
-    <circle
-      cx={center}
-      cy={center}
-      r={centerRadius}
-      fill="#d6c39a"
-      stroke="#ffffff"
-      strokeWidth="3"
-    />
-
-    <text
-      x={center}
-      y={center}
-      textAnchor="middle"
-      dominantBaseline="middle"
-      fill="#000"
-      fontWeight="900"
-      fontSize="14"
-    >
-      {centerTitle}
-    </text>
-
-  </svg>
-
-</div>
+        </svg>
+      </div>
 
       <div className="app-card space-y-4">
         <h2 className="text-lg font-black">Projekt erstellen</h2>
@@ -665,7 +647,10 @@ r="80%"
           <div className="text-xs text-white/40">
             {selectedProject ? (
               <>
-                Ziel: <span className="text-white/70 font-bold">{selectedProject.title || `Projekt #${selectedProject.id}`}</span>
+                Ziel:{' '}
+                <span className="text-white/70 font-bold">
+                  {selectedProject.title || `Projekt #${selectedProject.id}`}
+                </span>
               </>
             ) : (
               <>Kein Projekt ausgewählt.</>
@@ -700,7 +685,13 @@ r="80%"
           <div className="space-y-2">
             {sortedProjects.map((p) => {
               const d = pickProjectDate(p);
-              const dateLabel = d ? d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+              const dateLabel = d
+                ? d.toLocaleDateString('de-AT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })
+                : '';
               const isActive = p.id === selectedProjectId;
 
               return (
@@ -729,7 +720,11 @@ r="80%"
                       )}
                     </div>
 
-                    <div className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'}`}>
+                    <div
+                      className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                        isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                      }`}
+                    >
                       {dateLabel || 'ohne Datum'}
                     </div>
                   </div>
@@ -739,7 +734,6 @@ r="80%"
           </div>
         )}
       </div>
-
     </div>
   );
 };
