@@ -69,11 +69,11 @@ const wheelItems: WheelItem[] = [
   { label: 'Mehr (coming soon)', comingSoon: true, actionKey: 'more' }
 ];
 
-const outerRadius = 145;
+const outerRadius = 155;
 const innerRadius = 48;
 const centerRadius = 48;
 const center = 200;
-const segmentGapDeg = 2.4;
+const segmentGapDeg = 6;
 
 const wheelColors = [
   '#2D8CFF',
@@ -460,19 +460,20 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           <svg width="400" height="400" viewBox="0 0 400 400">
             <defs>
               {wheelColors.map((color, i) => (
-                <linearGradient
-                  key={`grad-${i}`}
-                  id={`wheelGrad-${i}`}
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
-                  <stop offset="12%" stopColor={color} stopOpacity="1" />
-                  <stop offset="72%" stopColor={color} stopOpacity="1" />
-                  <stop offset="100%" stopColor="#000000" stopOpacity="0.26" />
-                </linearGradient>
+<linearGradient
+  key={`grad-${i}`}
+  id={`wheelGrad-${i}`}
+  x1="0%"
+  y1="0%"
+  x2="100%"
+  y2="100%"
+>
+  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+  <stop offset="10%" stopColor="#ffffff" stopOpacity="0.55" />
+  <stop offset="35%" stopColor={color} stopOpacity="1" />
+  <stop offset="78%" stopColor={color} stopOpacity="1" />
+  <stop offset="100%" stopColor="#000000" stopOpacity="0.32" />
+</linearGradient>
               ))}
 
               <radialGradient id="centerGrad" cx="35%" cy="28%" r="85%">
