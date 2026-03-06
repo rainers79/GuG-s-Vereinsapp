@@ -70,10 +70,10 @@ const wheelItems: WheelItem[] = [
 ];
 
 const center = 200;
-const centerRadius = 48;
+const centerRadius = 70;
 const buttonThickness = 54;
-const buttonRadius = 118;
-const labelRadius = 118;
+const buttonRadius = 170;
+const labelRadius = 125;
 const segmentGapDeg = 10;
 
 const wheelColors = [
