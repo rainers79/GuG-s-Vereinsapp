@@ -452,12 +452,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       const end = polarToCartesian(center, center, buttonRadius, endAngle)
 
       const largeArc = endAngle - startAngle <= 180 ? 0 : 1
+const innerStart = polarToCartesian(center, center, centerRadius, startAngle)
+const innerEnd = polarToCartesian(center, center, centerRadius, endAngle)
 
-      const path = `
-        M ${center} ${center}
-        L ${start.x} ${start.y}
-        A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
-        Z
+const path = `
+M ${start.x} ${start.y}
+A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
+L ${innerEnd.x} ${innerEnd.y}
+A ${centerRadius} ${centerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
+Z
+`
       `
 
       const mid = (startAngle + endAngle) / 2
