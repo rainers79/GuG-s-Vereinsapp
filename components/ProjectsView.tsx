@@ -434,12 +434,23 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                       : undefined
                   }
                 >
-                  <path
-                    d={path}
-                    fill="#1A1A1A"
-                    stroke="#B5A47A"
-                    strokeWidth="2"
-                  />
+<path
+  d={path}
+  fill={
+    [
+      "#2D8CFF",
+      "#FF9A2B",
+      "#FF4FB3",
+      "#E6C26A",
+      "#9A5CFF",
+      "#4CD964",
+      "#FF4B4B",
+      "#2ED3C6"
+    ][i % 8]
+  }
+  stroke="#1A1A1A"
+  strokeWidth="2"
+/>
 
                   <text
                     x={textX}
