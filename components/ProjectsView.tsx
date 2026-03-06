@@ -519,6 +519,15 @@ r="80%"
   }}
 />
 
+<line
+  x1={center}
+  y1={center}
+  x2={start.x}
+  y2={start.y}
+  stroke="#ffffff"
+  strokeWidth="2"
+/>
+  
           <text
             x={label.x}
             y={label.y}
