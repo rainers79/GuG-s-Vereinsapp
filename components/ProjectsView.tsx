@@ -509,7 +509,9 @@ r="80%"
   d={path}
   fill={`url(#grad-${i})`}
   stroke="#ffffff"
-  strokeWidth="5"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
   strokeLinejoin="round"
   style={{
     filter:
