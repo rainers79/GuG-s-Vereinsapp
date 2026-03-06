@@ -441,130 +441,90 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
 <div className="flex justify-center items-center py-10">
 
-  <div
-    className="relative"
-    style={{
-      width: 320,
-      height: 320
-    }}
-  >
+  <svg width="400" height="400">
 
     {wheelItems.map((item, i) => {
 
-      const angle = (360 / wheelItems.length) * i
-      const radius = 120
+      const startAngle = (i / wheelItems.length) * 360
+      const endAngle = ((i + 1) / wheelItems.length) * 360
 
-      const x = Math.cos((angle - 90) * Math.PI / 180) * radius
-      const y = Math.sin((angle - 90) * Math.PI / 180) * radius
+      const start = polarToCartesian(center, center, buttonRadius, startAngle)
+      const end = polarToCartesian(center, center, buttonRadius, endAngle)
 
-      const color = [
-        "#2D8CFF",
-        "#FF9A2B",
-        "#FF4FB3",
-        "#E6A61A",
-        "#7C3AED",
-        "#65C431",
-        "#F44336",
-        "#53B62C"
-      ][i]
+      const largeArc = endAngle - startAngle <= 180 ? 0 : 1
+
+      const path = `
+        M ${center} ${center}
+        L ${start.x} ${start.y}
+        A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
+        Z
+      `
+
+      const mid = (startAngle + endAngle) / 2
+      const label = polarToCartesian(center, center, labelRadius, mid)
+
+      const color = wheelColors[i]
 
       return (
 
-        <button
+        <g
           key={i}
-
           onClick={() => handleWheelClick(item)}
-
           onMouseEnter={() => setHoveredIndex(i)}
           onMouseLeave={() => setHoveredIndex(null)}
-
-          style={{
-
-            position: "absolute",
-
-            left: "50%",
-            top: "50%",
-
-            transform: `
-              translate(-50%, -50%)
-              translate(${x}px, ${y}px)
-              scale(${hoveredIndex === i ? 1.12 : 1})
-            `,
-
-            width: 120,
-            height: 80,
-
-            borderRadius: 30,
-
-            border: "none",
-
-            color: "#000",
-
-            fontWeight: 800,
-            fontSize: 13,
-
-            cursor: item.comingSoon ? "default" : "pointer",
-
-            background: `linear-gradient(
-              180deg,
-              #ffffff 0%,
-              ${color} 40%,
-              ${color} 70%,
-              #00000055 100%
-            )`,
-
-            boxShadow: hoveredIndex === i
-              ? "0 10px 20px rgba(0,0,0,0.6), inset 0 6px 10px rgba(255,255,255,0.7)"
-              : "0 6px 12px rgba(0,0,0,0.5), inset 0 4px 6px rgba(255,255,255,0.6)",
-
-            transition: "all 0.18s ease"
-          }}
-
+          style={{ cursor: item.comingSoon ? "default" : "pointer" }}
         >
 
-          <div
+          <path
+            d={path}
+            fill={color}
+            stroke="#ffffff"
+            strokeWidth="3"
             style={{
-              position: "absolute",
-              top: 4,
-              left: 6,
-              right: 6,
-              height: 16,
-              borderRadius: 20,
-              background: "rgba(255,255,255,0.55)",
-              filter: "blur(2px)"
+              filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.7))"
             }}
           />
 
-          {item.label}
+          <text
+            x={label.x}
+            y={label.y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#000"
+            fontWeight="900"
+            fontSize="13"
+          >
+            {item.label}
+          </text>
 
-        </button>
+        </g>
 
       )
 
     })}
 
-    <div
-      style={{
-        position: "absolute",
-        left: "50%",
-        top: "50%",
-        transform: "translate(-50%, -50%)",
-        width: 90,
-        height: 90,
-        borderRadius: "50%",
-        background: "linear-gradient(180deg,#fff7d9,#cfae67)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 800,
-        color: "#000",
-        boxShadow: "0 6px 16px rgba(0,0,0,0.6)"
-      }}
+    <circle
+      cx={center}
+      cy={center}
+      r={centerRadius}
+      fill="#d6c39a"
+      stroke="#ffffff"
+      strokeWidth="3"
+    />
+
+    <text
+      x={center}
+      y={center}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fill="#000"
+      fontWeight="900"
+      fontSize="14"
     >
       {centerTitle}
-    </div>
+    </text>
 
-  </div>
+  </svg>
 
 </div>
 
