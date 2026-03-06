@@ -439,202 +439,134 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         )}
       </div>
 
-      <div className="flex justify-center items-center py-10">
-        <div className="relative">
-          <svg width="400" height="400" viewBox="0 0 400 400">
-            <defs>
-              {wheelColors.map((color, i) => (
-                <g key={`defs-${i}`}>
-                  <linearGradient
-                    id={`segmentBase-${i}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-                    <stop offset="8%" stopColor="#ffffff" stopOpacity="0.9" />
-                    <stop offset="18%" stopColor={color} stopOpacity="1" />
-                    <stop offset="72%" stopColor={color} stopOpacity="1" />
-                    <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
-                  </linearGradient>
+<div className="flex justify-center items-center py-10">
 
-                  <linearGradient
-                    id={`segmentGloss-${i}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-                    <stop offset="45%" stopColor="#ffffff" stopOpacity="0.38" />
-                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-                  </linearGradient>
-                </g>
-              ))}
+  <div
+    className="relative"
+    style={{
+      width: 320,
+      height: 320
+    }}
+  >
 
-              <radialGradient id="centerGrad" cx="34%" cy="26%" r="90%">
-                <stop offset="0%" stopColor="#fff6dd" />
-                <stop offset="48%" stopColor="#ead6a6" />
-                <stop offset="100%" stopColor="#b79f69" />
-              </radialGradient>
+    {wheelItems.map((item, i) => {
 
-              <filter id="segmentShadow" x="-60%" y="-60%" width="220%" height="220%">
-                <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#000000" floodOpacity="0.42" />
-              </filter>
+      const angle = (360 / wheelItems.length) * i
+      const radius = 120
 
-              <filter id="segmentShadowHover" x="-60%" y="-60%" width="220%" height="220%">
-                <feDropShadow dx="0" dy="12" stdDeviation="9" floodColor="#000000" floodOpacity="0.56" />
-              </filter>
+      const x = Math.cos((angle - 90) * Math.PI / 180) * radius
+      const y = Math.sin((angle - 90) * Math.PI / 180) * radius
 
-              <filter id="centerShadow" x="-40%" y="-40%" width="180%" height="180%">
-                <feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#000000" floodOpacity="0.35" />
-              </filter>
-            </defs>
+      const color = [
+        "#2D8CFF",
+        "#FF9A2B",
+        "#FF4FB3",
+        "#E6A61A",
+        "#7C3AED",
+        "#65C431",
+        "#F44336",
+        "#53B62C"
+      ][i]
 
-            <g ref={wheelGroupRef} style={{ transformOrigin: `${center}px ${center}px` }}>
-              {wheelItems.map((item, i) => {
-                const sliceAngle = 360 / wheelItems.length;
-                const startDeg = i * sliceAngle + segmentGapDeg / 2;
-                const endDeg = (i + 1) * sliceAngle - segmentGapDeg / 2;
+      return (
 
-                const baseArc = createArcPath(center, center, buttonRadius, startDeg, endDeg);
-                const glossArc = createArcPath(
-                  center,
-                  center,
-                  buttonRadius - buttonThickness * 0.2,
-                  startDeg + 1.2,
-                  endDeg - 1.2
-                );
-                const shineArc = createArcPath(
-                  center,
-                  center,
-                  buttonRadius - buttonThickness * 0.32,
-                  startDeg + 2.4,
-                  endDeg - 2.4
-                );
+        <button
+          key={i}
 
-                const midDeg = i * sliceAngle + sliceAngle / 2;
-                const midRad = (midDeg - 90) * (Math.PI / 180);
+          onClick={() => handleWheelClick(item)}
 
-                const textX = center + labelRadius * Math.cos(midRad);
-                const textY = center + labelRadius * Math.sin(midRad);
+          onMouseEnter={() => setHoveredIndex(i)}
+          onMouseLeave={() => setHoveredIndex(null)}
 
-                const isHovered = hoveredIndex === i && !item.comingSoon;
-                const lift = getSliceLift(i, wheelItems.length);
+          style={{
 
-                const hoverTranslate = isHovered
-                  ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.08)`
-                  : undefined;
+            position: "absolute",
 
-                return (
-                  <g
-                    key={i}
-                    className={`${item.comingSoon ? 'opacity-70' : 'cursor-pointer'}`}
-                    onMouseEnter={() => setHoveredIndex(i)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                    onClick={() => handleWheelClick(item)}
-                    transform={hoverTranslate}
-                    style={{
-                      transition: 'transform 180ms ease',
-                      transformOrigin: `${center}px ${center}px`
-                    }}
-                  >
-                    <path
-                      d={baseArc}
-                      fill="none"
-                      stroke="rgba(0,0,0,0.42)"
-                      strokeWidth={buttonThickness + 8}
-                      strokeLinecap="round"
-                      filter={isHovered ? 'url(#segmentShadowHover)' : 'url(#segmentShadow)'}
-                    />
+            left: "50%",
+            top: "50%",
 
-                    <path
-                      d={baseArc}
-                      fill="none"
-                      stroke={`url(#segmentBase-${i % wheelColors.length})`}
-                      strokeWidth={buttonThickness}
-                      strokeLinecap="round"
-                    />
+            transform: `
+              translate(-50%, -50%)
+              translate(${x}px, ${y}px)
+              scale(${hoveredIndex === i ? 1.12 : 1})
+            `,
 
-                    <path
-                      d={glossArc}
-                      fill="none"
-                      stroke={`url(#segmentGloss-${i % wheelColors.length})`}
-                      strokeWidth={Math.max(10, buttonThickness * 0.24)}
-                      strokeLinecap="round"
-                      style={{ pointerEvents: 'none' }}
-                    />
+            width: 120,
+            height: 80,
 
-                    <path
-                      d={shineArc}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.18)"
-                      strokeWidth={Math.max(5, buttonThickness * 0.1)}
-                      strokeLinecap="round"
-                      style={{ pointerEvents: 'none' }}
-                    />
+            borderRadius: 30,
 
-                    <text
-                      x={textX}
-                      y={textY}
-                      fill="#000000"
-                      fontSize="12"
-                      fontWeight="900"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {item.label}
-                    </text>
-                  </g>
-                );
-              })}
+            border: "none",
 
-              <circle
-                cx={center}
-                cy={center}
-                r={centerRadius}
-                fill="url(#centerGrad)"
-                stroke="rgba(0,0,0,0.25)"
-                strokeWidth="2"
-                filter="url(#centerShadow)"
-              />
+            color: "#000",
 
-              <circle
-                cx={center}
-                cy={center}
-                r={centerRadius - 4}
-                fill="none"
-                stroke="rgba(255,255,255,0.42)"
-                strokeWidth="3"
-                style={{ pointerEvents: 'none' }}
-              />
+            fontWeight: 800,
+            fontSize: 13,
 
-              <text
-                x={center}
-                y={center}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontWeight="900"
-                fill="#1A1A1A"
-                fontSize="12"
-                style={{ pointerEvents: 'none' }}
-              >
-                {centerLines.map((line, idx) => (
-                  <tspan
-                    key={idx}
-                    x={center}
-                    dy={idx === 0 ? (centerLines.length > 1 ? -((centerLines.length - 1) * 7) : 0) : 14}
-                  >
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-            </g>
-          </svg>
-        </div>
-      </div>
+            cursor: item.comingSoon ? "default" : "pointer",
+
+            background: `linear-gradient(
+              180deg,
+              #ffffff 0%,
+              ${color} 40%,
+              ${color} 70%,
+              #00000055 100%
+            )`,
+
+            boxShadow: hoveredIndex === i
+              ? "0 10px 20px rgba(0,0,0,0.6), inset 0 6px 10px rgba(255,255,255,0.7)"
+              : "0 6px 12px rgba(0,0,0,0.5), inset 0 4px 6px rgba(255,255,255,0.6)",
+
+            transition: "all 0.18s ease"
+          }}
+
+        >
+
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              left: 6,
+              right: 6,
+              height: 16,
+              borderRadius: 20,
+              background: "rgba(255,255,255,0.55)",
+              filter: "blur(2px)"
+            }}
+          />
+
+          {item.label}
+
+        </button>
+
+      )
+
+    })}
+
+    <div
+      style={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 90,
+        height: 90,
+        borderRadius: "50%",
+        background: "linear-gradient(180deg,#fff7d9,#cfae67)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 800,
+        color: "#000",
+        boxShadow: "0 6px 16px rgba(0,0,0,0.6)"
+      }}
+    >
+      {centerTitle}
+    </div>
+
+  </div>
+
+</div>
 
       <div className="app-card space-y-4">
         <h2 className="text-lg font-black">Projekt erstellen</h2>
