@@ -69,11 +69,13 @@ const wheelItems: WheelItem[] = [
   { label: 'Mehr (coming soon)', comingSoon: true, actionKey: 'more' }
 ];
 
-const outerRadius = 155;
-const innerRadius = 48;
-const centerRadius = 48;
 const center = 200;
-const segmentGapDeg = 6;
+const wheelOuterRadius = 158;
+const wheelInnerRadius = 78;
+const centerRadius = 48;
+const ringThickness = wheelOuterRadius - wheelInnerRadius;
+const ringMidRadius = wheelInnerRadius + ringThickness / 2;
+const segmentGapDeg = 8;
 
 const wheelColors = [
   '#2D8CFF',
@@ -144,40 +146,25 @@ const polarToCartesian = (cx: number, cy: number, radius: number, angleDeg: numb
   };
 };
 
-const createDonutSlicePath = (
-  index: number,
-  total: number,
+const createArcPath = (
   cx: number,
   cy: number,
-  rOuter: number,
-  rInner: number,
-  gapDeg: number
+  radius: number,
+  startDeg: number,
+  endDeg: number
 ) => {
-  const sliceAngle = 360 / total;
-  const startDeg = index * sliceAngle + gapDeg / 2;
-  const endDeg = (index + 1) * sliceAngle - gapDeg / 2;
-
-  const outerStart = polarToCartesian(cx, cy, rOuter, startDeg);
-  const outerEnd = polarToCartesian(cx, cy, rOuter, endDeg);
-  const innerEnd = polarToCartesian(cx, cy, rInner, endDeg);
-  const innerStart = polarToCartesian(cx, cy, rInner, startDeg);
-
+  const start = polarToCartesian(cx, cy, radius, startDeg);
+  const end = polarToCartesian(cx, cy, radius, endDeg);
   const largeArcFlag = endDeg - startDeg > 180 ? 1 : 0;
 
-  return [
-    `M ${outerStart.x} ${outerStart.y}`,
-    `A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
-    `L ${innerEnd.x} ${innerEnd.y}`,
-    `A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
-    'Z'
-  ].join(' ');
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 };
 
 const getSliceLift = (index: number, total: number) => {
   const sliceAngle = 360 / total;
   const midDeg = index * sliceAngle + sliceAngle / 2;
   const midRad = (midDeg - 90) * (Math.PI / 180);
-  const lift = 10;
+  const lift = 12;
 
   return {
     dx: Math.cos(midRad) * lift,
@@ -258,11 +245,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     wheelGroupRef.current.animate(
       [
-        { transform: 'rotate(-16deg)' },
-        { transform: 'rotate(0deg)' }
+        { transform: 'rotate(-14deg) scale(0.96)' },
+        { transform: 'rotate(0deg) scale(1)' }
       ],
       {
-        duration: 340,
+        duration: 320,
         easing: 'ease-out'
       }
     );
@@ -460,34 +447,35 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           <svg width="400" height="400" viewBox="0 0 400 400">
             <defs>
               {wheelColors.map((color, i) => (
-<linearGradient
-  key={`grad-${i}`}
-  id={`wheelGrad-${i}`}
-  x1="0%"
-  y1="0%"
-  x2="100%"
-  y2="100%"
->
-  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-  <stop offset="10%" stopColor="#ffffff" stopOpacity="0.55" />
-  <stop offset="35%" stopColor={color} stopOpacity="1" />
-  <stop offset="78%" stopColor={color} stopOpacity="1" />
-  <stop offset="100%" stopColor="#000000" stopOpacity="0.32" />
-</linearGradient>
+                <linearGradient
+                  key={`grad-${i}`}
+                  id={`wheelGrad-${i}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                  <stop offset="8%" stopColor="#ffffff" stopOpacity="0.92" />
+                  <stop offset="20%" stopColor="#ffffff" stopOpacity="0.55" />
+                  <stop offset="34%" stopColor={color} stopOpacity="1" />
+                  <stop offset="78%" stopColor={color} stopOpacity="1" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0.34" />
+                </linearGradient>
               ))}
 
-              <radialGradient id="centerGrad" cx="35%" cy="28%" r="85%">
-                <stop offset="0%" stopColor="#f4e3b8" />
-                <stop offset="62%" stopColor="#d8c18a" />
-                <stop offset="100%" stopColor="#a99563" />
+              <radialGradient id="centerGrad" cx="34%" cy="26%" r="90%">
+                <stop offset="0%" stopColor="#fff6dd" />
+                <stop offset="45%" stopColor="#ead6a6" />
+                <stop offset="100%" stopColor="#b79f69" />
               </radialGradient>
 
-              <filter id="wheelShadow" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.45" />
+              <filter id="segmentShadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="9" stdDeviation="7" floodColor="#000000" floodOpacity="0.42" />
               </filter>
 
-              <filter id="wheelShadowHover" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#000000" floodOpacity="0.5" />
+              <filter id="segmentShadowHover" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="12" stdDeviation="9" floodColor="#000000" floodOpacity="0.52" />
               </filter>
 
               <filter id="centerShadow" x="-40%" y="-40%" width="180%" height="180%">
@@ -497,21 +485,18 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
             <g ref={wheelGroupRef} style={{ transformOrigin: `${center}px ${center}px` }}>
               {wheelItems.map((item, i) => {
-                const path = createDonutSlicePath(
-                  i,
-                  wheelItems.length,
-                  center,
-                  center,
-                  outerRadius,
-                  innerRadius,
-                  segmentGapDeg
-                );
-
                 const sliceAngle = 360 / wheelItems.length;
+                const startDeg = i * sliceAngle + segmentGapDeg / 2;
+                const endDeg = (i + 1) * sliceAngle - segmentGapDeg / 2;
+
+                const basePath = createArcPath(center, center, ringMidRadius, startDeg, endDeg);
+                const highlightPath = createArcPath(center, center, ringMidRadius - ringThickness * 0.18, startDeg + 1.1, endDeg - 1.1);
+                const innerGlossPath = createArcPath(center, center, ringMidRadius - ringThickness * 0.28, startDeg + 1.8, endDeg - 1.8);
+
                 const midDeg = i * sliceAngle + sliceAngle / 2;
                 const midRad = (midDeg - 90) * (Math.PI / 180);
 
-                const textRadius = innerRadius + (outerRadius - innerRadius) * 0.56;
+                const textRadius = ringMidRadius;
                 const textX = center + textRadius * Math.cos(midRad);
                 const textY = center + textRadius * Math.sin(midRad);
 
@@ -521,30 +506,52 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                 return (
                   <g
                     key={i}
-                    className={`${item.comingSoon ? 'opacity-65' : 'cursor-pointer'}`}
+                    className={`${item.comingSoon ? 'opacity-70' : 'cursor-pointer'}`}
                     onMouseEnter={() => setHoveredIndex(i)}
                     onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => handleWheelClick(item)}
                     transform={
                       isHovered
-                        ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.03)`
+                        ? `translate(${lift.dx.toFixed(2)}, ${lift.dy.toFixed(2)}) scale(1.08)`
                         : undefined
                     }
-                    style={{ transition: 'transform 180ms ease' }}
+                    style={{
+                      transition: 'transform 180ms ease',
+                      transformOrigin: `${center}px ${center}px`
+                    }}
                   >
                     <path
-                      d={path}
-                      fill={`url(#wheelGrad-${i % wheelColors.length})`}
-                      stroke="rgba(0,0,0,0.45)"
-                      strokeWidth="2.2"
-                      filter={isHovered ? 'url(#wheelShadowHover)' : 'url(#wheelShadow)'}
+                      d={basePath}
+                      fill="none"
+                      stroke="rgba(0,0,0,0.38)"
+                      strokeWidth={ringThickness + 10}
+                      strokeLinecap="round"
+                      filter={isHovered ? 'url(#segmentShadowHover)' : 'url(#segmentShadow)'}
                     />
 
                     <path
-                      d={path}
+                      d={basePath}
                       fill="none"
-                      stroke="rgba(255,255,255,0.28)"
-                      strokeWidth="1"
+                      stroke={`url(#wheelGrad-${i % wheelColors.length})`}
+                      strokeWidth={ringThickness}
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d={highlightPath}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.72)"
+                      strokeWidth={Math.max(8, ringThickness * 0.22)}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+
+                    <path
+                      d={innerGlossPath}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.22)"
+                      strokeWidth={Math.max(4, ringThickness * 0.1)}
+                      strokeLinecap="round"
                       style={{ pointerEvents: 'none' }}
                     />
 
@@ -577,10 +584,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
               <circle
                 cx={center}
                 cy={center}
-                r={centerRadius - 1}
+                r={centerRadius - 4}
                 fill="none"
-                stroke="rgba(255,255,255,0.22)"
-                strokeWidth="1"
+                stroke="rgba(255,255,255,0.42)"
+                strokeWidth="3"
                 style={{ pointerEvents: 'none' }}
               />
 
