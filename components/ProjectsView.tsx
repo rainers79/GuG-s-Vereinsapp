@@ -512,7 +512,6 @@ r="80%"
   strokeWidth="2"
   strokeLinecap="round"
   strokeLinejoin="round"
-  strokeLinejoin="round"
   style={{
     filter:
       hoveredIndex === i
