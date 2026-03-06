@@ -508,8 +508,7 @@ r="80%"
 <path
   d={path}
   fill={`url(#grad-${i})`}
-  stroke="#ffffff"
-  strokeWidth="2"
+  stroke="none"
   strokeLinecap="round"
   strokeLinejoin="round"
   style={{
