@@ -186,6 +186,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const loadedOnce = useRef(false);
+  const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -288,6 +289,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     loadProjects();
     loadAssignableData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    setWheelAnimationTick(prev => prev + 1);
+  }, [selectedProjectId]);
 
   const handleWheelClick = (item: WheelItem) => {
     if (item.comingSoon) return;
@@ -445,7 +451,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         polarToCartesian={polarToCartesian}
         getSliceLift={getSliceLift}
         centerLines={centerLines}
-        animationKey={selectedProjectId}
+        animationKey={wheelAnimationTick}
       />
 
       <div className="app-card space-y-4">
