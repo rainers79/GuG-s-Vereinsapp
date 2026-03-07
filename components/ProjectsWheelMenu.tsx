@@ -99,23 +99,23 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           {wheelColors.map((color, i) => (
             <React.Fragment key={i}>
               <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
                 <stop offset="10%" stopColor={color} stopOpacity="1" />
-                <stop offset="70%" stopColor={color} stopOpacity="1" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.14" />
+                <stop offset="72%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.12" />
               </linearGradient>
 
               <linearGradient id={`seg-top-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
-                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.12" />
-                <stop offset="42%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
+                <stop offset="16%" stopColor="#ffffff" stopOpacity="0.1" />
+                <stop offset="34%" stopColor="#ffffff" stopOpacity="0" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </linearGradient>
 
               <linearGradient id={`seg-bottom-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#000000" stopOpacity="0" />
-                <stop offset="72%" stopColor="#000000" stopOpacity="0.02" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+                <stop offset="76%" stopColor="#000000" stopOpacity="0.015" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.08" />
               </linearGradient>
             </React.Fragment>
           ))}
@@ -148,6 +148,15 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             const innerStart = polarToCartesian(center, center, innerRadiusWithGap, startAngle);
             const innerEnd = polarToCartesian(center, center, innerRadiusWithGap, endAngle);
 
+            const highlightOuterRadius = buttonRadius - 8;
+            const highlightInnerRadius = innerRadiusWithGap + 10;
+
+            const highlightOuterStart = polarToCartesian(center, center, highlightOuterRadius, startAngle + 1.4);
+            const highlightOuterEnd = polarToCartesian(center, center, highlightOuterRadius, endAngle - 1.4);
+
+            const highlightInnerStart = polarToCartesian(center, center, highlightInnerRadius, startAngle + 2.8);
+            const highlightInnerEnd = polarToCartesian(center, center, highlightInnerRadius, endAngle - 2.8);
+
             const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
 
             const path = `
@@ -155,6 +164,14 @@ M ${outerStart.x} ${outerStart.y}
 A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}
 L ${innerEnd.x} ${innerEnd.y}
 A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
+Z
+`;
+
+            const highlightPath = `
+M ${highlightOuterStart.x} ${highlightOuterStart.y}
+A ${highlightOuterRadius} ${highlightOuterRadius} 0 ${largeArc} 1 ${highlightOuterEnd.x} ${highlightOuterEnd.y}
+L ${highlightInnerEnd.x} ${highlightInnerEnd.y}
+A ${highlightInnerRadius} ${highlightInnerRadius} 0 ${largeArc} 0 ${highlightInnerStart.x} ${highlightInnerStart.y}
 Z
 `;
 
@@ -196,6 +213,13 @@ Z
                 <path
                   d={path}
                   fill={`url(#seg-bottom-${i})`}
+                  stroke="none"
+                />
+
+                <path
+                  d={highlightPath}
+                  fill="#ffffff"
+                  opacity="0.1"
                   stroke="none"
                 />
 
