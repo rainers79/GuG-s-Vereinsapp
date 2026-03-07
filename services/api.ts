@@ -11,10 +11,9 @@ import {
   CalendarEvent,
   PosArticle,
   PosOrder,
-  PosDailyReport
+  PosDailyReport,
+  Task
 } from '../types';
-
-import type { Task } from '../types';
 
 /* =====================================================
    CONFIG
@@ -173,7 +172,7 @@ export interface ChatMessage {
   display_name: string;
   message: string;
   created_at: string;
-  profile_image_url?: string;   // NEU
+  profile_image_url?: string;
 }
 
 export async function getChatMessages(
@@ -188,7 +187,7 @@ export async function getChatMessages(
 }
 
 /* =====================================================
-   NEU: ÄLTERE CHAT NACHRICHTEN LADEN (Pagination)
+   ÄLTERE CHAT NACHRICHTEN LADEN
 ===================================================== */
 
 export async function getChatMessagesBefore(
@@ -230,12 +229,12 @@ export async function getPolls(
   onUnauthorized: () => void
 ): Promise<Poll[]> {
 
-  const projectId = localStorage.getItem("gug_active_project");
+  const projectId = localStorage.getItem('gug_active_project');
 
-  let endpoint = "/gug/v1/polls";
+  let endpoint = '/gug/v1/polls';
 
   if (projectId) {
-    endpoint += "?project_id=" + projectId;
+    endpoint += '?project_id=' + projectId;
   }
 
   return await apiRequest<Poll[]>(
@@ -330,9 +329,27 @@ export async function updateMember(id: number, payload: any, onUnauthorized: () 
    TASKS
 ===================================================== */
 
-export async function getTasks(onUnauthorized: () => void): Promise<Task[]> {
+export async function getTasks(
+  onUnauthorized: () => void,
+  params: {
+    project_id?: number;
+    scope?: 'project' | 'personal';
+  } = {}
+): Promise<Task[]> {
+  const q: string[] = [];
+
+  if (params.project_id && params.project_id > 0) {
+    q.push(`project_id=${encodeURIComponent(String(params.project_id))}`);
+  }
+
+  if (params.scope) {
+    q.push(`scope=${encodeURIComponent(params.scope)}`);
+  }
+
+  const query = q.length ? `?${q.join('&')}` : '';
+
   return await apiRequest<Task[]>(
-    '/gug/v1/tasks',
+    `/gug/v1/tasks${query}`,
     {},
     onUnauthorized
   );
@@ -396,7 +413,7 @@ export async function createPosArticle(
     price_cents: number;
     is_active?: boolean;
     sort_order?: number;
-    bg_color?: string; // ✅ HINZUGEFÜGT
+    bg_color?: string;
   },
   onUnauthorized: () => void
 ): Promise<{ success: boolean; id: number }> {
@@ -418,7 +435,7 @@ export async function updatePosArticle(
     price_cents: number;
     is_active: boolean;
     sort_order: number;
-    bg_color: string; // ✅ HINZUGEFÜGT
+    bg_color: string;
   }>,
   onUnauthorized: () => void
 ): Promise<{ success: boolean; message: string }> {
