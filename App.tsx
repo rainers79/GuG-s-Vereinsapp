@@ -15,7 +15,7 @@ import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 import ProjectsView from './components/ProjectsView';
-import ProjectChatView from './components/project-chat/ProjectChatView';
+import ProjectChatView from './components/ProjectChatView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
