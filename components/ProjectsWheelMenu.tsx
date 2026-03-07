@@ -16,23 +16,33 @@ type WheelItem = {
     | 'more';
 };
 
+interface Point {
+  x: number;
+  y: number;
+}
+
 interface Props {
   wheelItems: WheelItem[];
   hoveredIndex: number | null;
   setHoveredIndex: (i: number | null) => void;
   handleWheelClick: (item: WheelItem) => void;
   wheelColors: string[];
-  wheelGroupRef: React.RefObject<SVGGElement>;
+  wheelGroupRef: React.RefObject<SVGGElement | null>;
   center: number;
   centerRadius: number;
   buttonRadius: number;
   labelRadius: number;
-  polarToCartesian: any;
-  getSliceLift: any;
+  polarToCartesian: (
+    cx: number,
+    cy: number,
+    radius: number,
+    angleDeg: number
+  ) => Point;
+  getSliceLift: (index: number, total: number) => { dx: number; dy: number };
   centerLines: string[];
 }
 
-const ProjectWheelMenu: React.FC<Props> = ({
+const ProjectsWheelMenu: React.FC<Props> = ({
   wheelItems,
   hoveredIndex,
   setHoveredIndex,
@@ -47,20 +57,12 @@ const ProjectWheelMenu: React.FC<Props> = ({
   getSliceLift,
   centerLines
 }) => {
-
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
-
         <defs>
           {wheelColors.map((color, i) => (
-            <radialGradient
-              key={i}
-              id={`grad-${i}`}
-              cx="50%"
-              cy="30%"
-              r="80%"
-            >
+            <radialGradient key={i} id={`grad-${i}`} cx="50%" cy="30%" r="80%">
               <stop offset="0%" stopColor="#ffffff" />
               <stop offset="25%" stopColor={color} />
               <stop offset="65%" stopColor={color} />
@@ -70,9 +72,7 @@ const ProjectWheelMenu: React.FC<Props> = ({
         </defs>
 
         <g ref={wheelGroupRef}>
-
           {wheelItems.map((item, i) => {
-
             const startAngle = (i / wheelItems.length) * 360;
             const endAngle = ((i + 1) / wheelItems.length) * 360;
 
@@ -112,11 +112,25 @@ Z
                   transition: 'all 0.2s ease'
                 }}
               >
-
                 <path
                   d={path}
                   fill={`url(#grad-${i})`}
                   stroke="none"
+                  style={{
+                    filter:
+                      hoveredIndex === i
+                        ? 'drop-shadow(0 10px 18px rgba(0,0,0,0.9))'
+                        : 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))'
+                  }}
+                />
+
+                <line
+                  x1={innerStart.x}
+                  y1={innerStart.y}
+                  x2={start.x}
+                  y2={start.y}
+                  stroke="#ffffff"
+                  strokeWidth="2"
                 />
 
                 <text
@@ -130,11 +144,9 @@ Z
                 >
                   {item.label}
                 </text>
-
               </g>
             );
           })}
-
         </g>
 
         <circle
@@ -142,6 +154,8 @@ Z
           cy={center}
           r={centerRadius}
           fill="#d6c39a"
+          stroke="#ffffff"
+          strokeWidth="3"
         />
 
         <text
@@ -157,16 +171,21 @@ Z
             <tspan
               key={idx}
               x={center}
-              dy={idx === 0 ? -10 : 14}
+              dy={
+                idx === 0
+                  ? centerLines.length > 1
+                    ? -((centerLines.length - 1) * 7)
+                    : 0
+                  : 14
+              }
             >
               {line}
             </tspan>
           ))}
         </text>
-
       </svg>
     </div>
   );
 };
 
-export default ProjectWheelMenu;
+export default ProjectsWheelMenu;
