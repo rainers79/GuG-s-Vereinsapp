@@ -91,11 +91,6 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     return groups.find((group) => group.id === openChatGroupId) || null;
   }, [groups, openChatGroupId]);
 
-  const selectedGroupMemberNames = useMemo(() => {
-    if (groupMembers.length === 0) return '';
-    return groupMembers.map((member) => member.display_name).join(', ');
-  }, [groupMembers]);
-
   useEffect(() => {
     if (!selectedGroup) return;
     setEditingProjectId(String(selectedGroup.project_id));
@@ -538,11 +533,11 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       {error && <div className="alert-error">{error}</div>}
       {success && <div className="alert-success">{success}</div>}
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid lg:grid-cols-[300px_1fr] gap-6">
         <div className="space-y-6">
           <div className="app-card space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">Gruppenübersicht</h2>
+              <h2 className="text-lg font-black">Gruppen</h2>
               <button
                 type="button"
                 onClick={loadGroups}
@@ -572,15 +567,17 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                         setError(null);
                         setSuccess(null);
                       }}
-                      className={`w-full text-left rounded-xl px-4 py-3 transition ${
+                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${
                         isSelected
-                          ? 'bg-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-slate-50 dark:bg-[#121212] text-slate-900 dark:text-white'
+                          ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
+                          : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="font-black">{group.name}</div>
+                          <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
+                            {group.name}
+                          </div>
                           <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
                             Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
                           </div>
@@ -601,7 +598,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
           {isAdmin && (
             <div className="app-card space-y-4">
-              <h2 className="text-lg font-black">Neue Gruppe</h2>
+              <h2 className="text-lg font-black">Gruppe anlegen</h2>
 
               <div className="space-y-2">
                 <label className="form-label">Gruppenname</label>
@@ -661,7 +658,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
           {!selectedGroup ? (
             <div className="app-card">
               <div className="text-sm text-slate-500 dark:text-white/60">
-                Bitte zuerst links eine Gruppe auswählen. Erst danach kannst du Verwaltung, Mitglieder, Rechte und Chat für genau diese Gruppe steuern.
+                Bitte zuerst links eine Gruppe auswählen. Erst danach kannst du sie bearbeiten, Mitglieder zuweisen, Rechte setzen oder den Chat öffnen.
               </div>
             </div>
           ) : (
@@ -669,8 +666,9 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
               <div className="app-card space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-black">Ausgewählte Gruppe</h2>
+                    <h2 className="text-lg font-black">Gruppenverwaltung</h2>
                     <div className="text-sm text-slate-500 dark:text-white/60 mt-1">
+                      Ausgewählt:{' '}
                       <span className="font-black text-slate-900 dark:text-white">
                         {selectedGroup.name}
                       </span>
@@ -698,48 +696,6 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="rounded-xl bg-slate-50 dark:bg-[#121212] p-4">
-                    <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
-                      Schreibrecht Gruppe
-                    </div>
-                    <div className="mt-2 text-base font-black text-slate-900 dark:text-white">
-                      {selectedGroup.can_write ? 'Aktiv' : 'Gesperrt'}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 dark:bg-[#121212] p-4">
-                    <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
-                      Bildrecht Gruppe
-                    </div>
-                    <div className="mt-2 text-base font-black text-slate-900 dark:text-white">
-                      {selectedGroup.can_upload_images ? 'Aktiv' : 'Gesperrt'}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 dark:bg-[#121212] p-4">
-                    <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
-                      Zugewiesene Mitglieder
-                    </div>
-                    <div className="mt-2 text-base font-black text-slate-900 dark:text-white">
-                      {groupMembers.length}
-                    </div>
-                  </div>
-                </div>
-
-                {groupMembers.length > 0 && (
-                  <div className="rounded-xl bg-slate-50 dark:bg-[#121212] p-4">
-                    <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black mb-2">
-                      Aktuelle Mitglieder
-                    </div>
-                    <div className="text-sm text-slate-700 dark:text-white/70">
-                      {selectedGroupMemberNames}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {isAdmin && (
                 <div className="grid xl:grid-cols-3 gap-6">
                   <div className="app-card space-y-4">
                     <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
@@ -799,7 +755,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
                   <div className="app-card space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-black">Mitglieder zuweisen</h3>
+                      <h3 className="text-lg font-black">Mitglieder</h3>
                       <button
                         type="button"
                         onClick={() => loadGroupMembers(selectedGroup.id)}
@@ -921,50 +877,44 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                     </div>
 
                     <div className="max-h-[160px] overflow-y-auto space-y-2">
-                      {permissions.length === 0 ? (
-                        <div className="text-xs text-slate-500 dark:text-white/60">
-                          Keine Einzelrechte gesetzt.
-                        </div>
-                      ) : (
-                        permissions.map((permission) => (
-                          <div
-                            key={`${permission.group_id}-${permission.user_id}`}
-                            className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3 text-xs"
-                          >
-                            <div className="font-black text-slate-900 dark:text-white">
-                              {permission.display_name}
-                            </div>
-                            <div className="text-slate-500 dark:text-white/60 mt-1">
-                              Schreiben:{' '}
-                              {permission.can_write_override === null
-                                ? 'Gruppe'
-                                : permission.can_write_override
-                                  ? 'Erlaubt'
-                                  : 'Verboten'}
-                            </div>
-                            <div className="text-slate-500 dark:text-white/60">
-                              Bilder:{' '}
-                              {permission.can_upload_images_override === null
-                                ? 'Gruppe'
-                                : permission.can_upload_images_override
-                                  ? 'Erlaubt'
-                                  : 'Verboten'}
-                            </div>
+                      {permissions.map((permission) => (
+                        <div
+                          key={`${permission.group_id}-${permission.user_id}`}
+                          className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3 text-xs"
+                        >
+                          <div className="font-black text-slate-900 dark:text-white">
+                            {permission.display_name}
                           </div>
-                        ))
-                      )}
+                          <div className="text-slate-500 dark:text-white/60 mt-1">
+                            Schreiben:{' '}
+                            {permission.can_write_override === null
+                              ? 'Gruppe'
+                              : permission.can_write_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                          <div className="text-slate-500 dark:text-white/60">
+                            Bilder:{' '}
+                            {permission.can_upload_images_override === null
+                              ? 'Gruppe'
+                              : permission.can_upload_images_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               {openChatGroup && (
                 <div className="app-card space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-black">Offener Chat: {openChatGroup.name}</h2>
+                      <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
                       <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                        Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+                        Projekt-ID: {openChatGroup.project_id} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
                       </div>
                     </div>
 
