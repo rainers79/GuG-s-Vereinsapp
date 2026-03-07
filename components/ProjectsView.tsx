@@ -88,6 +88,7 @@ const wheelColors = [
 
 const PROJECT_PAGE_SIZE = 6;
 const WHEEL_SLOT_COUNT = 8;
+
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_PROJECTS_PAGE = 'gug_projects_page';
@@ -171,6 +172,25 @@ export const getSliceLift = (index: number, total: number) => {
   };
 };
 
+const getStoredProjectId = (): number | null => {
+  const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const getStoredWheelMode = (): WheelMode => {
+  return localStorage.getItem(LS_PROJECTS_WHEEL_MODE) === 'actions'
+    ? 'actions'
+    : 'project-select';
+};
+
+const getStoredProjectPage = (): number => {
+  const raw = localStorage.getItem(LS_PROJECTS_PAGE);
+  const n = raw ? Number(raw) : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -178,7 +198,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => getStoredProjectId());
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -193,8 +213,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
-  const [wheelMode, setWheelMode] = useState<WheelMode>('project-select');
-  const [projectPage, setProjectPage] = useState(0);
+  const [wheelMode, setWheelMode] = useState<WheelMode>(() => getStoredWheelMode());
+  const [projectPage, setProjectPage] = useState<number>(() => getStoredProjectPage());
 
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
@@ -206,8 +226,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   }, [projects, selectedProjectId]);
 
   useEffect(() => {
-    if (!selectedProjectId) return;
-    localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
+    if (selectedProjectId) {
+      localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
+    } else {
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+    }
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -253,6 +276,18 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setProjectPage(Math.max(0, projectPageCount - 1));
     }
   }, [projectPage, projectPageCount]);
+
+  useEffect(() => {
+    if (!selectedProjectId || sortedProjects.length === 0) return;
+
+    const selectedIndex = sortedProjects.findIndex((p) => Number(p.id) === Number(selectedProjectId));
+    if (selectedIndex < 0) return;
+
+    const targetPage = Math.floor(selectedIndex / PROJECT_PAGE_SIZE);
+    if (targetPage !== projectPage) {
+      setProjectPage(targetPage);
+    }
+  }, [selectedProjectId, sortedProjects, projectPage]);
 
   const currentProjectPageItems = useMemo(() => {
     const start = projectPage * PROJECT_PAGE_SIZE;
@@ -336,54 +371,29 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
       setProjects(list);
 
-      const storedIdRaw = localStorage.getItem(LS_ACTIVE_PROJECT);
-      const storedId = storedIdRaw ? Number(storedIdRaw) : null;
+      const storedId = getStoredProjectId();
+      const storedMode = getStoredWheelMode();
+      const storedPage = getStoredProjectPage();
 
-      const storedWheelModeRaw = localStorage.getItem(LS_PROJECTS_WHEEL_MODE);
-      const storedWheelMode: WheelMode =
-        storedWheelModeRaw === 'actions' ? 'actions' : 'project-select';
+      if (Number.isFinite(storedPage) && storedPage >= 0) {
+        setProjectPage(storedPage);
+      }
 
-      const storedPageRaw = localStorage.getItem(LS_PROJECTS_PAGE);
-      const storedPage = storedPageRaw ? Number(storedPageRaw) : 0;
+      if (storedId && list.some((p) => Number(p.id) === Number(storedId))) {
+        setSelectedProjectId(storedId);
+        setWheelMode(storedMode);
+      } else if (selectedProjectId && list.some((p) => Number(p.id) === Number(selectedProjectId))) {
+        setWheelMode(getStoredWheelMode());
+      } else {
+        setSelectedProjectId(null);
+        setWheelMode('project-select');
+        localStorage.removeItem(LS_ACTIVE_PROJECT);
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      }
 
-      if (!selectedProjectId && list.length > 0) {
-        let nextId: number | null = null;
-
-        if (storedId && list.some((p) => p.id === storedId)) {
-          nextId = storedId;
-        }
-
-        setSelectedProjectId(nextId);
-
-        if (Number.isFinite(storedPage) && storedPage >= 0) {
-          setProjectPage(storedPage);
-        }
-
-        if (nextId && storedWheelMode === 'actions') {
-          setWheelMode('actions');
-        } else {
-          setWheelMode('project-select');
-        }
-
-        if (list.length > 0 && !hasStartedInitialWheelAnimation.current) {
-          hasStartedInitialWheelAnimation.current = true;
-          triggerWheelAnimation();
-        }
-      } else if (selectedProjectId) {
-        const stillExists = list.some((p) => p.id === selectedProjectId);
-        if (!stillExists) {
-          setSelectedProjectId(null);
-          setWheelMode('project-select');
-          localStorage.removeItem(LS_ACTIVE_PROJECT);
-          localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-        } else {
-          if (selectedProjectId && storedWheelMode === 'actions') {
-            setWheelMode('actions');
-          }
-          if (Number.isFinite(storedPage) && storedPage >= 0) {
-            setProjectPage(storedPage);
-          }
-        }
+      if (list.length > 0 && !hasStartedInitialWheelAnimation.current) {
+        hasStartedInitialWheelAnimation.current = true;
+        triggerWheelAnimation();
       }
     } catch (e: any) {
       setError(e?.message || 'Projekte konnten nicht geladen werden.');
@@ -415,26 +425,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     loadAssignableData();
   }, []);
 
-  useEffect(() => {
-    if (!selectedProjectId || sortedProjects.length === 0) return;
-
-    const selectedIndex = sortedProjects.findIndex((p) => Number(p.id) === Number(selectedProjectId));
-    if (selectedIndex < 0) return;
-
-    const targetPage = Math.floor(selectedIndex / PROJECT_PAGE_SIZE);
-    if (targetPage !== projectPage) {
-      setProjectPage(targetPage);
-    }
-  }, [selectedProjectId, sortedProjects]);
-
   const handleCenterClick = () => {
     if (wheelMode === 'project-select') {
       if (selectedProjectId) {
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setWheelMode('actions');
       }
       return;
     }
 
+    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
     setWheelMode('project-select');
     triggerWheelAnimation();
   };
@@ -442,21 +442,27 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
     if (wheelMode === 'project-select') {
       if (item.slotType === 'project' && item.projectId) {
-        setSelectedProjectId(Number(item.projectId));
-        localStorage.setItem(LS_ACTIVE_PROJECT, String(item.projectId));
+        const nextId = Number(item.projectId);
+        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+        setSelectedProjectId(nextId);
         setWheelMode('actions');
         triggerWheelAnimation();
         return;
       }
 
       if (item.slotType === 'next') {
-        setProjectPage((prev) => Math.min(prev + 1, projectPageCount - 1));
+        const nextPage = Math.min(projectPage + 1, projectPageCount - 1);
+        localStorage.setItem(LS_PROJECTS_PAGE, String(nextPage));
+        setProjectPage(nextPage);
         triggerWheelAnimation();
         return;
       }
 
       if (item.slotType === 'prev') {
-        setProjectPage((prev) => Math.max(prev - 1, 0));
+        const prevPage = Math.max(projectPage - 1, 0);
+        localStorage.setItem(LS_PROJECTS_PAGE, String(prevPage));
+        setProjectPage(prevPage);
         triggerWheelAnimation();
       }
 
@@ -517,11 +523,15 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setProjects(normalizedProjects);
         setSelectedProjectId(newId);
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
 
         const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
         if (newIndex >= 0) {
-          setProjectPage(Math.floor(newIndex / PROJECT_PAGE_SIZE));
+          const page = Math.floor(newIndex / PROJECT_PAGE_SIZE);
+          localStorage.setItem(LS_PROJECTS_PAGE, String(page));
+          setProjectPage(page);
         } else {
+          localStorage.setItem(LS_PROJECTS_PAGE, '0');
           setProjectPage(0);
         }
 
@@ -761,8 +771,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                   key={p.id}
                   type="button"
                   onClick={() => {
-                    setSelectedProjectId(Number(p.id));
-                    localStorage.setItem(LS_ACTIVE_PROJECT, String(p.id));
+                    const nextId = Number(p.id);
+                    localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+                    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                    setSelectedProjectId(nextId);
                     setWheelMode('actions');
                     triggerWheelAnimation();
                   }}
