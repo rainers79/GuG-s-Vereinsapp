@@ -95,6 +95,43 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
+        <defs>
+          {wheelColors.map((color, i) => (
+            <React.Fragment key={i}>
+              <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+                <stop offset="10%" stopColor={color} stopOpacity="1" />
+                <stop offset="68%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+              </linearGradient>
+
+              <linearGradient id={`seg-cushion-top-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+                <stop offset="16%" stopColor="#ffffff" stopOpacity="0.14" />
+                <stop offset="34%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </linearGradient>
+
+              <linearGradient id={`seg-cushion-bottom-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                <stop offset="70%" stopColor="#000000" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.12" />
+              </linearGradient>
+
+              <radialGradient id={`seg-cushion-center-${i}`} cx="50%" cy="38%" r="55%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+                <stop offset="45%" stopColor="#ffffff" stopOpacity="0.06" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
+            </React.Fragment>
+          ))}
+
+          <radialGradient id="center-fill" cx="50%" cy="35%" r="75%">
+            <stop offset="0%" stopColor="#ded2b0" />
+            <stop offset="100%" stopColor="#cdbd96" />
+          </radialGradient>
+        </defs>
+
         <g
           ref={rotatingRingRef}
           style={{
@@ -149,11 +186,29 @@ Z
               >
                 <path
                   d={path}
-                  fill={segmentColor}
+                  fill={`url(#seg-fill-${i})`}
                   stroke={segmentColor}
                   strokeWidth={cornerRoundStroke}
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-cushion-top-${i})`}
+                  stroke="none"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-cushion-bottom-${i})`}
+                  stroke="none"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-cushion-center-${i})`}
+                  stroke="none"
                 />
 
                 <text
@@ -177,7 +232,7 @@ Z
             cx={center}
             cy={center}
             r={centerRadius}
-            fill="#cdbd96"
+            fill="url(#center-fill)"
             stroke="none"
           />
 
