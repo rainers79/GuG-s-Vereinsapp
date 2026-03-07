@@ -12,7 +12,11 @@ import {
   PosArticle,
   PosOrder,
   PosDailyReport,
-  Task
+  Task,
+  ProjectChatGroup,
+  ProjectChatGroupMember,
+  ProjectChatPermission,
+  ProjectChatMessage
 } from '../types';
 
 /* =====================================================
@@ -216,6 +220,165 @@ export async function sendChatMessage(
     {
       method: 'POST',
       body: JSON.stringify({ message })
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT CHAT
+===================================================== */
+
+export async function getProjectChatGroups(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatGroup[]> {
+  return await apiRequest<ProjectChatGroup[]>(
+    `/gug/v1/project-chat/groups?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProjectChatGroup(
+  payload: {
+    project_id: number;
+    name: string;
+    can_write?: boolean;
+    can_upload_images?: boolean;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-chat/groups',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updateProjectChatGroup(
+  groupId: number,
+  payload: Partial<{
+    name: string;
+    can_write: boolean;
+    can_upload_images: boolean;
+  }>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-chat/groups/${groupId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatGroupMembers(
+  groupId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatGroupMember[]> {
+  return await apiRequest<ProjectChatGroupMember[]>(
+    `/gug/v1/project-chat/group-members?group_id=${encodeURIComponent(String(groupId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function saveProjectChatGroupMembers(
+  payload: {
+    group_id: number;
+    members: number[];
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/project-chat/group-members',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatPermissions(
+  groupId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatPermission[]> {
+  return await apiRequest<ProjectChatPermission[]>(
+    `/gug/v1/project-chat/permissions?group_id=${encodeURIComponent(String(groupId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function saveProjectChatPermission(
+  payload: {
+    group_id: number;
+    user_id: number;
+    can_write_override?: boolean | null;
+    can_upload_images_override?: boolean | null;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/project-chat/permissions',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatMessages(
+  params: {
+    project_id: number;
+    group_id: number;
+    before?: number;
+    limit?: number;
+  },
+  onUnauthorized: () => void
+): Promise<ProjectChatMessage[]> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`,
+    `group_id=${encodeURIComponent(String(params.group_id))}`
+  ];
+
+  if (params.before && params.before > 0) {
+    q.push(`before=${encodeURIComponent(String(params.before))}`);
+  }
+
+  if (params.limit && params.limit > 0) {
+    q.push(`limit=${encodeURIComponent(String(params.limit))}`);
+  }
+
+  return await apiRequest<ProjectChatMessage[]>(
+    `/gug/v1/project-chat/messages?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function sendProjectChatMessage(
+  payload: {
+    project_id: number;
+    group_id: number;
+    message: string;
+    message_type?: 'text' | 'image';
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-chat/messages',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
     },
     onUnauthorized
   );
