@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ViewType } from '../types';
 import * as api from '../services/api';
-import ProjectWheelMenu from './projects/ProjectWheelMenu';
+import ProjectsWheelMenu from './ProjectsWheelMenu';
 
 interface Props {
   onNavigate: (view: ViewType) => void;
@@ -303,21 +303,21 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   return (
     <div className="space-y-10">
 
-      <ProjectWheelMenu
-        wheelItems={wheelItems}
-        hoveredIndex={hoveredIndex}
-        setHoveredIndex={setHoveredIndex}
-        handleWheelClick={handleWheelClick}
-        wheelColors={wheelColors}
-        wheelGroupRef={wheelGroupRef}
-        center={center}
-        centerRadius={centerRadius}
-        buttonRadius={buttonRadius}
-        labelRadius={labelRadius}
-        polarToCartesian={polarToCartesian}
-        getSliceLift={getSliceLift}
-        centerLines={centerLines}
-      />
+     <ProjectsWheelMenu
+  wheelItems={wheelItems}
+  hoveredIndex={hoveredIndex}
+  setHoveredIndex={setHoveredIndex}
+  handleWheelClick={handleWheelClick}
+  wheelColors={wheelColors}
+  wheelGroupRef={wheelGroupRef}
+  center={center}
+  centerRadius={centerRadius}
+  buttonRadius={buttonRadius}
+  labelRadius={labelRadius}
+  polarToCartesian={polarToCartesian}
+  getSliceLift={getSliceLift}
+  centerLines={centerLines}
+/>
 
     </div>
   );
