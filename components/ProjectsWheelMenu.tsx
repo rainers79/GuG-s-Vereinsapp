@@ -42,6 +42,8 @@ interface Props {
   animationKey: number;
 }
 
+let lastPlayedAnimationKey = -1;
+
 const ProjectsWheelMenu: React.FC<Props> = ({
   wheelItems,
   hoveredIndex,
@@ -61,6 +63,10 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
   useEffect(() => {
     if (!rotatingRingRef.current) return;
+    if (animationKey <= 0) return;
+    if (animationKey === lastPlayedAnimationKey) return;
+
+    lastPlayedAnimationKey = animationKey;
 
     rotatingRingRef.current.getAnimations().forEach((animation) => animation.cancel());
     rotatingRingRef.current.style.transform = 'rotate(0deg)';
