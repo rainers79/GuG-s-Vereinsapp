@@ -42,6 +42,17 @@ type PollLite = {
   created_at?: string;
 };
 
+type ProjectChatGroupLite = {
+  id: number;
+  project_id: number;
+  name: string;
+  can_write: boolean;
+  can_upload_images: boolean;
+  created_by: number;
+  created_at: string;
+  updated_at?: string | null;
+};
+
 export interface WheelItem {
   label: string;
   view?: ViewType;
@@ -57,7 +68,7 @@ export interface WheelItem {
     | 'more';
 }
 
-type WheelMode = 'project-select' | 'actions';
+type WheelMode = 'project-select' | 'actions' | 'chat-groups';
 
 const actionWheelItems: WheelItem[] = [
   { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
@@ -66,7 +77,7 @@ const actionWheelItems: WheelItem[] = [
   { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
   { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
   { label: 'Kernteam', comingSoon: true, actionKey: 'coreteam' },
-  { label: 'Projekt Chat', view: 'project-chat', actionKey: 'chatlog' },
+  { label: 'Projekt Chat', actionKey: 'chatlog' },
   { label: 'comming soon', comingSoon: true, actionKey: 'more' }
 ];
 
@@ -87,11 +98,14 @@ const wheelColors = [
 ];
 
 const PROJECT_PAGE_SIZE = 6;
+const CHAT_GROUP_PAGE_SIZE = 6;
 const WHEEL_SLOT_COUNT = 8;
 
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_PROJECTS_PAGE = 'gug_projects_page';
+const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
+const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -180,9 +194,10 @@ const getStoredProjectId = (): number | null => {
 };
 
 const getStoredWheelMode = (): WheelMode => {
-  return localStorage.getItem(LS_PROJECTS_WHEEL_MODE) === 'actions'
-    ? 'actions'
-    : 'project-select';
+  const raw = localStorage.getItem(LS_PROJECTS_WHEEL_MODE);
+  if (raw === 'actions') return 'actions';
+  if (raw === 'chat-groups') return 'chat-groups';
+  return 'project-select';
 };
 
 const getStoredProjectPage = (): number => {
@@ -191,14 +206,31 @@ const getStoredProjectPage = (): number => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
+const getStoredChatGroupId = (): number | null => {
+  const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_ID);
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const getStoredChatGroupPage = (): number => {
+  const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_PAGE);
+  const n = raw ? Number(raw) : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [loadingChatGroups, setLoadingChatGroups] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => getStoredProjectId());
+
+  const [chatGroups, setChatGroups] = useState<ProjectChatGroupLite[]>([]);
+  const [selectedChatGroupId, setSelectedChatGroupId] = useState<number | null>(() => getStoredChatGroupId());
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -215,6 +247,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const [wheelMode, setWheelMode] = useState<WheelMode>(() => getStoredWheelMode());
   const [projectPage, setProjectPage] = useState<number>(() => getStoredProjectPage());
+  const [chatGroupPage, setChatGroupPage] = useState<number>(() => getStoredChatGroupPage());
 
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
@@ -224,6 +257,17 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     if (!selectedProjectId) return null;
     return projects.find((p) => Number(p.id) === Number(selectedProjectId)) || null;
   }, [projects, selectedProjectId]);
+
+  const sortedChatGroups = useMemo(() => {
+    const list = [...chatGroups];
+    list.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return list;
+  }, [chatGroups]);
+
+  const selectedChatGroup = useMemo(() => {
+    if (!selectedChatGroupId) return null;
+    return sortedChatGroups.find((group) => Number(group.id) === Number(selectedChatGroupId)) || null;
+  }, [sortedChatGroups, selectedChatGroupId]);
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -240,6 +284,18 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   useEffect(() => {
     localStorage.setItem(LS_PROJECTS_PAGE, String(projectPage));
   }, [projectPage]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(chatGroupPage));
+  }, [chatGroupPage]);
+
+  useEffect(() => {
+    if (selectedChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+    }
+  }, [selectedChatGroupId]);
 
   const sortedProjects = useMemo(() => {
     const now = new Date();
@@ -271,11 +327,21 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     return Math.max(1, Math.ceil(sortedProjects.length / PROJECT_PAGE_SIZE));
   }, [sortedProjects]);
 
+  const chatGroupPageCount = useMemo(() => {
+    return Math.max(1, Math.ceil(sortedChatGroups.length / CHAT_GROUP_PAGE_SIZE));
+  }, [sortedChatGroups]);
+
   useEffect(() => {
     if (projectPage > projectPageCount - 1) {
       setProjectPage(Math.max(0, projectPageCount - 1));
     }
   }, [projectPage, projectPageCount]);
+
+  useEffect(() => {
+    if (chatGroupPage > chatGroupPageCount - 1) {
+      setChatGroupPage(Math.max(0, chatGroupPageCount - 1));
+    }
+  }, [chatGroupPage, chatGroupPageCount]);
 
   useEffect(() => {
     if (!selectedProjectId || sortedProjects.length === 0) return;
@@ -289,10 +355,27 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   }, [selectedProjectId, sortedProjects, projectPage]);
 
+  useEffect(() => {
+    if (!selectedChatGroupId || sortedChatGroups.length === 0) return;
+
+    const selectedIndex = sortedChatGroups.findIndex((g) => Number(g.id) === Number(selectedChatGroupId));
+    if (selectedIndex < 0) return;
+
+    const targetPage = Math.floor(selectedIndex / CHAT_GROUP_PAGE_SIZE);
+    if (targetPage !== chatGroupPage) {
+      setChatGroupPage(targetPage);
+    }
+  }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
+
   const currentProjectPageItems = useMemo(() => {
     const start = projectPage * PROJECT_PAGE_SIZE;
     return sortedProjects.slice(start, start + PROJECT_PAGE_SIZE);
   }, [sortedProjects, projectPage]);
+
+  const currentChatGroupPageItems = useMemo(() => {
+    const start = chatGroupPage * CHAT_GROUP_PAGE_SIZE;
+    return sortedChatGroups.slice(start, start + CHAT_GROUP_PAGE_SIZE);
+  }, [sortedChatGroups, chatGroupPage]);
 
   const wheelDisplayItems = useMemo<ProjectsWheelDisplayItem[]>(() => {
     if (wheelMode === 'actions') {
@@ -303,6 +386,41 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         comingSoon: item.comingSoon,
         slotType: item.comingSoon ? 'locked' : 'action'
       }));
+    }
+
+    if (wheelMode === 'chat-groups') {
+      const items: ProjectsWheelDisplayItem[] = currentChatGroupPageItems.map((group) => ({
+        label: group.name?.trim() || `Chat #${group.id}`,
+        actionKey: 'chat-group',
+        slotType: 'project',
+        projectId: Number(group.id)
+      }));
+
+      if (chatGroupPage > 0) {
+        items.push({
+          label: 'Zurück',
+          actionKey: 'chat-prev',
+          slotType: 'prev'
+        });
+      }
+
+      if (chatGroupPage < chatGroupPageCount - 1) {
+        items.push({
+          label: 'Weiter',
+          actionKey: 'chat-next',
+          slotType: 'next'
+        });
+      }
+
+      while (items.length < WHEEL_SLOT_COUNT) {
+        items.push({
+          label: sortedChatGroups.length === 0 ? 'Keine Gruppe' : 'Freier Slot',
+          actionKey: 'empty',
+          slotType: 'empty'
+        });
+      }
+
+      return items.slice(0, WHEEL_SLOT_COUNT);
     }
 
     const items: ProjectsWheelDisplayItem[] = currentProjectPageItems.map((project) => ({
@@ -337,10 +455,23 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
 
     return items.slice(0, WHEEL_SLOT_COUNT);
-  }, [wheelMode, currentProjectPageItems, projectPage, projectPageCount]);
+  }, [
+    wheelMode,
+    currentProjectPageItems,
+    currentChatGroupPageItems,
+    projectPage,
+    projectPageCount,
+    chatGroupPage,
+    chatGroupPageCount,
+    sortedChatGroups.length
+  ]);
 
   const centerTitle = useMemo(() => {
     if (wheelMode === 'project-select') return 'Projektauswahl';
+    if (wheelMode === 'chat-groups') {
+      const title = selectedProject?.title?.trim();
+      return title ? `${title} Chat` : 'Projekt Chat';
+    }
     const title = selectedProject?.title?.trim();
     return title ? title : 'Projekt';
   }, [wheelMode, selectedProject]);
@@ -348,9 +479,19 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
   const centerSubLabel = useMemo(() => {
-    if (wheelMode !== 'project-select') return '';
-    return `${projectPage + 1}/${projectPageCount}`;
-  }, [wheelMode, projectPage, projectPageCount]);
+    if (wheelMode === 'project-select') {
+      return `${projectPage + 1}/${projectPageCount}`;
+    }
+
+    if (wheelMode === 'chat-groups') {
+      if (sortedChatGroups.length === 0) {
+        return '0/0';
+      }
+      return `${chatGroupPage + 1}/${chatGroupPageCount}`;
+    }
+
+    return '';
+  }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
 
   const triggerWheelAnimation = () => {
     setWheelAnimationTick((prev) => prev + 1);
@@ -387,7 +528,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       } else {
         setSelectedProjectId(null);
         setWheelMode('project-select');
+        setSelectedChatGroupId(null);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
+        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
       }
 
@@ -399,6 +542,51 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setError(e?.message || 'Projekte konnten nicht geladen werden.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChatGroups = async (projectId: number) => {
+    if (!projectId) {
+      setChatGroups([]);
+      setSelectedChatGroupId(null);
+      return;
+    }
+
+    setLoadingChatGroups(true);
+
+    try {
+      const data = await api.getProjectChatGroups(projectId, undefined as any);
+      const list = Array.isArray(data)
+        ? data.map((g) => ({
+            ...g,
+            id: Number(g.id),
+            project_id: Number(g.project_id)
+          }))
+        : [];
+
+      setChatGroups(list);
+
+      const storedChatGroupId = getStoredChatGroupId();
+      const storedChatGroupPage = getStoredChatGroupPage();
+
+      if (Number.isFinite(storedChatGroupPage) && storedChatGroupPage >= 0) {
+        setChatGroupPage(storedChatGroupPage);
+      }
+
+      if (storedChatGroupId && list.some((g) => Number(g.id) === Number(storedChatGroupId))) {
+        setSelectedChatGroupId(storedChatGroupId);
+      } else if (list.length > 0) {
+        setSelectedChatGroupId(list[0].id);
+      } else {
+        setSelectedChatGroupId(null);
+        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+      }
+    } catch {
+      setChatGroups([]);
+      setSelectedChatGroupId(null);
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+    } finally {
+      setLoadingChatGroups(false);
     }
   };
 
@@ -414,6 +602,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setTasks(Array.isArray(ta) ? ta : []);
       setPolls(Array.isArray(po) ? po : []);
     } catch {
+      // silent
     }
   };
 
@@ -424,12 +613,29 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     loadAssignableData();
   }, []);
 
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setChatGroups([]);
+      setSelectedChatGroupId(null);
+      return;
+    }
+
+    loadChatGroups(selectedProjectId);
+  }, [selectedProjectId]);
+
   const handleCenterClick = () => {
     if (wheelMode === 'project-select') {
       if (selectedProjectId) {
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setWheelMode('actions');
       }
+      return;
+    }
+
+    if (wheelMode === 'chat-groups') {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+      setWheelMode('actions');
+      triggerWheelAnimation();
       return;
     }
 
@@ -468,11 +674,46 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       return;
     }
 
+    if (wheelMode === 'chat-groups') {
+      if (item.slotType === 'project' && item.projectId) {
+        const nextGroupId = Number(item.projectId);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
+        setSelectedChatGroupId(nextGroupId);
+        onNavigate('project-chat');
+        return;
+      }
+
+      if (item.slotType === 'next') {
+        const nextPage = Math.min(chatGroupPage + 1, chatGroupPageCount - 1);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(nextPage));
+        setChatGroupPage(nextPage);
+        triggerWheelAnimation();
+        return;
+      }
+
+      if (item.slotType === 'prev') {
+        const prevPage = Math.max(chatGroupPage - 1, 0);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(prevPage));
+        setChatGroupPage(prevPage);
+        triggerWheelAnimation();
+        return;
+      }
+
+      return;
+    }
+
     if (item.slotType !== 'action') return;
     if (!selectedProjectId) return;
 
     localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+
+    if (item.actionKey === 'chatlog') {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
+      setWheelMode('chat-groups');
+      triggerWheelAnimation();
+      return;
+    }
 
     if (item.view) onNavigate(item.view);
   };
@@ -521,8 +762,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
         setProjects(normalizedProjects);
         setSelectedProjectId(newId);
+        setSelectedChatGroupId(null);
+        setChatGroups([]);
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
 
         const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
         if (newIndex >= 0) {
@@ -634,6 +878,80 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         onCenterClick={handleCenterClick}
         animationKey={wheelAnimationTick}
       />
+
+      {wheelMode === 'chat-groups' && (
+        <div className="app-card space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
+              <div className="text-xs text-white/50 mt-1">
+                {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => selectedProjectId && loadChatGroups(selectedProjectId)}
+              disabled={loadingChatGroups || !selectedProjectId}
+              className="btn-secondary"
+            >
+              {loadingChatGroups ? '...' : 'Aktualisieren'}
+            </button>
+          </div>
+
+          {sortedChatGroups.length === 0 ? (
+            <div className="text-sm text-white/50">
+              Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sortedChatGroups.map((group) => {
+                const isActive = group.id === selectedChatGroupId;
+
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedChatGroupId(group.id);
+                      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
+                      onNavigate('project-chat');
+                    }}
+                    className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                        : 'bg-white/5 hover:bg-white/10 text-white/80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                          {group.name}
+                        </div>
+                        <div
+                          className={`text-xs mt-1 ${
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                          }`}
+                        >
+                          Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                          isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                        }`}
+                      >
+                        Chat
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="app-card space-y-4">
         <h2 className="text-lg font-black">Projekt erstellen</h2>
@@ -773,7 +1091,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     const nextId = Number(p.id);
                     localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
                     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                    localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
                     setSelectedProjectId(nextId);
+                    setSelectedChatGroupId(null);
                     setWheelMode('actions');
                     triggerWheelAnimation();
                   }}
