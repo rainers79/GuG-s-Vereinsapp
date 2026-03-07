@@ -90,7 +90,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
   const segmentGapAngle = 4;
   const innerGapRadius = 16;
-  const cornerRoundStroke = 8;
+  const cornerRoundStroke = 20;
 
   return (
     <div className="flex justify-center items-center py-10">
