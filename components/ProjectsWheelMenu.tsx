@@ -104,12 +104,12 @@ Z
                 onMouseLeave={() => setHoveredIndex(null)}
                 transform={
                   hoveredIndex === i
-                    ? `translate(${lift.dx}, ${lift.dy}) scale(1.05)`
-                    : 'scale(1)'
+                    ? `translate(${lift.dx}, ${lift.dy})`
+                    : 'translate(0, 0)'
                 }
                 style={{
                   cursor: item.comingSoon ? 'default' : 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'transform 0.22s ease, filter 0.22s ease'
                 }}
               >
                 <path
@@ -119,18 +119,9 @@ Z
                   style={{
                     filter:
                       hoveredIndex === i
-                        ? 'drop-shadow(0 10px 18px rgba(0,0,0,0.9))'
+                        ? 'drop-shadow(0 12px 18px rgba(0,0,0,0.9))'
                         : 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))'
                   }}
-                />
-
-                <line
-                  x1={innerStart.x}
-                  y1={innerStart.y}
-                  x2={start.x}
-                  y2={start.y}
-                  stroke="#ffffff"
-                  strokeWidth="2"
                 />
 
                 <text
@@ -154,8 +145,7 @@ Z
           cy={center}
           r={centerRadius}
           fill="#d6c39a"
-          stroke="#ffffff"
-          strokeWidth="3"
+          stroke="none"
         />
 
         <text
