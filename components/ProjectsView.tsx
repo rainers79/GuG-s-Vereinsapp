@@ -62,10 +62,10 @@ const wheelItems: WheelItem[] = [
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
   { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
-  { label: 'Einkaufsliste (coming soon)', comingSoon: true, actionKey: 'shopping' },
-  { label: 'Kernteam (coming soon)', comingSoon: true, actionKey: 'coreteam' },
-  { label: 'Chat Verlauf (coming soon)', comingSoon: true, actionKey: 'chatlog' },
-  { label: 'Mehr (coming soon)', comingSoon: true, actionKey: 'more' }
+  { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
+  { label: 'Kernteam', comingSoon: true, actionKey: 'coreteam' },
+  { label: 'Projekt Chat', comingSoon: true, actionKey: 'chatlog' },
+  { label: 'comming soon', comingSoon: true, actionKey: 'more' }
 ];
 
 const center = 200;
