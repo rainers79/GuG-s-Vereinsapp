@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ViewType, User, ProjectChatMessage } from '../types';
+import { ViewType } from '../types';
 import * as api from '../services/api';
 import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 
@@ -51,6 +51,19 @@ type ProjectChatGroupLite = {
   created_by: number;
   created_at: string;
   updated_at?: string | null;
+};
+
+type ProjectChatMessageLite = {
+  id: number;
+  project_id: number;
+  group_id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  message_type: 'text' | 'image';
+  attachment_url?: string | null;
+  created_at: string;
+  profile_image_url?: string;
 };
 
 export interface WheelItem {
@@ -107,7 +120,6 @@ const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
 const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
-const LS_USER_DATA = 'gug_user_data';
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -228,22 +240,13 @@ const getStoredOpenChatGroupId = (): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-const getStoredUser = (): User | null => {
-  const raw = localStorage.getItem(LS_USER_DATA);
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw) as User;
-  } catch {
-    return null;
-  }
-};
-
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingChatGroups, setLoadingChatGroups] = useState(false);
+  const [loadingInlineChat, setLoadingInlineChat] = useState(false);
+  const [sendingInlineChat, setSendingInlineChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -252,12 +255,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [chatGroups, setChatGroups] = useState<ProjectChatGroupLite[]>([]);
   const [selectedChatGroupId, setSelectedChatGroupId] = useState<number | null>(() => getStoredChatGroupId());
   const [openChatGroupId, setOpenChatGroupId] = useState<number | null>(() => getStoredOpenChatGroupId());
-
-  const [chatMessages, setChatMessages] = useState<ProjectChatMessage[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [newChatMessage, setNewChatMessage] = useState('');
-  const [sendingChatMessage, setSendingChatMessage] = useState(false);
-  const [uploadingChatImage, setUploadingChatImage] = useState(false);
+  const [inlineChatMessages, setInlineChatMessages] = useState<ProjectChatMessageLite[]>([]);
+  const [inlineChatMessage, setInlineChatMessage] = useState('');
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -279,9 +278,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
-
-  const currentUser = useMemo(() => getStoredUser(), []);
-  const currentUserId = currentUser?.id ?? 0;
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -573,6 +569,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setWheelMode('project-select');
         setSelectedChatGroupId(null);
         setOpenChatGroupId(null);
+        setInlineChatMessages([]);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
         localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
@@ -595,6 +592,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setChatGroups([]);
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
+      setInlineChatMessages([]);
       return;
     }
 
@@ -633,16 +631,42 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setOpenChatGroupId(storedOpenChatGroupId);
       } else {
         setOpenChatGroupId(null);
+        setInlineChatMessages([]);
         localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
       }
     } catch {
       setChatGroups([]);
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
+      setInlineChatMessages([]);
       localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     } finally {
       setLoadingChatGroups(false);
+    }
+  };
+
+  const loadInlineChatMessages = async (groupId: number) => {
+    if (!selectedProjectId) return;
+
+    setLoadingInlineChat(true);
+
+    try {
+      const data = await api.getProjectChatMessages(
+        {
+          project_id: selectedProjectId,
+          group_id: groupId,
+          limit: 50
+        },
+        undefined as any
+      );
+
+      setInlineChatMessages(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setInlineChatMessages([]);
+      setError(e?.message || 'Projekt-Chat konnte nicht geladen werden.');
+    } finally {
+      setLoadingInlineChat(false);
     }
   };
 
@@ -662,30 +686,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
-  const loadChatMessages = async (groupId: number) => {
-    if (!selectedProjectId) return;
-
-    setChatLoading(true);
-
-    try {
-      const data = await api.getProjectChatMessages(
-        {
-          project_id: selectedProjectId,
-          group_id: groupId,
-          limit: 50
-        },
-        undefined as any
-      );
-
-      setChatMessages(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setError(e?.message || 'Chat konnte nicht geladen werden.');
-      setChatMessages([]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (loadedOnce.current) return;
     loadedOnce.current = true;
@@ -698,7 +698,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setChatGroups([]);
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
-      setChatMessages([]);
+      setInlineChatMessages([]);
       return;
     }
 
@@ -706,23 +706,24 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   }, [selectedProjectId]);
 
   useEffect(() => {
+    if (wheelMode !== 'chat-groups') return;
     if (!openChatGroupId) {
-      setChatMessages([]);
+      setInlineChatMessages([]);
       return;
     }
-
-    loadChatMessages(openChatGroupId);
-  }, [openChatGroupId, selectedProjectId]);
+    loadInlineChatMessages(openChatGroupId);
+  }, [wheelMode, openChatGroupId, selectedProjectId]);
 
   useEffect(() => {
-    if (!openChatGroupId || !selectedProjectId || wheelMode !== 'chat-groups') return;
+    if (wheelMode !== 'chat-groups') return;
+    if (!openChatGroupId || !selectedProjectId) return;
 
     const interval = setInterval(() => {
-      loadChatMessages(openChatGroupId);
+      loadInlineChatMessages(openChatGroupId);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [openChatGroupId, selectedProjectId, wheelMode]);
+  }, [wheelMode, openChatGroupId, selectedProjectId]);
 
   const handleCenterClick = () => {
     if (wheelMode === 'project-select') {
@@ -737,6 +738,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
       setWheelMode('actions');
       setOpenChatGroupId(null);
+      setInlineChatMessages([]);
       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
       triggerWheelAnimation();
       return;
@@ -745,6 +747,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
     setWheelMode('project-select');
     setOpenChatGroupId(null);
+    setInlineChatMessages([]);
     localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     triggerWheelAnimation();
   };
@@ -757,6 +760,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setSelectedProjectId(nextId);
         setWheelMode('actions');
+        setOpenChatGroupId(null);
+        setInlineChatMessages([]);
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
         triggerWheelAnimation();
         return;
       }
@@ -786,7 +792,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
         setSelectedChatGroupId(nextGroupId);
         setOpenChatGroupId(nextGroupId);
-        triggerWheelAnimation();
+        setInlineChatMessage('');
+        loadInlineChatMessages(nextGroupId);
         return;
       }
 
@@ -819,6 +826,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
       setWheelMode('chat-groups');
       setOpenChatGroupId(null);
+      setInlineChatMessages([]);
       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
       triggerWheelAnimation();
       return;
@@ -874,6 +882,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setSelectedChatGroupId(null);
         setOpenChatGroupId(null);
         setChatGroups([]);
+        setInlineChatMessages([]);
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
@@ -964,58 +973,31 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
-  const handleSendChatMessage = async () => {
-    const message = newChatMessage.trim();
+  const handleSendInlineChatMessage = async () => {
+    const message = inlineChatMessage.trim();
 
-    if (!openChatGroup || !selectedProjectId) return;
-    if (!message) return;
+    if (!selectedProjectId || !openChatGroupId || !message) return;
 
-    setSendingChatMessage(true);
+    setSendingInlineChat(true);
     setError(null);
 
     try {
       await api.sendProjectChatMessage(
         {
           project_id: selectedProjectId,
-          group_id: openChatGroup.id,
+          group_id: openChatGroupId,
           message,
           message_type: 'text'
         },
         undefined as any
       );
 
-      setNewChatMessage('');
-      await loadChatMessages(openChatGroup.id);
+      setInlineChatMessage('');
+      await loadInlineChatMessages(openChatGroupId);
     } catch (e: any) {
       setError(e?.message || 'Nachricht konnte nicht gesendet werden.');
     } finally {
-      setSendingChatMessage(false);
-    }
-  };
-
-  const handleUploadChatImage = async (file: File) => {
-    if (!openChatGroup || !selectedProjectId) return;
-
-    setUploadingChatImage(true);
-    setError(null);
-
-    try {
-      await api.uploadProjectChatImage(
-        {
-          project_id: selectedProjectId,
-          group_id: openChatGroup.id,
-          file,
-          message: newChatMessage.trim()
-        },
-        undefined as any
-      );
-
-      setNewChatMessage('');
-      await loadChatMessages(openChatGroup.id);
-    } catch (e: any) {
-      setError(e?.message || 'Bild konnte nicht hochgeladen werden.');
-    } finally {
-      setUploadingChatImage(false);
+      setSendingInlineChat(false);
     }
   };
 
@@ -1051,87 +1033,47 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
             <div>
               <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
               <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+                Projekt: {selectedProject?.title || `Projekt #${selectedProjectId}`} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenChatGroupId(null);
-                  localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                }}
-                className="btn-secondary"
-              >
-                Chat schließen
-              </button>
-
-              <button
-                type="button"
-                onClick={() => loadChatMessages(openChatGroup.id)}
-                disabled={chatLoading}
-                className="btn-secondary"
-              >
-                {chatLoading ? '...' : 'Chat laden'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => openChatGroupId && loadInlineChatMessages(openChatGroupId)}
+              disabled={loadingInlineChat}
+              className="btn-secondary"
+            >
+              {loadingInlineChat ? '...' : 'Chat laden'}
+            </button>
           </div>
 
           <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
-            {chatMessages.length === 0 ? (
+            {inlineChatMessages.length === 0 ? (
               <div className="text-sm text-slate-500 dark:text-white/60">
                 Noch keine Nachrichten vorhanden.
               </div>
             ) : (
-              chatMessages.map((message) => {
-                const own = Number(message.user_id) === Number(currentUserId);
+              inlineChatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1E1E1E]"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                      {message.profile_image_url ? (
+                        <img
+                          src={message.profile_image_url}
+                          alt={message.display_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
+                    </div>
 
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {!own && (
-                      <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
-                        {message.profile_image_url ? (
-                          <img
-                            src={message.profile_image_url}
-                            alt={message.display_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : null}
-                      </div>
-                    )}
-
-                    <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                        own
-                          ? 'bg-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
-                      }`}
-                    >
-                      <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                    <div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white">
                         {message.display_name}
                       </div>
-
-                      {message.message_type === 'image' && message.attachment_url && (
-                        <div className="mb-2">
-                          <img
-                            src={message.attachment_url}
-                            alt="Chat Bild"
-                            className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
-                          />
-                        </div>
-                      )}
-
-                      {message.message && (
-                        <div className="text-sm whitespace-pre-wrap break-words">
-                          {message.message}
-                        </div>
-                      )}
-
-                      <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
+                      <div className="text-[10px] text-slate-400 dark:text-white/40">
                         {new Date(message.created_at).toLocaleString('de-AT', {
                           day: '2-digit',
                           month: '2-digit',
@@ -1142,58 +1084,50 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                       </div>
                     </div>
                   </div>
-                );
-              })
+
+                  {message.message_type === 'image' && message.attachment_url && (
+                    <div className="mb-2">
+                      <img
+                        src={message.attachment_url}
+                        alt="Chat Bild"
+                        className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
+                      />
+                    </div>
+                  )}
+
+                  {message.message && (
+                    <div className="text-sm whitespace-pre-wrap break-words text-slate-900 dark:text-white">
+                      {message.message}
+                    </div>
+                  )}
+                </div>
+              ))
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <input
-                className="form-input flex-1"
-                value={newChatMessage}
-                onChange={(e) => setNewChatMessage(e.target.value)}
-                placeholder="Nachricht schreiben oder Bildtext ergänzen..."
-                disabled={sendingChatMessage || uploadingChatImage}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendChatMessage();
-                  }
-                }}
-              />
+          <div className="flex gap-2">
+            <input
+              className="form-input flex-1"
+              value={inlineChatMessage}
+              onChange={(e) => setInlineChatMessage(e.target.value)}
+              placeholder="Nachricht schreiben..."
+              disabled={sendingInlineChat}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSendInlineChatMessage();
+                }
+              }}
+            />
 
-              <button
-                type="button"
-                onClick={handleSendChatMessage}
-                disabled={sendingChatMessage || uploadingChatImage || !newChatMessage.trim()}
-                className="btn-primary"
-              >
-                {sendingChatMessage ? '...' : 'Senden'}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <label className="btn-secondary cursor-pointer">
-                {uploadingChatImage ? 'Upload läuft...' : 'Bild auswählen'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingChatImage || sendingChatMessage}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    handleUploadChatImage(file);
-                    e.currentTarget.value = '';
-                  }}
-                />
-              </label>
-
-              <div className="text-xs text-slate-500 dark:text-white/60">
-                Bild wird direkt in den Chat hochgeladen.
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleSendInlineChatMessage}
+              disabled={sendingInlineChat || !inlineChatMessage.trim()}
+              className="btn-primary"
+            >
+              {sendingInlineChat ? '...' : 'Senden'}
+            </button>
           </div>
         </div>
       )}
@@ -1225,7 +1159,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           ) : (
             <div className="space-y-3">
               {sortedChatGroups.map((group) => {
-                const isActive = group.id === selectedChatGroupId;
+                const isSelected = group.id === selectedChatGroupId;
+                const isOpen = group.id === openChatGroupId;
 
                 return (
                   <button
@@ -1233,13 +1168,14 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     type="button"
                     onClick={() => {
                       setSelectedChatGroupId(group.id);
-                      setOpenChatGroupId(null);
                       localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
                       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+                      setOpenChatGroupId(null);
+                      setInlineChatMessages([]);
                       onNavigate('project-chat');
                     }}
                     className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
-                      isActive
+                      isSelected
                         ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
                         : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
                     }`}
@@ -1248,14 +1184,14 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                       <div className="min-w-0">
                         <div
                           className={`font-black ${
-                            isActive ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
+                            isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
                           }`}
                         >
                           {group.name}
                         </div>
                         <div
                           className={`text-xs mt-1 ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
+                            isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
                           }`}
                         >
                           Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
@@ -1264,7 +1200,13 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
                       <div
                         className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isActive ? 'text-[#1A1A1A]/70' : 'text-slate-600 dark:text-white/40'
+                          isOpen
+                            ? isSelected
+                              ? 'text-[#1A1A1A]/70'
+                              : 'text-[#B5A47A]'
+                            : isSelected
+                              ? 'text-[#1A1A1A]/70'
+                              : 'text-slate-600 dark:text-white/40'
                         }`}
                       >
                         Verwalten
@@ -1423,6 +1365,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                         setSelectedProjectId(nextId);
                         setSelectedChatGroupId(null);
                         setOpenChatGroupId(null);
+                        setInlineChatMessages([]);
                         setWheelMode('actions');
                         triggerWheelAnimation();
                       }}
