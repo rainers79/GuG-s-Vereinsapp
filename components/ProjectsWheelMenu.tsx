@@ -97,44 +97,52 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         <defs>
           {wheelColors.map((color, i) => (
             <React.Fragment key={i}>
-              <linearGradient id={`seg-base-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
-                <stop offset="10%" stopColor={color} stopOpacity="0.98" />
-                <stop offset="58%" stopColor={color} stopOpacity="1" />
-                <stop offset="82%" stopColor="#000000" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.52" />
+              <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.16" />
+                <stop offset="8%" stopColor={color} stopOpacity="0.96" />
+                <stop offset="60%" stopColor={color} stopOpacity="1" />
+                <stop offset="84%" stopColor="#000000" stopOpacity="0.14" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.26" />
               </linearGradient>
 
-              <radialGradient id={`seg-gloss-${i}`} cx="50%" cy="20%" r="62%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-                <stop offset="22%" stopColor="#ffffff" stopOpacity="0.48" />
-                <stop offset="52%" stopColor="#ffffff" stopOpacity="0.12" />
+              <linearGradient id={`seg-inner-top-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+                <stop offset="12%" stopColor="#ffffff" stopOpacity="0.18" />
+                <stop offset="32%" stopColor="#ffffff" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </linearGradient>
+
+              <linearGradient id={`seg-inner-bottom-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                <stop offset="68%" stopColor="#000000" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.24" />
+              </linearGradient>
+
+              <radialGradient id={`seg-gloss-${i}`} cx="50%" cy="20%" r="28%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.88" />
+                <stop offset="38%" stopColor="#ffffff" stopOpacity="0.28" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </radialGradient>
 
-              <linearGradient id={`seg-topshine-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
-                <stop offset="35%" stopColor="#ffffff" stopOpacity="0.16" />
+              <linearGradient id={`seg-top-line-${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.55" />
+                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.82" />
+                <stop offset="82%" stopColor="#ffffff" stopOpacity="0.55" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </linearGradient>
-
-              <linearGradient id={`seg-edge-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
-                <stop offset="30%" stopColor="#ffffff" stopOpacity="0.18" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.18" />
               </linearGradient>
             </React.Fragment>
           ))}
 
           <radialGradient id="center-base" cx="50%" cy="35%" r="75%">
-            <stop offset="0%" stopColor="#e5d7b5" />
+            <stop offset="0%" stopColor="#ded2b0" />
             <stop offset="100%" stopColor="#cdbd96" />
           </radialGradient>
 
           <linearGradient id="center-shine" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
-            <stop offset="40%" stopColor="#ffffff" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0.08" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+            <stop offset="35%" stopColor="#ffffff" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.06" />
           </linearGradient>
         </defs>
 
@@ -160,6 +168,11 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             const innerStart = polarToCartesian(center, center, innerRadiusWithGap, startAngle);
             const innerEnd = polarToCartesian(center, center, innerRadiusWithGap, endAngle);
 
+            const topLineOuterStart = polarToCartesian(center, center, buttonRadius - 6, startAngle + 1);
+            const topLineOuterEnd = polarToCartesian(center, center, buttonRadius - 6, endAngle - 1);
+            const topLineInnerStart = polarToCartesian(center, center, buttonRadius - 22, startAngle + 2);
+            const topLineInnerEnd = polarToCartesian(center, center, buttonRadius - 22, endAngle - 2);
+
             const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
 
             const path = `
@@ -167,6 +180,14 @@ M ${outerStart.x} ${outerStart.y}
 A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}
 L ${innerEnd.x} ${innerEnd.y}
 A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
+Z
+`;
+
+            const topLinePath = `
+M ${topLineOuterStart.x} ${topLineOuterStart.y}
+A ${buttonRadius - 6} ${buttonRadius - 6} 0 ${largeArc} 1 ${topLineOuterEnd.x} ${topLineOuterEnd.y}
+L ${topLineInnerEnd.x} ${topLineInnerEnd.y}
+A ${buttonRadius - 22} ${buttonRadius - 22} 0 ${largeArc} 0 ${topLineInnerStart.x} ${topLineInnerStart.y}
 Z
 `;
 
@@ -191,37 +212,41 @@ Z
               >
                 <path
                   d={path}
-                  fill={`url(#seg-base-${i})`}
-                  stroke={`url(#seg-edge-${i})`}
-                  strokeWidth="1.4"
+                  fill={`url(#seg-fill-${i})`}
+                  stroke="#000000"
+                  strokeOpacity="0.08"
+                  strokeWidth="0.8"
                   style={{
                     filter:
                       hoveredIndex === i
-                        ? 'drop-shadow(0 14px 22px rgba(0,0,0,0.95))'
-                        : 'drop-shadow(0 7px 12px rgba(0,0,0,0.78))'
+                        ? 'drop-shadow(0 10px 16px rgba(0,0,0,0.36))'
+                        : 'drop-shadow(0 5px 10px rgba(0,0,0,0.22))'
                   }}
                 />
 
                 <path
                   d={path}
-                  fill={`url(#seg-topshine-${i})`}
+                  fill={`url(#seg-inner-top-${i})`}
                   stroke="none"
-                  opacity="0.95"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-inner-bottom-${i})`}
+                  stroke="none"
                 />
 
                 <path
                   d={path}
                   fill={`url(#seg-gloss-${i})`}
                   stroke="none"
-                  opacity="0.9"
                 />
 
                 <path
-                  d={path}
-                  fill="none"
-                  stroke="#ffffff"
-                  strokeOpacity="0.22"
-                  strokeWidth="0.8"
+                  d={topLinePath}
+                  fill={`url(#seg-top-line-${i})`}
+                  stroke="none"
+                  opacity="0.95"
                 />
 
                 <text
@@ -232,6 +257,9 @@ Z
                   fill="#111111"
                   fontWeight="900"
                   fontSize="13"
+                  style={{
+                    filter: 'drop-shadow(0 1px 0 rgba(255,255,255,0.12))'
+                  }}
                 >
                   {item.label}
                 </text>
@@ -247,7 +275,7 @@ Z
             r={centerRadius}
             fill="url(#center-base)"
             stroke="#ffffff"
-            strokeOpacity="0.16"
+            strokeOpacity="0.1"
             strokeWidth="1"
           />
           <circle
