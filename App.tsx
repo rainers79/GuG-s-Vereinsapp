@@ -36,8 +36,6 @@ const LS_LAST_CHAT_ID = 'gug_last_chat_id';
 const LS_LAST_POLL_ID = 'gug_last_poll_id';
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
-const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
-const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
 
 /* =====================================================
    DEFAULT SETTINGS
@@ -102,17 +100,11 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
-  const enforceProjectsStateForTarget = useCallback((targetView: ViewType) => {
+  const enforceProjectsActionState = useCallback(() => {
     const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
-
-    if (!activeProject) return;
-
-    if (targetView === 'project-chat') {
-      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
-      return;
+    if (activeProject) {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
     }
-
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
   }, []);
 
   const navigateTo = useCallback((view: ViewType) => {
@@ -120,18 +112,17 @@ const App: React.FC = () => {
       if (prev === view) return prev;
 
       if (prev === 'projects' && view !== 'projects') {
-        enforceProjectsStateForTarget(view);
+        enforceProjectsActionState();
       }
 
       setViewHistory((history) => [...history, prev]);
       return view;
     });
-  }, [enforceProjectsStateForTarget]);
+  }, [enforceProjectsActionState]);
 
   const navigateToRoot = useCallback((view: ViewType) => {
     if (view === 'dashboard') {
       localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
-      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     }
     setViewHistory([]);
     setActiveView(view);
@@ -144,18 +135,14 @@ const App: React.FC = () => {
       const previousView = history[history.length - 1];
 
       if (previousView === 'projects') {
-        if (activeView === 'project-chat') {
-          localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
-        } else {
-          localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-        }
+        enforceProjectsActionState();
       }
 
       setActiveView(previousView);
 
       return history.slice(0, -1);
     });
-  }, [activeView]);
+  }, [enforceProjectsActionState]);
 
   const canGoBack = viewHistory.length > 0;
 
@@ -177,8 +164,6 @@ const App: React.FC = () => {
     setViewHistory([]);
     setActiveView('dashboard');
     localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
-    localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
   }, []);
 
   const fetchAppData = useCallback(async () => {
@@ -521,8 +506,6 @@ const App: React.FC = () => {
               setUser(null);
               setViewHistory([]);
               localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
-              localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-              localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
             }}
             onOpenMenu={() => setIsSidebarOpen(true)}
             onGoHome={() => navigateToRoot('dashboard')}
