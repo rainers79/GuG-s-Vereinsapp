@@ -7,8 +7,8 @@ import {
   ProjectChatMessage,
   ProjectChatPermission,
   User
-} from '../../types';
-import * as api from '../../services/api';
+} from '../types';
+import * as api from '../services/api';
 
 interface Props {
   user: User;
