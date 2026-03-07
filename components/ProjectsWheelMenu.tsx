@@ -63,18 +63,15 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (!outerWheelRef.current) return;
 
     outerWheelRef.current.getAnimations().forEach((animation) => animation.cancel());
-
     outerWheelRef.current.style.transform = 'rotate(0deg)';
 
     const animation = outerWheelRef.current.animate(
       [
-        { transform: 'rotate(-140deg)' },
-        { transform: 'rotate(12deg)' },
+        { transform: 'rotate(0deg)' },
         { transform: 'rotate(0deg)' }
       ],
       {
-        duration: 3200,
-        easing: 'cubic-bezier(0.22, 0.9, 0.2, 1)',
+        duration: 1,
         fill: 'forwards'
       }
     );
@@ -128,8 +125,11 @@ Z
             const label = polarToCartesian(center, center, labelRadius, mid);
             const lift = getSliceLift(i, wheelItems.length);
 
-            const translateX = hoveredIndex === i ? lift.dx : 0;
-            const translateY = hoveredIndex === i ? lift.dy : 0;
+            const baseDx = lift.dx;
+            const baseDy = lift.dy;
+
+            const translateX = hoveredIndex === i ? baseDx * 2 : baseDx;
+            const translateY = hoveredIndex === i ? baseDy * 2 : baseDy;
 
             return (
               <g
@@ -140,7 +140,7 @@ Z
                 transform={`translate(${translateX}, ${translateY})`}
                 style={{
                   cursor: item.comingSoon ? 'default' : 'pointer',
-                  transition: 'transform 0.22s ease, filter 0.22s ease'
+                  transition: 'transform 0.28s ease, filter 0.28s ease'
                 }}
               >
                 <path
