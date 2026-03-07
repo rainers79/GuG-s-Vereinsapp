@@ -14,7 +14,8 @@ export type ViewType =
   | 'tasks'
   | 'settings'
   | 'pos'
-  | 'pos-admin';
+  | 'pos-admin'
+  | 'project-chat';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
@@ -140,6 +141,66 @@ export interface NotificationSettings {
   pollPreview: boolean;
 }
 
+export interface ChatMessage {
+  id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  created_at: string;
+  profile_image_url?: string;
+  receiver_id?: number | null;
+}
+
+/* =====================================================
+   PROJECT CHAT TYPES
+===================================================== */
+
+export interface ProjectChatGroup {
+  id: number;
+  project_id: number;
+  name: string;
+  can_write: boolean;
+  can_upload_images: boolean;
+  created_by: number;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface ProjectChatGroupMember {
+  group_id: number;
+  user_id: number;
+  display_name: string;
+  email: string;
+  username: string;
+  profile_image_url?: string;
+  created_at: string;
+}
+
+export interface ProjectChatPermission {
+  group_id: number;
+  user_id: number;
+  display_name: string;
+  email: string;
+  username: string;
+  can_write_override: boolean | null;
+  can_upload_images_override: boolean | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface ProjectChatMessage {
+  id: number;
+  project_id: number;
+  group_id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  message_type: 'text' | 'image';
+  attachment_url?: string | null;
+  created_at: string;
+  profile_image_url?: string;
+}
+
 /* =====================================================
    POS TYPES (PHASE 1)
 ===================================================== */
@@ -190,14 +251,4 @@ export interface PosDailyReport {
     total_cents: number;
     orders_count: number;
   }[];
-}
-
-export interface ChatMessage {
-  id: number;
-  user_id: number;
-  display_name: string;
-  message: string;
-  created_at: string;
-  profile_image_url?: string;
-  receiver_id?: number | null;
 }
