@@ -1,709 +1,1162 @@
-// services/api.ts
-
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AppRole,
-  User,
-  Poll,
-  WPUserResponse,
-  ApiError,
-  VoteResponse,
-  RegistrationData,
-  CalendarEvent,
-  PosArticle,
-  PosOrder,
-  PosDailyReport,
-  Task,
+  Member,
   ProjectChatGroup,
   ProjectChatGroupMember,
+  ProjectChatMessage,
   ProjectChatPermission,
-  ProjectChatMessage
+  User
 } from '../types';
+import * as api from '../services/api';
 
-/* =====================================================
-   CONFIG
-===================================================== */
-
-const API_BASE = 'https://api.gug-verein.at/wp-json';
-const TOKEN_KEY = 'gug_token';
-const USER_KEY = 'gug_user_data';
-
-/* =====================================================
-   ROLE MAPPING
-===================================================== */
-
-const mapWPRoleToAppRole = (wpRoles: any = []): AppRole => {
-  const roles = Array.isArray(wpRoles) ? wpRoles : [];
-  if (roles.includes('administrator')) return AppRole.SUPERADMIN;
-  if (roles.includes('vorstand')) return AppRole.VORSTAND;
-  return AppRole.USER;
-};
-
-/* =====================================================
-   TOKEN HANDLING
-===================================================== */
-
-export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-
-export const setToken = (token: string): void => {
-  localStorage.setItem(TOKEN_KEY, token);
-};
-
-export const clearToken = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-};
-
-export const getStoredUser = (): User | null => {
-  const data = localStorage.getItem(USER_KEY);
-  return data ? JSON.parse(data) : null;
-};
-
-/* =====================================================
-   CORE REQUEST
-===================================================== */
-
-export async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {},
-  onUnauthorized?: () => void
-): Promise<T> {
-
-  const token = getToken();
-  const headers = new Headers(options.headers);
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      if (!endpoint.includes('jwt-auth')) {
-        clearToken();
-        if (onUnauthorized) onUnauthorized();
-      }
-
-      const errData = await response.json().catch(() => ({}));
-      throw {
-        message: errData.message || 'Sitzung abgelaufen.',
-        status: response.status
-      } as ApiError;
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-
-      if (response.status === 404) {
-        throw {
-          message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.',
-          status: 404
-        } as ApiError;
-      }
-
-      throw {
-        message: errorData.message || `Fehler ${response.status}`,
-        status: response.status
-      } as ApiError;
-    }
-
-    return await response.json();
-
-  } catch (error: any) {
-    if (error?.status) throw error;
-    throw { message: 'Netzwerkfehler. Bitte Verbindung prüfen.' } as ApiError;
-  }
+interface Props {
+  user: User;
+  onUnauthorized: () => void;
 }
 
-/* =====================================================
-   AUTH
-===================================================== */
+type ProjectLite = {
+  id: number;
+  title?: string;
+  description?: string;
+};
 
-export async function login(username: string, password: string): Promise<User> {
-  const data = await apiRequest<WPUserResponse>('/jwt-auth/v1/token', {
-    method: 'POST',
-    body: JSON.stringify({ username, password })
+const LS_ACTIVE_PROJECT = 'gug_active_project';
+const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
+const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
+
+const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
+  const [project, setProject] = useState<ProjectLite | null>(null);
+
+  const [groups, setGroups] = useState<ProjectChatGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
   });
 
-  setToken(data.token);
-  const user = await getCurrentUser(() => {});
-  return user;
-}
-
-export async function register(regData: RegistrationData): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>('/gug/v1/register', {
-    method: 'POST',
-    body: JSON.stringify(regData)
+  const [openChatGroupId, setOpenChatGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
   });
-}
 
-export async function verifyEmail(uid: number, token: string): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    `/gug/v1/verify-email?uid=${uid}&token=${encodeURIComponent(token)}`,
-    { method: 'GET' }
-  );
-}
+  const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [groupMembers, setGroupMembers] = useState<ProjectChatGroupMember[]>([]);
+  const [permissions, setPermissions] = useState<ProjectChatPermission[]>([]);
 
-export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {
-  const wpUser = await apiRequest<any>('/gug/v1/me', {}, onUnauthorized);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  const user: User = {
-    id: wpUser.id || 0,
-    email: wpUser.user_email || wpUser.email || '',
-    displayName: wpUser.display_name || wpUser.name || 'Mitglied',
-    username: wpUser.user_login || wpUser.username || '',
-    role: mapWPRoleToAppRole(wpUser.roles)
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupCanWrite, setNewGroupCanWrite] = useState(true);
+  const [newGroupCanUploadImages, setNewGroupCanUploadImages] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  const [editingProjectId, setEditingProjectId] = useState<string>('');
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [editingGroupCanWrite, setEditingGroupCanWrite] = useState(true);
+  const [editingGroupCanUploadImages, setEditingGroupCanUploadImages] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
+
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [savingMembers, setSavingMembers] = useState(false);
+
+  const [permissionUserId, setPermissionUserId] = useState<string>('');
+  const [permissionCanWrite, setPermissionCanWrite] = useState<string>('inherit');
+  const [permissionCanUploadImages, setPermissionCanUploadImages] = useState<string>('inherit');
+  const [savingPermission, setSavingPermission] = useState(false);
+
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+
+  const activeProjectId = useMemo(() => {
+    const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, []);
+
+  const selectedGroup = useMemo(() => {
+    return groups.find((group) => group.id === selectedGroupId) || null;
+  }, [groups, selectedGroupId]);
+
+  const openChatGroup = useMemo(() => {
+    return groups.find((group) => group.id === openChatGroupId) || null;
+  }, [groups, openChatGroupId]);
+
+  useEffect(() => {
+    if (!selectedGroup) return;
+    setEditingProjectId(String(selectedGroup.project_id));
+    setEditingGroupName(selectedGroup.name);
+    setEditingGroupCanWrite(selectedGroup.can_write);
+    setEditingGroupCanUploadImages(selectedGroup.can_upload_images);
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (selectedGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+    }
+  }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (openChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(openChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    }
+  }, [openChatGroupId]);
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+
+    api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
+        setProject(found);
+      })
+      .catch(() => {
+        setProject(null);
+      });
+  }, [activeProjectId, onUnauthorized]);
+
+  const loadGroups = async () => {
+    if (!activeProjectId) return;
+
+    setLoadingGroups(true);
+    setError(null);
+
+    try {
+      const data = await api.getProjectChatGroups(activeProjectId, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      setGroups(list);
+
+      if (list.length === 0) {
+        setSelectedGroupId(null);
+        setOpenChatGroupId(null);
+        setMessages([]);
+        setGroupMembers([]);
+        setPermissions([]);
+        return;
+      }
+
+      setSelectedGroupId((prev) => {
+        if (prev && list.some((group) => group.id === prev)) {
+          return prev;
+        }
+        return list[0].id;
+      });
+
+      setOpenChatGroupId((prev) => {
+        if (prev && list.some((group) => group.id === prev)) {
+          return prev;
+        }
+        return null;
+      });
+    } catch (e: any) {
+      setError(e?.message || 'Chat-Gruppen konnten nicht geladen werden.');
+    } finally {
+      setLoadingGroups(false);
+    }
   };
 
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  return user;
-}
+  const loadAllMembers = async () => {
+    if (!isAdmin) return;
 
-/* =====================================================
-   CHAT
-===================================================== */
+    setLoadingMembers(true);
 
-export interface ChatMessage {
-  id: number;
-  user_id: number;
-  display_name: string;
-  message: string;
-  created_at: string;
-  profile_image_url?: string;
-}
+    try {
+      const data = await api.getMembers(onUnauthorized);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch {
+      setMembers([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
-export async function getChatMessages(
-  onUnauthorized: () => void
-): Promise<ChatMessage[]> {
+  const loadGroupMembers = async (groupId: number) => {
+    try {
+      const data = await api.getProjectChatGroupMembers(groupId, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      setGroupMembers(list);
+      setSelectedMemberIds(list.map((item) => Number(item.user_id)));
+    } catch {
+      setGroupMembers([]);
+      setSelectedMemberIds([]);
+    }
+  };
 
-  return await apiRequest<ChatMessage[]>(
-    '/gug/v1/chat',
-    {},
-    onUnauthorized
-  );
-}
+  const loadPermissions = async (groupId: number) => {
+    try {
+      const data = await api.getProjectChatPermissions(groupId, onUnauthorized);
+      setPermissions(Array.isArray(data) ? data : []);
+    } catch {
+      setPermissions([]);
+    }
+  };
 
-/* =====================================================
-   ÄLTERE CHAT NACHRICHTEN LADEN
-===================================================== */
+  const loadMessages = async (groupId: number) => {
+    if (!activeProjectId) return;
 
-export async function getChatMessagesBefore(
-  beforeId: number,
-  onUnauthorized: () => void
-): Promise<ChatMessage[]> {
+    setLoadingMessages(true);
 
-  return await apiRequest<ChatMessage[]>(
-    `/gug/v1/chat?before=${beforeId}`,
-    {},
-    onUnauthorized
-  );
-}
+    try {
+      const data = await api.getProjectChatMessages(
+        {
+          project_id: activeProjectId,
+          group_id: groupId,
+          limit: 50
+        },
+        onUnauthorized
+      );
 
-/* =====================================================
-   SEND CHAT MESSAGE
-===================================================== */
+      setMessages(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setError(e?.message || 'Nachrichten konnten nicht geladen werden.');
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
 
-export async function sendChatMessage(
-  message: string,
-  onUnauthorized: () => void
-): Promise<{ success: boolean }> {
+  useEffect(() => {
+    loadGroups();
+    loadAllMembers();
+  }, [activeProjectId]);
 
-  return await apiRequest<{ success: boolean }>(
-    '/gug/v1/chat',
-    {
-      method: 'POST',
-      body: JSON.stringify({ message })
-    },
-    onUnauthorized
-  );
-}
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    loadGroupMembers(selectedGroupId);
+    loadPermissions(selectedGroupId);
+  }, [selectedGroupId]);
 
-/* =====================================================
-   PROJECT CHAT
-===================================================== */
+  useEffect(() => {
+    if (!openChatGroupId) {
+      setMessages([]);
+      return;
+    }
+    loadMessages(openChatGroupId);
+  }, [openChatGroupId]);
 
-export async function getProjectChatGroups(
-  projectId: number,
-  onUnauthorized: () => void
-): Promise<ProjectChatGroup[]> {
-  return await apiRequest<ProjectChatGroup[]>(
-    `/gug/v1/project-chat/groups?project_id=${encodeURIComponent(String(projectId))}`,
-    {},
-    onUnauthorized
-  );
-}
+  useEffect(() => {
+    if (!openChatGroupId || !activeProjectId) return;
 
-export async function createProjectChatGroup(
-  payload: {
-    project_id: number;
-    name: string;
-    can_write?: boolean;
-    can_upload_images?: boolean;
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; id: number }> {
-  return await apiRequest<{ success: boolean; id: number }>(
-    '/gug/v1/project-chat/groups',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
+    const interval = setInterval(() => {
+      loadMessages(openChatGroupId);
+    }, 5000);
 
-export async function updateProjectChatGroup(
-  groupId: number,
-  payload: Partial<{
-    project_id: number;
-    name: string;
-    can_write: boolean;
-    can_upload_images: boolean;
-  }>,
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    `/gug/v1/project-chat/groups/${groupId}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
+    return () => clearInterval(interval);
+  }, [openChatGroupId, activeProjectId]);
 
-export async function getProjectChatGroupMembers(
-  groupId: number,
-  onUnauthorized: () => void
-): Promise<ProjectChatGroupMember[]> {
-  return await apiRequest<ProjectChatGroupMember[]>(
-    `/gug/v1/project-chat/group-members?group_id=${encodeURIComponent(String(groupId))}`,
-    {},
-    onUnauthorized
-  );
-}
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
 
-export async function saveProjectChatGroupMembers(
-  payload: {
-    group_id: number;
-    members: number[];
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    '/gug/v1/project-chat/group-members',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
+    if (!isAdmin) {
+      setError('Keine Berechtigung zum Anlegen von Gruppen.');
+      return;
+    }
 
-export async function getProjectChatPermissions(
-  groupId: number,
-  onUnauthorized: () => void
-): Promise<ProjectChatPermission[]> {
-  return await apiRequest<ProjectChatPermission[]>(
-    `/gug/v1/project-chat/permissions?group_id=${encodeURIComponent(String(groupId))}`,
-    {},
-    onUnauthorized
-  );
-}
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
 
-export async function saveProjectChatPermission(
-  payload: {
-    group_id: number;
-    user_id: number;
-    can_write_override?: boolean | null;
-    can_upload_images_override?: boolean | null;
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    '/gug/v1/project-chat/permissions',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
+    if (!name) {
+      setError('Gruppenname fehlt.');
+      return;
+    }
 
-export async function getProjectChatMessages(
-  params: {
-    project_id: number;
-    group_id: number;
-    before?: number;
-    limit?: number;
-  },
-  onUnauthorized: () => void
-): Promise<ProjectChatMessage[]> {
-  const q: string[] = [
-    `project_id=${encodeURIComponent(String(params.project_id))}`,
-    `group_id=${encodeURIComponent(String(params.group_id))}`
-  ];
+    setCreatingGroup(true);
+    setError(null);
+    setSuccess(null);
 
-  if (params.before && params.before > 0) {
-    q.push(`before=${encodeURIComponent(String(params.before))}`);
+    try {
+      const result = await api.createProjectChatGroup(
+        {
+          project_id: activeProjectId,
+          name,
+          can_write: newGroupCanWrite,
+          can_upload_images: newGroupCanUploadImages
+        },
+        onUnauthorized
+      );
+
+      setNewGroupName('');
+      setNewGroupCanWrite(true);
+      setNewGroupCanUploadImages(false);
+      setSuccess('Chat-Gruppe erstellt.');
+
+      await loadGroups();
+
+      if (result?.id) {
+        setSelectedGroupId(Number(result.id));
+        setOpenChatGroupId(null);
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Chat-Gruppe konnte nicht erstellt werden.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const handleSaveGroup = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    const name = editingGroupName.trim();
+    const nextProjectId = Number(editingProjectId);
+
+    if (!name) {
+      setError('Gruppenname fehlt.');
+      return;
+    }
+
+    if (!Number.isFinite(nextProjectId) || nextProjectId <= 0) {
+      setError('Projekt-Zuordnung fehlt.');
+      return;
+    }
+
+    setSavingGroup(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.updateProjectChatGroup(
+        selectedGroup.id,
+        {
+          project_id: nextProjectId,
+          name,
+          can_write: editingGroupCanWrite,
+          can_upload_images: editingGroupCanUploadImages
+        },
+        onUnauthorized
+      );
+
+      const projectChanged = Number(selectedGroup.project_id) !== nextProjectId;
+
+      setSuccess(projectChanged ? 'Gruppe wurde einem anderen Projekt zugeordnet.' : 'Gruppe gespeichert.');
+
+      if (projectChanged) {
+        if (openChatGroupId === selectedGroup.id) {
+          setOpenChatGroupId(null);
+        }
+        setSelectedGroupId(null);
+        await loadGroups();
+        return;
+      }
+
+      await loadGroups();
+    } catch (e: any) {
+      setError(e?.message || 'Gruppe konnte nicht gespeichert werden.');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const toggleMemberSelection = (userId: number) => {
+    setSelectedMemberIds((prev) => {
+      if (prev.includes(userId)) {
+        return prev.filter((id) => id !== userId);
+      }
+      return [...prev, userId];
+    });
+  };
+
+  const handleSaveMembers = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    setSavingMembers(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectChatGroupMembers(
+        {
+          group_id: selectedGroup.id,
+          members: selectedMemberIds
+        },
+        onUnauthorized
+      );
+
+      setSuccess('Gruppenmitglieder gespeichert.');
+      await loadGroupMembers(selectedGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Gruppenmitglieder konnten nicht gespeichert werden.');
+    } finally {
+      setSavingMembers(false);
+    }
+  };
+
+  const handleSavePermission = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    const userId = Number(permissionUserId);
+
+    if (!Number.isFinite(userId) || userId <= 0) {
+      setError('Bitte ein Mitglied auswählen.');
+      return;
+    }
+
+    setSavingPermission(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectChatPermission(
+        {
+          group_id: selectedGroup.id,
+          user_id: userId,
+          can_write_override:
+            permissionCanWrite === 'inherit'
+              ? null
+              : permissionCanWrite === 'allow',
+          can_upload_images_override:
+            permissionCanUploadImages === 'inherit'
+              ? null
+              : permissionCanUploadImages === 'allow'
+        },
+        onUnauthorized
+      );
+
+      setSuccess('Einzelrechte gespeichert.');
+      setPermissionUserId('');
+      setPermissionCanWrite('inherit');
+      setPermissionCanUploadImages('inherit');
+      await loadPermissions(selectedGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Einzelrechte konnten nicht gespeichert werden.');
+    } finally {
+      setSavingPermission(false);
+    }
+  };
+
+  const handleOpenChat = async () => {
+    if (!selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    setOpenChatGroupId(selectedGroup.id);
+    setNewMessage('');
+    await loadMessages(selectedGroup.id);
+  };
+
+  const handleCloseChat = () => {
+    setOpenChatGroupId(null);
+    setMessages([]);
+    setNewMessage('');
+  };
+
+  const handleSendMessage = async () => {
+    const message = newMessage.trim();
+
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    if (!message) {
+      return;
+    }
+
+    setSendingMessage(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.sendProjectChatMessage(
+        {
+          project_id: activeProjectId,
+          group_id: openChatGroup.id,
+          message,
+          message_type: 'text'
+        },
+        onUnauthorized
+      );
+
+      setNewMessage('');
+      await loadMessages(openChatGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Nachricht konnte nicht gesendet werden.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.uploadProjectChatImage(
+        {
+          project_id: activeProjectId,
+          group_id: openChatGroup.id,
+          file,
+          message: newMessage.trim()
+        },
+        onUnauthorized
+      );
+
+      setNewMessage('');
+      await loadMessages(openChatGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Bild konnte nicht hochgeladen werden.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  if (!activeProjectId) {
+    return (
+      <div className="app-card">
+        <div className="text-sm text-slate-500 dark:text-white/60">
+          Kein aktives Projekt gewählt. Öffne zuerst ein Projekt im Projektrad.
+        </div>
+      </div>
+    );
   }
 
-  if (params.limit && params.limit > 0) {
-    q.push(`limit=${encodeURIComponent(String(params.limit))}`);
-  }
+  return (
+    <div className="space-y-6">
+      <div className="app-card">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-black">Projekt Chat Verwaltung</h1>
+          <div className="text-sm text-slate-500 dark:text-white/60">
+            Projekt:{' '}
+            <span className="font-black text-slate-900 dark:text-white">
+              {project?.title || `Projekt #${activeProjectId}`}
+            </span>
+          </div>
+        </div>
+      </div>
 
-  return await apiRequest<ProjectChatMessage[]>(
-    `/gug/v1/project-chat/messages?${q.join('&')}`,
-    {},
-    onUnauthorized
+      {error && <div className="alert-error">{error}</div>}
+      {success && <div className="alert-success">{success}</div>}
+
+      {!selectedGroup ? (
+        <div className="space-y-6">
+          <div className="app-card space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black">Gruppen</h2>
+              <button
+                type="button"
+                onClick={loadGroups}
+                disabled={loadingGroups}
+                className="btn-secondary"
+              >
+                {loadingGroups ? '...' : 'Aktualisieren'}
+              </button>
+            </div>
+
+            {groups.length === 0 ? (
+              <div className="text-sm text-slate-500 dark:text-white/60">
+                Noch keine Chat-Gruppen vorhanden.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {groups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGroupId(group.id);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    className="w-full text-left rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 transition hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:text-white dark:hover:bg-[#181818]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-black text-slate-900 dark:text-white">
+                          {group.name}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500 dark:text-white/50">
+                          Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                        </div>
+                      </div>
+
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A]">
+                        Verwalten
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {isAdmin && (
+            <div className="app-card space-y-4">
+              <h2 className="text-lg font-black">Gruppe anlegen</h2>
+
+              <div className="space-y-2">
+                <label className="form-label">Gruppenname</label>
+                <input
+                  className="form-input"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="z.B. Leitungsteam"
+                  disabled={creatingGroup}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="form-label">Projekt</label>
+                <input
+                  className="form-input"
+                  value={project?.title || `Projekt #${activeProjectId}`}
+                  disabled
+                />
+              </div>
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newGroupCanWrite}
+                  onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                  disabled={creatingGroup}
+                />
+                <span>Gruppe darf schreiben</span>
+              </label>
+
+              <label className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newGroupCanUploadImages}
+                  onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                  disabled={creatingGroup}
+                />
+                <span>Gruppe darf Bilder senden</span>
+              </label>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCreateGroup}
+                  disabled={creatingGroup || !newGroupName.trim()}
+                  className="btn-primary"
+                >
+                  {creatingGroup ? '...' : 'Gruppe anlegen'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="app-card space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black">Gruppenverwaltung</h2>
+                <div className="text-sm text-slate-500 dark:text-white/60 mt-1">
+                  Ausgewählt:{' '}
+                  <span className="font-black text-slate-900 dark:text-white">
+                    {selectedGroup.name}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGroupId(null)}
+                  className="btn-secondary"
+                >
+                  Zur Gruppenliste
+                </button>
+
+                {openChatGroupId === selectedGroup.id ? (
+                  <button
+                    type="button"
+                    onClick={handleCloseChat}
+                    className="btn-secondary"
+                  >
+                    Chat schließen
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleOpenChat}
+                    className="btn-primary"
+                  >
+                    Chat öffnen
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="app-card space-y-6">
+            <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="form-label">Projekt-ID</label>
+                  <input
+                    className="form-input"
+                    value={editingProjectId}
+                    onChange={(e) => setEditingProjectId(e.target.value)}
+                    disabled={savingGroup}
+                    placeholder="Projekt-ID"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Gruppenname</label>
+                  <input
+                    className="form-input"
+                    value={editingGroupName}
+                    onChange={(e) => setEditingGroupName(e.target.value)}
+                    disabled={savingGroup}
+                  />
+                </div>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editingGroupCanWrite}
+                    onChange={(e) => setEditingGroupCanWrite(e.target.checked)}
+                    disabled={savingGroup}
+                  />
+                  <span>Gruppe darf schreiben</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editingGroupCanUploadImages}
+                    onChange={(e) => setEditingGroupCanUploadImages(e.target.checked)}
+                    disabled={savingGroup}
+                  />
+                  <span>Gruppe darf Bilder senden</span>
+                </label>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveGroup}
+                    disabled={savingGroup || !editingGroupName.trim() || !editingProjectId.trim()}
+                    className="btn-primary"
+                  >
+                    {savingGroup ? '...' : 'Gruppe speichern'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Aktuell in der Gruppe</h3>
+
+                  {groupMembers.length === 0 ? (
+                    <div className="text-sm text-slate-500 dark:text-white/60">
+                      Noch keine Mitglieder in dieser Gruppe.
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {groupMembers.map((member) => (
+                        <div
+                          key={member.user_id}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#121212]"
+                        >
+                          <div className="font-black text-slate-900 dark:text-white">
+                            {member.display_name}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                            {member.email}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Mitglieder auswählen</h3>
+
+                  {loadingMembers ? (
+                    <div className="text-sm text-slate-500 dark:text-white/60">Lädt…</div>
+                  ) : members.length === 0 ? (
+                    <div className="text-sm text-slate-500 dark:text-white/60">
+                      Keine Mitglieder verfügbar.
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {members.map((member) => (
+                        <label
+                          key={member.id}
+                          className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm cursor-pointer hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:hover:bg-[#181818]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedMemberIds.includes(Number(member.id))}
+                            onChange={() => toggleMemberSelection(Number(member.id))}
+                          />
+                          <div>
+                            <div className="font-black text-slate-900 dark:text-white">
+                              {member.display_name}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-white/60">
+                              {member.email}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveMembers}
+                      disabled={savingMembers}
+                      className="btn-primary"
+                    >
+                      {savingMembers ? '...' : 'Mitglieder speichern'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Einzelrechte</h3>
+
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <label className="form-label">Mitglied</label>
+                      <select
+                        className="form-input"
+                        value={permissionUserId}
+                        onChange={(e) => setPermissionUserId(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="">Bitte auswählen</option>
+                        {groupMembers.map((member) => (
+                          <option key={member.user_id} value={member.user_id}>
+                            {member.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="form-label">Schreibrecht</label>
+                      <select
+                        className="form-input"
+                        value={permissionCanWrite}
+                        onChange={(e) => setPermissionCanWrite(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="inherit">Von Gruppe übernehmen</option>
+                        <option value="allow">Erlauben</option>
+                        <option value="deny">Verbieten</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="form-label">Bildrecht</label>
+                      <select
+                        className="form-input"
+                        value={permissionCanUploadImages}
+                        onChange={(e) => setPermissionCanUploadImages(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="inherit">Von Gruppe übernehmen</option>
+                        <option value="allow">Erlauben</option>
+                        <option value="deny">Verbieten</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSavePermission}
+                      disabled={savingPermission || !permissionUserId}
+                      className="btn-primary"
+                    >
+                      {savingPermission ? '...' : 'Rechte speichern'}
+                    </button>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {permissions.length === 0 ? (
+                      <div className="text-sm text-slate-500 dark:text-white/60">
+                        Keine Einzelrechte gesetzt.
+                      </div>
+                    ) : (
+                      permissions.map((permission) => (
+                        <div
+                          key={`${permission.group_id}-${permission.user_id}`}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-white/10 dark:bg-[#121212]"
+                        >
+                          <div className="font-black text-slate-900 dark:text-white">
+                            {permission.display_name}
+                          </div>
+                          <div className="text-slate-500 dark:text-white/60 mt-1">
+                            Schreiben:{' '}
+                            {permission.can_write_override === null
+                              ? 'Gruppe'
+                              : permission.can_write_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                          <div className="text-slate-500 dark:text-white/60">
+                            Bilder:{' '}
+                            {permission.can_upload_images_override === null
+                              ? 'Gruppe'
+                              : permission.can_upload_images_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {isAdmin && (
+            <div className="app-card space-y-4">
+              <h2 className="text-lg font-black">Gruppe anlegen</h2>
+
+              <div className="grid lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="form-label">Gruppenname</label>
+                  <input
+                    className="form-input"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="z.B. Leitungsteam"
+                    disabled={creatingGroup}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Projekt</label>
+                  <input
+                    className="form-input"
+                    value={project?.title || `Projekt #${activeProjectId}`}
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanWrite}
+                    onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf schreiben</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanUploadImages}
+                    onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf Bilder senden</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCreateGroup}
+                  disabled={creatingGroup || !newGroupName.trim()}
+                  className="btn-primary"
+                >
+                  {creatingGroup ? '...' : 'Gruppe anlegen'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {openChatGroup && (
+            <div className="app-card space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
+                  <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                    Projekt-ID: {openChatGroup.project_id} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => loadMessages(openChatGroup.id)}
+                  disabled={loadingMessages}
+                  className="btn-secondary"
+                >
+                  {loadingMessages ? '...' : 'Chat laden'}
+                </button>
+              </div>
+
+              <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
+                {messages.length === 0 ? (
+                  <div className="text-sm text-slate-500 dark:text-white/60">
+                    Noch keine Nachrichten vorhanden.
+                  </div>
+                ) : (
+                  messages.map((message) => {
+                    const own = Number(message.user_id) === Number(user.id);
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {!own && (
+                          <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                            {message.profile_image_url ? (
+                              <img
+                                src={message.profile_image_url}
+                                alt={message.display_name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : null}
+                          </div>
+                        )}
+
+                        <div
+                          className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                            own
+                              ? 'bg-[#B5A47A] text-[#1A1A1A]'
+                              : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
+                          }`}
+                        >
+                          <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                            {message.display_name}
+                          </div>
+
+                          {message.message_type === 'image' && message.attachment_url && (
+                            <div className="mb-2">
+                              <img
+                                src={message.attachment_url}
+                                alt="Chat Bild"
+                                className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
+                              />
+                            </div>
+                          )}
+
+                          {message.message && (
+                            <div className="text-sm whitespace-pre-wrap break-words">
+                              {message.message}
+                            </div>
+                          )}
+
+                          <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
+                            {new Date(message.created_at).toLocaleString('de-AT', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input
+                    className="form-input flex-1"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Nachricht schreiben oder Bildtext ergänzen..."
+                    disabled={sendingMessage || uploadingImage}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleSendMessage}
+                    disabled={sendingMessage || uploadingImage || !newMessage.trim()}
+                    className="btn-primary"
+                  >
+                    {sendingMessage ? '...' : 'Senden'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="btn-secondary cursor-pointer">
+                    {uploadingImage ? 'Upload läuft...' : 'Bild auswählen'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingImage || sendingMessage}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        handleUploadImage(file);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+
+                  <div className="text-xs text-slate-500 dark:text-white/60">
+                    Bild wird direkt in den Chat hochgeladen.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
-}
+};
 
-export async function sendProjectChatMessage(
-  payload: {
-    project_id: number;
-    group_id: number;
-    message: string;
-    message_type?: 'text' | 'image';
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; id: number }> {
-  return await apiRequest<{ success: boolean; id: number }>(
-    '/gug/v1/project-chat/messages',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-export async function uploadProjectChatImage(
-  payload: {
-    project_id: number;
-    group_id: number;
-    file: File;
-    message?: string;
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; id: number; attachment_id: number; attachment_url: string }> {
-  const formData = new FormData();
-  formData.append('project_id', String(payload.project_id));
-  formData.append('group_id', String(payload.group_id));
-  formData.append('file', payload.file);
-
-  if (payload.message && payload.message.trim()) {
-    formData.append('message', payload.message.trim());
-  }
-
-  return await apiRequest<{ success: boolean; id: number; attachment_id: number; attachment_url: string }>(
-    '/gug/v1/project-chat/upload',
-    {
-      method: 'POST',
-      body: formData
-    },
-    onUnauthorized
-  );
-}
-
-/* =====================================================
-   POLLS
-===================================================== */
-
-export async function getPolls(
-  onUnauthorized: () => void
-): Promise<Poll[]> {
-
-  const projectId = localStorage.getItem('gug_active_project');
-
-  let endpoint = '/gug/v1/polls';
-
-  if (projectId) {
-    endpoint += '?project_id=' + projectId;
-  }
-
-  return await apiRequest<Poll[]>(
-    endpoint,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function createPoll(payload: any, onUnauth: () => void): Promise<Poll> {
-  return await apiRequest<Poll>(
-    '/gug/v1/polls',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauth
-  );
-}
-
-export async function deletePoll(pollId: number, onUnauth: () => void): Promise<any> {
-  return await apiRequest<any>(
-    `/gug/v1/polls/${pollId}`,
-    { method: 'DELETE' },
-    onUnauth
-  );
-}
-
-export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
-  return await apiRequest<VoteResponse>(
-    `/gug/v1/polls/${pollId}/vote`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ option_ids: optionIds })
-    },
-    onUnauth
-  );
-}
-
-/* =====================================================
-   EVENTS
-===================================================== */
-
-export async function getEvents(onUnauthorized: () => void): Promise<CalendarEvent[]> {
-  return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized)
-    .catch(() => []);
-}
-
-export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () => void): Promise<CalendarEvent> {
-  return await apiRequest<CalendarEvent>(
-    '/gug/v1/events',
-    {
-      method: 'POST',
-      body: JSON.stringify(event)
-    },
-    onUnauth
-  );
-}
-
-/* =====================================================
-   MEMBERS
-===================================================== */
-
-export async function getMembers(onUnauthorized: () => void) {
-  return await apiRequest<any[]>(
-    '/gug/v1/members',
-    {},
-    onUnauthorized
-  );
-}
-
-export async function getMember(id: number, onUnauthorized: () => void) {
-  return await apiRequest<any>(
-    `/gug/v1/members/${id}`,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function updateMember(id: number, payload: any, onUnauthorized: () => void) {
-  return await apiRequest<any>(
-    `/gug/v1/members/${id}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-/* =====================================================
-   TASKS
-===================================================== */
-
-export async function getTasks(
-  onUnauthorized: () => void,
-  params: {
-    project_id?: number;
-    scope?: 'project' | 'personal';
-  } = {}
-): Promise<Task[]> {
-  const q: string[] = [];
-
-  if (params.project_id && params.project_id > 0) {
-    q.push(`project_id=${encodeURIComponent(String(params.project_id))}`);
-  }
-
-  if (params.scope) {
-    q.push(`scope=${encodeURIComponent(params.scope)}`);
-  }
-
-  const query = q.length ? `?${q.join('&')}` : '';
-
-  return await apiRequest<Task[]>(
-    `/gug/v1/tasks${query}`,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function createTask(
-  payload: Partial<Task>,
-  onUnauthorized: () => void
-): Promise<{ success: boolean; id: number }> {
-  return await apiRequest<{ success: boolean; id: number }>(
-    '/gug/v1/tasks',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-export async function updateTask(
-  taskId: number,
-  payload: Partial<Task>,
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message?: string }> {
-  return await apiRequest<{ success: boolean; message?: string }>(
-    `/gug/v1/tasks/${taskId}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-/* =====================================================
-   POS
-===================================================== */
-
-export async function getPosArticles(
-  params: { category?: 'food' | 'drink' | 'gug'; all?: boolean } = {},
-  onUnauthorized: () => void
-): Promise<PosArticle[]> {
-
-  const q: string[] = [];
-  if (params.category) q.push(`category=${encodeURIComponent(params.category)}`);
-  if (params.all) q.push(`all=1`);
-
-  const query = q.length ? `?${q.join('&')}` : '';
-
-  return await apiRequest<PosArticle[]>(
-    `/gug/v1/pos/articles${query}`,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function createPosArticle(
-  payload: {
-    name: string;
-    category: 'food' | 'drink' | 'gug';
-    price_cents: number;
-    is_active?: boolean;
-    sort_order?: number;
-    bg_color?: string;
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; id: number }> {
-  return await apiRequest<{ success: boolean; id: number }>(
-    '/gug/v1/pos/articles',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-export async function updatePosArticle(
-  id: number,
-  payload: Partial<{
-    name: string;
-    category: 'food' | 'drink' | 'gug';
-    price_cents: number;
-    is_active: boolean;
-    sort_order: number;
-    bg_color: string;
-  }>,
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    `/gug/v1/pos/articles/${id}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-export async function createPosOrder(
-  payload: {
-    items: { article_id: number; qty: number }[];
-    received_cents?: number;
-    waiter_user_id?: number;
-    note?: string;
-  },
-  onUnauthorized: () => void
-): Promise<{
-  success: boolean;
-  order_id: number;
-  order_number: string;
-  waiter_user_id: number;
-  total_cents: number;
-  received_cents: number;
-  change_cents: number;
-}> {
-  return await apiRequest<{
-    success: boolean;
-    order_id: number;
-    order_number: string;
-    waiter_user_id: number;
-    total_cents: number;
-    received_cents: number;
-    change_cents: number;
-  }>(
-    '/gug/v1/pos/orders',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
-
-export async function getPosOrders(
-  params: { date?: string; waiter_user_id?: number } = {},
-  onUnauthorized: () => void
-): Promise<PosOrder[]> {
-
-  const q: string[] = [];
-  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
-  if (params.waiter_user_id) q.push(`waiter_user_id=${encodeURIComponent(String(params.waiter_user_id))}`);
-
-  const query = q.length ? `?${q.join('&')}` : '';
-
-  return await apiRequest<PosOrder[]>(
-    `/gug/v1/pos/orders${query}`,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function getPosDailyReport(
-  params: { date?: string } = {},
-  onUnauthorized: () => void
-): Promise<PosDailyReport> {
-
-  const query = params.date ? `?date=${encodeURIComponent(params.date)}` : '';
-
-  return await apiRequest<PosDailyReport>(
-    `/gug/v1/pos/reports/daily${query}`,
-    {},
-    onUnauthorized
-  );
-}
+export default ProjectChatView;
