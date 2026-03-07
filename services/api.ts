@@ -262,6 +262,7 @@ export async function createProjectChatGroup(
 export async function updateProjectChatGroup(
   groupId: number,
   payload: Partial<{
+    project_id: number;
     name: string;
     can_write: boolean;
     can_upload_images: boolean;
