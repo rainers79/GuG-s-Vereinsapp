@@ -57,23 +57,22 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   centerLines,
   animationKey
 }) => {
-  const wheelGroupRef = useRef<SVGGElement>(null);
+  const outerWheelRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
-    if (!wheelGroupRef.current) return;
+    if (!outerWheelRef.current) return;
 
-    const animation = wheelGroupRef.current.animate(
+    outerWheelRef.current.getAnimations().forEach((animation) => animation.cancel());
+
+    const animation = outerWheelRef.current.animate(
       [
-        {
-          transform: 'rotate(-140deg)'
-        },
-        {
-          transform: 'rotate(0deg)'
-        }
+        { transform: 'rotate(-220deg)' },
+        { transform: 'rotate(18deg)' },
+        { transform: 'rotate(0deg)' }
       ],
       {
-        duration: 1400,
-        easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)',
+        duration: 1800,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards'
       }
     );
@@ -97,7 +96,13 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           ))}
         </defs>
 
-        <g ref={wheelGroupRef} transformOrigin={`${center}px ${center}px`}>
+        <g
+          ref={outerWheelRef}
+          style={{
+            transformBox: 'fill-box',
+            transformOrigin: `${center}px ${center}px`
+          }}
+        >
           {wheelItems.map((item, i) => {
             const startAngle = (i / wheelItems.length) * 360;
             const endAngle = ((i + 1) / wheelItems.length) * 360;
@@ -122,8 +127,8 @@ Z
             const label = polarToCartesian(center, center, labelRadius, mid);
             const lift = getSliceLift(i, wheelItems.length);
 
-            const baseDx = lift.dx;
-            const baseDy = lift.dy;
+            const translateX = hoveredIndex === i ? lift.dx : 0;
+            const translateY = hoveredIndex === i ? lift.dy : 0;
 
             return (
               <g
@@ -131,11 +136,7 @@ Z
                 onClick={() => handleWheelClick(item)}
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
-                transform={
-                  hoveredIndex === i
-                    ? `translate(${baseDx}, ${baseDy})`
-                    : `translate(${baseDx}, ${baseDy})`
-                }
+                transform={`translate(${translateX}, ${translateY})`}
                 style={{
                   cursor: item.comingSoon ? 'default' : 'pointer',
                   transition: 'transform 0.22s ease, filter 0.22s ease'
@@ -167,44 +168,45 @@ Z
               </g>
             );
           })}
-
-          <circle
-            cx={center}
-            cy={center}
-            r={centerRadius}
-            fill="#d6c39a"
-            stroke="none"
-          />
-
-          <text
-            x={center}
-            y={center}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#000"
-            fontWeight="900"
-            fontSize="14"
-          >
-            {centerLines.map((line, idx) => (
-              <tspan
-                key={idx}
-                x={center}
-                dy={
-                  idx === 0
-                    ? centerLines.length > 1
-                      ? -((centerLines.length - 1) * 7)
-                      : 0
-                    : 14
-                }
-              >
-                {line}
-              </tspan>
-            ))}
-          </text>
         </g>
+
+        <circle
+          cx={center}
+          cy={center}
+          r={centerRadius}
+          fill="#d6c39a"
+          stroke="none"
+        />
+
+        <text
+          x={center}
+          y={center}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#000"
+          fontWeight="900"
+          fontSize="14"
+          style={{ pointerEvents: 'none' }}
+        >
+          {centerLines.map((line, idx) => (
+            <tspan
+              key={idx}
+              x={center}
+              dy={
+                idx === 0
+                  ? centerLines.length > 1
+                    ? -((centerLines.length - 1) * 7)
+                    : 0
+                  : 14
+              }
+            >
+              {line}
+            </tspan>
+          ))}
+        </text>
       </svg>
     </div>
   );
 };
 
-export default ProjectsWheelMenu;;
+export default ProjectsWheelMenu;
