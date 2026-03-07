@@ -1,19 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { ViewType } from '../types';
 
-type WheelItem = {
+export type ProjectsWheelDisplayItem = {
   label: string;
+  actionKey: string;
   view?: ViewType;
   comingSoon?: boolean;
-  actionKey:
-    | 'calendar'
-    | 'tasks'
-    | 'polls'
-    | 'invoices'
-    | 'shopping'
-    | 'coreteam'
-    | 'chatlog'
-    | 'more';
+  projectId?: number;
+  slotType: 'project' | 'action' | 'next' | 'prev' | 'empty' | 'locked';
 };
 
 interface Point {
@@ -22,10 +16,10 @@ interface Point {
 }
 
 interface Props {
-  wheelItems: WheelItem[];
+  wheelItems: ProjectsWheelDisplayItem[];
   hoveredIndex: number | null;
   setHoveredIndex: (i: number | null) => void;
-  handleWheelClick: (item: WheelItem) => void;
+  handleWheelClick: (item: ProjectsWheelDisplayItem) => void;
   wheelColors: string[];
   center: number;
   centerRadius: number;
@@ -39,6 +33,8 @@ interface Props {
   ) => Point;
   getSliceLift: (index: number, total: number) => { dx: number; dy: number };
   centerLines: string[];
+  centerSubLabel?: string;
+  onCenterClick?: () => void;
   animationKey: number;
 }
 
@@ -57,6 +53,8 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   polarToCartesian,
   getSliceLift,
   centerLines,
+  centerSubLabel,
+  onCenterClick,
   animationKey
 }) => {
   const rotatingRingRef = useRef<SVGGElement>(null);
@@ -92,47 +90,21 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   const innerGapRadius = 20;
   const cornerRoundStroke = 20;
 
+  const getSegmentColor = (item: ProjectsWheelDisplayItem, index: number) => {
+    if (item.slotType === 'empty') return '#d6d6d6';
+    if (item.slotType === 'next' || item.slotType === 'prev') return '#B5A47A';
+    if (item.slotType === 'locked') return '#8a8a8a';
+    return wheelColors[index] || '#cccccc';
+  };
+
+  const getTextColor = (item: ProjectsWheelDisplayItem) => {
+    if (item.slotType === 'empty') return '#5f5f5f';
+    return '#111111';
+  };
+
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
-        <defs>
-          {wheelColors.map((color, i) => (
-            <React.Fragment key={i}>
-              <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
-                <stop offset="8%" stopColor={color} stopOpacity="1" />
-                <stop offset="58%" stopColor={color} stopOpacity="1" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.14" />
-              </linearGradient>
-
-              <linearGradient id={`seg-rim-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
-                <stop offset="14%" stopColor="#ffffff" stopOpacity="0.1" />
-                <stop offset="40%" stopColor="#ffffff" stopOpacity="0" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </linearGradient>
-
-              <radialGradient id={`seg-gloss-${i}`} cx="35%" cy="18%" r="95%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.20" />
-                <stop offset="22%" stopColor="#ffffff" stopOpacity="0.10" />
-                <stop offset="52%" stopColor="#ffffff" stopOpacity="0.03" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
-
-              <linearGradient id={`seg-bottom-shade-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
-                <stop offset="70%" stopColor="#000000" stopOpacity="0.02" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.10" />
-              </linearGradient>
-            </React.Fragment>
-          ))}
-
-          <radialGradient id="center-fill" cx="50%" cy="35%" r="75%">
-            <stop offset="0%" stopColor="#ded2b0" />
-            <stop offset="100%" stopColor="#cdbd96" />
-          </radialGradient>
-        </defs>
-
         <g
           ref={rotatingRingRef}
           style={{
@@ -171,45 +143,32 @@ Z
 
             const translateX = hoveredIndex === i ? lift.dx * 2 : lift.dx;
             const translateY = hoveredIndex === i ? lift.dy * 2 : lift.dy;
-            const segmentColor = wheelColors[i] || '#cccccc';
+            const segmentColor = getSegmentColor(item, i);
+            const textColor = getTextColor(item);
 
             return (
               <g
-                key={i}
+                key={`${item.actionKey}-${item.projectId ?? i}`}
                 onClick={() => handleWheelClick(item)}
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 transform={`translate(${translateX}, ${translateY})`}
                 style={{
-                  cursor: item.comingSoon ? 'default' : 'pointer',
+                  cursor:
+                    item.slotType === 'empty' || item.slotType === 'locked'
+                      ? 'default'
+                      : 'pointer',
                   transition: 'transform 0.28s ease'
                 }}
               >
                 <path
                   d={path}
-                  fill={`url(#seg-fill-${i})`}
+                  fill={segmentColor}
                   stroke={segmentColor}
                   strokeWidth={cornerRoundStroke}
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                />
-
-                <path
-                  d={path}
-                  fill={`url(#seg-rim-${i})`}
-                  stroke="none"
-                />
-
-                <path
-                  d={path}
-                  fill={`url(#seg-gloss-${i})`}
-                  stroke="none"
-                />
-
-                <path
-                  d={path}
-                  fill={`url(#seg-bottom-shade-${i})`}
-                  stroke="none"
+                  opacity={item.slotType === 'empty' ? 0.55 : 1}
                 />
 
                 <text
@@ -217,7 +176,7 @@ Z
                   y={label.y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="#111111"
+                  fill={textColor}
                   fontWeight="900"
                   fontSize="13"
                 >
@@ -228,18 +187,18 @@ Z
           })}
         </g>
 
-        <g>
+        <g onClick={onCenterClick} style={{ cursor: onCenterClick ? 'pointer' : 'default' }}>
           <circle
             cx={center}
             cy={center}
             r={centerRadius}
-            fill="url(#center-fill)"
+            fill="#cdbd96"
             stroke="none"
           />
 
           <text
             x={center}
-            y={center}
+            y={center - (centerSubLabel ? 8 : 0)}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#111111"
@@ -263,6 +222,21 @@ Z
               </tspan>
             ))}
           </text>
+
+          {centerSubLabel && (
+            <text
+              x={center}
+              y={center + 26}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#111111"
+              fontWeight="700"
+              fontSize="11"
+              style={{ pointerEvents: 'none' }}
+            >
+              {centerSubLabel}
+            </text>
+          )}
         </g>
       </svg>
     </div>
