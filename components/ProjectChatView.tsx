@@ -22,12 +22,24 @@ type ProjectLite = {
 };
 
 const LS_ACTIVE_PROJECT = 'gug_active_project';
+const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
+const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
 
 const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [project, setProject] = useState<ProjectLite | null>(null);
 
   const [groups, setGroups] = useState<ProjectChatGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+
+  const [openChatGroupId, setOpenChatGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
 
   const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -75,6 +87,10 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     return groups.find((group) => group.id === selectedGroupId) || null;
   }, [groups, selectedGroupId]);
 
+  const openChatGroup = useMemo(() => {
+    return groups.find((group) => group.id === openChatGroupId) || null;
+  }, [groups, openChatGroupId]);
+
   useEffect(() => {
     if (!selectedGroup) return;
     setEditingProjectId(String(selectedGroup.project_id));
@@ -82,6 +98,22 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     setEditingGroupCanWrite(selectedGroup.can_write);
     setEditingGroupCanUploadImages(selectedGroup.can_upload_images);
   }, [selectedGroup]);
+
+  useEffect(() => {
+    if (selectedGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+    }
+  }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (openChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(openChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    }
+  }, [openChatGroupId]);
 
   useEffect(() => {
     if (!activeProjectId) return;
@@ -110,6 +142,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
       if (list.length === 0) {
         setSelectedGroupId(null);
+        setOpenChatGroupId(null);
         setMessages([]);
         setGroupMembers([]);
         setPermissions([]);
@@ -121,6 +154,13 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
           return prev;
         }
         return list[0].id;
+      });
+
+      setOpenChatGroupId((prev) => {
+        if (prev && list.some((group) => group.id === prev)) {
+          return prev;
+        }
+        return null;
       });
     } catch (e: any) {
       setError(e?.message || 'Chat-Gruppen konnten nicht geladen werden.');
@@ -196,20 +236,27 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
   useEffect(() => {
     if (!selectedGroupId) return;
-    loadMessages(selectedGroupId);
     loadGroupMembers(selectedGroupId);
     loadPermissions(selectedGroupId);
   }, [selectedGroupId]);
 
   useEffect(() => {
-    if (!selectedGroupId || !activeProjectId) return;
+    if (!openChatGroupId) {
+      setMessages([]);
+      return;
+    }
+    loadMessages(openChatGroupId);
+  }, [openChatGroupId]);
+
+  useEffect(() => {
+    if (!openChatGroupId || !activeProjectId) return;
 
     const interval = setInterval(() => {
-      loadMessages(selectedGroupId);
+      loadMessages(openChatGroupId);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [selectedGroupId, activeProjectId]);
+  }, [openChatGroupId, activeProjectId]);
 
   const handleCreateGroup = async () => {
     const name = newGroupName.trim();
@@ -253,6 +300,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
       if (result?.id) {
         setSelectedGroupId(Number(result.id));
+        setOpenChatGroupId(null);
       }
     } catch (e: any) {
       setError(e?.message || 'Chat-Gruppe konnte nicht erstellt werden.');
@@ -301,12 +349,11 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       setSuccess(projectChanged ? 'Gruppe wurde einem anderen Projekt zugeordnet.' : 'Gruppe gespeichert.');
 
       if (projectChanged) {
-        if (nextProjectId === activeProjectId) {
-          await loadGroups();
-        } else {
-          setSelectedGroupId(null);
-          await loadGroups();
+        if (openChatGroupId === selectedGroup.id) {
+          setOpenChatGroupId(null);
         }
+        setSelectedGroupId(null);
+        await loadGroups();
         return;
       }
 
@@ -401,11 +448,28 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     }
   };
 
+  const handleOpenChat = async () => {
+    if (!selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    setOpenChatGroupId(selectedGroup.id);
+    setNewMessage('');
+    await loadMessages(selectedGroup.id);
+  };
+
+  const handleCloseChat = () => {
+    setOpenChatGroupId(null);
+    setMessages([]);
+    setNewMessage('');
+  };
+
   const handleSendMessage = async () => {
     const message = newMessage.trim();
 
-    if (!selectedGroup) {
-      setError('Keine Gruppe ausgewählt.');
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
       return;
     }
 
@@ -426,7 +490,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       await api.sendProjectChatMessage(
         {
           project_id: activeProjectId,
-          group_id: selectedGroup.id,
+          group_id: openChatGroup.id,
           message,
           message_type: 'text'
         },
@@ -434,7 +498,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       );
 
       setNewMessage('');
-      await loadMessages(selectedGroup.id);
+      await loadMessages(openChatGroup.id);
     } catch (e: any) {
       setError(e?.message || 'Nachricht konnte nicht gesendet werden.');
     } finally {
@@ -456,7 +520,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     <div className="space-y-6">
       <div className="app-card">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-black">Projekt Chat</h1>
+          <h1 className="text-2xl font-black">Projekt Chat Verwaltung</h1>
           <div className="text-sm text-slate-500 dark:text-white/60">
             Projekt:{' '}
             <span className="font-black text-slate-900 dark:text-white">
@@ -466,19 +530,10 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
       </div>
 
-      {error && (
-        <div className="alert-error">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert-error">{error}</div>}
+      {success && <div className="alert-success">{success}</div>}
 
-      {success && (
-        <div className="alert-success">
-          {success}
-        </div>
-      )}
-
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6">
+      <div className="grid lg:grid-cols-[300px_1fr] gap-6">
         <div className="space-y-6">
           <div className="app-card space-y-4">
             <div className="flex items-center justify-between">
@@ -500,22 +555,37 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
             ) : (
               <div className="space-y-2">
                 {groups.map((group) => {
-                  const isActive = group.id === selectedGroupId;
+                  const isSelected = group.id === selectedGroupId;
+                  const isOpen = group.id === openChatGroupId;
 
                   return (
                     <button
                       key={group.id}
                       type="button"
-                      onClick={() => setSelectedGroupId(group.id)}
+                      onClick={() => {
+                        setSelectedGroupId(group.id);
+                        setError(null);
+                        setSuccess(null);
+                      }}
                       className={`w-full text-left rounded-xl px-4 py-3 transition ${
-                        isActive
+                        isSelected
                           ? 'bg-[#B5A47A] text-[#1A1A1A]'
                           : 'bg-slate-50 dark:bg-[#121212] text-slate-900 dark:text-white'
                       }`}
                     >
-                      <div className="font-black">{group.name}</div>
-                      <div className={`text-[11px] mt-1 ${isActive ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                        Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-black">{group.name}</div>
+                          <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                            Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                          </div>
+                        </div>
+
+                        {isOpen && (
+                          <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
+                            Chat offen
+                          </div>
+                        )}
                       </div>
                     </button>
                   );
@@ -586,115 +656,47 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
           {!selectedGroup ? (
             <div className="app-card">
               <div className="text-sm text-slate-500 dark:text-white/60">
-                Bitte zuerst eine Gruppe auswählen.
+                Bitte zuerst links eine Gruppe auswählen. Erst danach kannst du sie bearbeiten, Mitglieder zuweisen, Rechte setzen oder den Chat öffnen.
               </div>
             </div>
           ) : (
             <>
               <div className="app-card space-y-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-black">{selectedGroup.name}</h2>
-                    <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                      Projekt-ID: {selectedGroup.project_id} · Schreiben: {selectedGroup.can_write ? 'ja' : 'nein'} · Bilder: {selectedGroup.can_upload_images ? 'ja' : 'nein'}
+                    <h2 className="text-lg font-black">Gruppenverwaltung</h2>
+                    <div className="text-sm text-slate-500 dark:text-white/60 mt-1">
+                      Ausgewählt:{' '}
+                      <span className="font-black text-slate-900 dark:text-white">
+                        {selectedGroup.name}
+                      </span>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => loadMessages(selectedGroup.id)}
-                    disabled={loadingMessages}
-                    className="btn-secondary"
-                  >
-                    {loadingMessages ? '...' : 'Chat laden'}
-                  </button>
+                  <div className="flex gap-2">
+                    {openChatGroupId === selectedGroup.id ? (
+                      <button
+                        type="button"
+                        onClick={handleCloseChat}
+                        className="btn-secondary"
+                      >
+                        Chat schließen
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleOpenChat}
+                        className="btn-primary"
+                      >
+                        Chat öffnen
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
-                  {messages.length === 0 ? (
-                    <div className="text-sm text-slate-500 dark:text-white/60">
-                      Noch keine Nachrichten vorhanden.
-                    </div>
-                  ) : (
-                    messages.map((message) => {
-                      const own = Number(message.user_id) === Number(user.id);
-
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {!own && (
-                            <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
-                              {message.profile_image_url ? (
-                                <img
-                                  src={message.profile_image_url}
-                                  alt={message.display_name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : null}
-                            </div>
-                          )}
-
-                          <div
-                            className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                              own
-                                ? 'bg-[#B5A47A] text-[#1A1A1A]'
-                                : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
-                            }`}
-                          >
-                            <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                              {message.display_name}
-                            </div>
-                            <div className="text-sm whitespace-pre-wrap break-words">
-                              {message.message}
-                            </div>
-                            <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
-                              {new Date(message.created_at).toLocaleString('de-AT', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    className="form-input flex-1"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Nachricht schreiben..."
-                    disabled={sendingMessage}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={handleSendMessage}
-                    disabled={sendingMessage || !newMessage.trim()}
-                    className="btn-primary"
-                  >
-                    {sendingMessage ? '...' : 'Senden'}
-                  </button>
-                </div>
-              </div>
-
-              {isAdmin && (
                 <div className="grid xl:grid-cols-3 gap-6">
                   <div className="app-card space-y-4">
-                    <h2 className="text-lg font-black">Gruppe bearbeiten</h2>
+                    <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
 
                     <div className="space-y-2">
                       <label className="form-label">Projekt-ID</label>
@@ -751,7 +753,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
                   <div className="app-card space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-black">Mitglieder</h2>
+                      <h3 className="text-lg font-black">Mitglieder</h3>
                       <button
                         type="button"
                         onClick={() => loadGroupMembers(selectedGroup.id)}
@@ -806,7 +808,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
                   <div className="app-card space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-black">Einzelrechte</h2>
+                      <h3 className="text-lg font-black">Einzelrechte</h3>
                       <button
                         type="button"
                         onClick={() => loadPermissions(selectedGroup.id)}
@@ -900,6 +902,108 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {openChatGroup && (
+                <div className="app-card space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
+                      <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                        Projekt-ID: {openChatGroup.project_id} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => loadMessages(openChatGroup.id)}
+                      disabled={loadingMessages}
+                      className="btn-secondary"
+                    >
+                      {loadingMessages ? '...' : 'Chat laden'}
+                    </button>
+                  </div>
+
+                  <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
+                    {messages.length === 0 ? (
+                      <div className="text-sm text-slate-500 dark:text-white/60">
+                        Noch keine Nachrichten vorhanden.
+                      </div>
+                    ) : (
+                      messages.map((message) => {
+                        const own = Number(message.user_id) === Number(user.id);
+
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
+                          >
+                            {!own && (
+                              <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                                {message.profile_image_url ? (
+                                  <img
+                                    src={message.profile_image_url}
+                                    alt={message.display_name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                            )}
+
+                            <div
+                              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                                own
+                                  ? 'bg-[#B5A47A] text-[#1A1A1A]'
+                                  : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
+                              }`}
+                            >
+                              <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                                {message.display_name}
+                              </div>
+                              <div className="text-sm whitespace-pre-wrap break-words">
+                                {message.message}
+                              </div>
+                              <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
+                                {new Date(message.created_at).toLocaleString('de-AT', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      className="form-input flex-1"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Nachricht schreiben..."
+                      disabled={sendingMessage}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={sendingMessage || !newMessage.trim()}
+                      className="btn-primary"
+                    >
+                      {sendingMessage ? '...' : 'Senden'}
+                    </button>
                   </div>
                 </div>
               )}
