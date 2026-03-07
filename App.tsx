@@ -14,7 +14,7 @@ import SettingsView from './components/SettingsView';
 import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
-import ProjectsView from './components/ProjectsView';   // NEU
+import ProjectsView from './components/ProjectsView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -118,7 +118,7 @@ const App: React.FC = () => {
       const currentUser = await api.getCurrentUser(handleUnauthorized);
       setUser(currentUser);
 
-     const pollData = await api.getPolls(handleUnauthorized);
+      const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
     } catch (err: any) {
       setError(err?.message || 'Fehler beim Laden.');
@@ -298,17 +298,17 @@ const App: React.FC = () => {
           />
         );
 
-case 'polls':
-  return (
-    <PollList
-      polls={polls}
-      user={user!}
-      selectedPollId={selectedPollId}
-      onRefresh={fetchAppData}
-      onUnauthorized={handleUnauthorized}
-      onBackToProjects={() => setActiveView('projects')}
-    />
-  );
+      case 'polls':
+        return (
+          <PollList
+            polls={polls}
+            user={user!}
+            selectedPollId={selectedPollId}
+            onRefresh={fetchAppData}
+            onUnauthorized={handleUnauthorized}
+            onBackToProjects={() => setActiveView('projects')}
+          />
+        );
 
       case 'settings':
         return (
@@ -334,6 +334,7 @@ case 'polls':
             userId={user!.id}
             userRole={user!.role}
             onUnauthorized={handleUnauthorized}
+            onBack={() => setActiveView('projects')}
           />
         );
 
