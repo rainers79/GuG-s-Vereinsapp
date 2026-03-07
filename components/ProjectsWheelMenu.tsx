@@ -99,30 +99,31 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           {wheelColors.map((color, i) => (
             <React.Fragment key={i}>
               <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
-                <stop offset="10%" stopColor={color} stopOpacity="1" />
-                <stop offset="68%" stopColor={color} stopOpacity="1" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
+                <stop offset="8%" stopColor={color} stopOpacity="1" />
+                <stop offset="58%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.14" />
               </linearGradient>
 
-              <linearGradient id={`seg-cushion-top-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
-                <stop offset="16%" stopColor="#ffffff" stopOpacity="0.14" />
-                <stop offset="34%" stopColor="#ffffff" stopOpacity="0" />
+              <linearGradient id={`seg-rim-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
+                <stop offset="14%" stopColor="#ffffff" stopOpacity="0.1" />
+                <stop offset="40%" stopColor="#ffffff" stopOpacity="0" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </linearGradient>
 
-              <linearGradient id={`seg-cushion-bottom-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
-                <stop offset="70%" stopColor="#000000" stopOpacity="0.02" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.12" />
-              </linearGradient>
-
-              <radialGradient id={`seg-cushion-center-${i}`} cx="50%" cy="38%" r="55%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
-                <stop offset="45%" stopColor="#ffffff" stopOpacity="0.06" />
+              <radialGradient id={`seg-gloss-${i}`} cx="35%" cy="18%" r="95%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.20" />
+                <stop offset="22%" stopColor="#ffffff" stopOpacity="0.10" />
+                <stop offset="52%" stopColor="#ffffff" stopOpacity="0.03" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </radialGradient>
+
+              <linearGradient id={`seg-bottom-shade-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                <stop offset="70%" stopColor="#000000" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.10" />
+              </linearGradient>
             </React.Fragment>
           ))}
 
@@ -195,19 +196,19 @@ Z
 
                 <path
                   d={path}
-                  fill={`url(#seg-cushion-top-${i})`}
+                  fill={`url(#seg-rim-${i})`}
                   stroke="none"
                 />
 
                 <path
                   d={path}
-                  fill={`url(#seg-cushion-bottom-${i})`}
+                  fill={`url(#seg-gloss-${i})`}
                   stroke="none"
                 />
 
                 <path
                   d={path}
-                  fill={`url(#seg-cushion-center-${i})`}
+                  fill={`url(#seg-bottom-shade-${i})`}
                   stroke="none"
                 />
 
@@ -219,6 +220,9 @@ Z
                   fill="#111111"
                   fontWeight="900"
                   fontSize="13"
+                  style={{
+                    filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.12))'
+                  }}
                 >
                   {item.label}
                 </text>
