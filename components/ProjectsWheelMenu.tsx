@@ -88,7 +88,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     };
   }, [animationKey]);
 
-  const segmentGapAngle = 20;
+  const segmentGapAngle = 9;
   const innerGapRadius = 20;
   const cornerRoundStroke = 20;
 
