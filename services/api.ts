@@ -385,6 +385,44 @@ export async function sendProjectChatMessage(
   );
 }
 
+export async function uploadProjectChatImage(
+  payload: {
+    project_id: number;
+    group_id: number;
+    file: File;
+    message?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  id: number;
+  attachment_id: number;
+  attachment_url: string;
+}> {
+  const formData = new FormData();
+  formData.append('project_id', String(payload.project_id));
+  formData.append('group_id', String(payload.group_id));
+  formData.append('file', payload.file);
+
+  if (payload.message && payload.message.trim()) {
+    formData.append('message', payload.message.trim());
+  }
+
+  return await apiRequest<{
+    success: boolean;
+    id: number;
+    attachment_id: number;
+    attachment_url: string;
+  }>(
+    '/gug/v1/project-chat/upload',
+    {
+      method: 'POST',
+      body: formData
+    },
+    onUnauthorized
+  );
+}
+
 /* =====================================================
    POLLS
 ===================================================== */
