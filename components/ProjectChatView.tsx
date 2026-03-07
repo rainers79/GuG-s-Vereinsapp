@@ -24,6 +24,7 @@ type ProjectLite = {
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
+const LS_PROJECT_CHAT_ENTRY_MODE = 'gug_project_chat_entry_mode';
 
 const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [project, setProject] = useState<ProjectLite | null>(null);
@@ -39,6 +40,11 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     const raw = localStorage.getItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     const n = raw ? Number(raw) : 0;
     return Number.isFinite(n) && n > 0 ? n : null;
+  });
+
+  const [entryMode, setEntryMode] = useState<'admin' | 'chat'>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_ENTRY_MODE);
+    return raw === 'chat' ? 'chat' : 'admin';
   });
 
   const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
@@ -116,6 +122,10 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
   }, [openChatGroupId]);
 
   useEffect(() => {
+    localStorage.setItem(LS_PROJECT_CHAT_ENTRY_MODE, entryMode);
+  }, [entryMode]);
+
+  useEffect(() => {
     if (!activeProjectId) return;
 
     api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized)
@@ -160,7 +170,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
         if (prev && list.some((group) => group.id === prev)) {
           return prev;
         }
-        return null;
+        return entryMode === 'chat' ? list[0].id : null;
       });
     } catch (e: any) {
       setError(e?.message || 'Chat-Gruppen konnten nicht geladen werden.');
@@ -235,10 +245,10 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
   }, [activeProjectId]);
 
   useEffect(() => {
-    if (!selectedGroupId) return;
+    if (!selectedGroupId || entryMode !== 'admin') return;
     loadGroupMembers(selectedGroupId);
     loadPermissions(selectedGroupId);
-  }, [selectedGroupId]);
+  }, [selectedGroupId, entryMode]);
 
   useEffect(() => {
     if (!openChatGroupId) {
@@ -301,6 +311,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       if (result?.id) {
         setSelectedGroupId(Number(result.id));
         setOpenChatGroupId(null);
+        setEntryMode('admin');
       }
     } catch (e: any) {
       setError(e?.message || 'Chat-Gruppe konnte nicht erstellt werden.');
@@ -454,6 +465,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       return;
     }
 
+    setEntryMode('chat');
     setOpenChatGroupId(selectedGroup.id);
     setNewMessage('');
     await loadMessages(selectedGroup.id);
@@ -520,7 +532,9 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     <div className="space-y-6">
       <div className="app-card">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-black">Projekt Chat Verwaltung</h1>
+          <h1 className="text-2xl font-black">
+            {entryMode === 'chat' ? 'Projekt Chat' : 'Projekt Chat Verwaltung'}
+          </h1>
           <div className="text-sm text-slate-500 dark:text-white/60">
             Projekt:{' '}
             <span className="font-black text-slate-900 dark:text-white">
@@ -533,136 +547,244 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       {error && <div className="alert-error">{error}</div>}
       {success && <div className="alert-success">{success}</div>}
 
-      <div className="grid lg:grid-cols-[300px_1fr] gap-6">
-        <div className="space-y-6">
+      {entryMode === 'chat' ? (
+        !openChatGroup ? (
+          <div className="app-card">
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Kein Chat geöffnet. Wähle im Projektrad eine Chat-Gruppe aus.
+            </div>
+          </div>
+        ) : (
           <div className="app-card space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">Gruppen</h2>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
+                <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                  Projekt-ID: {openChatGroup.project_id} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+                </div>
+              </div>
+
               <button
                 type="button"
-                onClick={loadGroups}
-                disabled={loadingGroups}
+                onClick={() => loadMessages(openChatGroup.id)}
+                disabled={loadingMessages}
                 className="btn-secondary"
               >
-                {loadingGroups ? '...' : 'Aktualisieren'}
+                {loadingMessages ? '...' : 'Chat laden'}
               </button>
             </div>
 
-            {groups.length === 0 ? (
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Noch keine Chat-Gruppen vorhanden.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groups.map((group) => {
-                  const isSelected = group.id === selectedGroupId;
-                  const isOpen = group.id === openChatGroupId;
+            <div className="h-[520px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-white/60">
+                  Noch keine Nachrichten vorhanden.
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const own = Number(message.user_id) === Number(user.id);
 
                   return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedGroupId(group.id);
-                        setError(null);
-                        setSuccess(null);
-                      }}
-                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                        isSelected
-                          ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                      }`}
+                    <div
+                      key={message.id}
+                      className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
-                            {group.name}
-                          </div>
-                          <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                            Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                          </div>
+                      {!own && (
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                          {message.profile_image_url ? (
+                            <img
+                              src={message.profile_image_url}
+                              alt={message.display_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : null}
                         </div>
+                      )}
 
-                        {isOpen && (
-                          <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
-                            Chat offen
-                          </div>
-                        )}
+                      <div
+                        className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                          own
+                            ? 'bg-[#B5A47A] text-[#1A1A1A]'
+                            : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
+                        }`}
+                      >
+                        <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                          {message.display_name}
+                        </div>
+                        <div className="text-sm whitespace-pre-wrap break-words">
+                          {message.message}
+                        </div>
+                        <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
+                          {new Date(message.created_at).toLocaleString('de-AT', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
                       </div>
-                    </button>
+                    </div>
                   );
-                })}
+                })
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                className="form-input flex-1"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Nachricht schreiben..."
+                disabled={sendingMessage}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                disabled={sendingMessage || !newMessage.trim()}
+                className="btn-primary"
+              >
+                {sendingMessage ? '...' : 'Senden'}
+              </button>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="grid lg:grid-cols-[300px_1fr] gap-6">
+          <div className="space-y-6">
+            <div className="app-card space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black">Gruppen</h2>
+                <button
+                  type="button"
+                  onClick={loadGroups}
+                  disabled={loadingGroups}
+                  className="btn-secondary"
+                >
+                  {loadingGroups ? '...' : 'Aktualisieren'}
+                </button>
+              </div>
+
+              {groups.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-white/60">
+                  Noch keine Chat-Gruppen vorhanden.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {groups.map((group) => {
+                    const isSelected = group.id === selectedGroupId;
+                    const isOpen = group.id === openChatGroupId;
+
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGroupId(group.id);
+                          setError(null);
+                          setSuccess(null);
+                        }}
+                        className={`w-full text-left rounded-xl border px-4 py-3 transition ${
+                          isSelected
+                            ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
+                            : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
+                              {group.name}
+                            </div>
+                            <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                              Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                            </div>
+                          </div>
+
+                          {isOpen && (
+                            <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
+                              Chat offen
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {isAdmin && (
+              <div className="app-card space-y-4">
+                <h2 className="text-lg font-black">Gruppe anlegen</h2>
+
+                <div className="space-y-2">
+                  <label className="form-label">Gruppenname</label>
+                  <input
+                    className="form-input"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="z.B. Leitungsteam"
+                    disabled={creatingGroup}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Projekt</label>
+                  <input
+                    className="form-input"
+                    value={project?.title || `Projekt #${activeProjectId}`}
+                    disabled
+                  />
+                </div>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanWrite}
+                    onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf schreiben</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanUploadImages}
+                    onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf Bilder senden</span>
+                </label>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCreateGroup}
+                    disabled={creatingGroup || !newGroupName.trim()}
+                    className="btn-primary"
+                  >
+                    {creatingGroup ? '...' : 'Gruppe anlegen'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          {isAdmin && (
-            <div className="app-card space-y-4">
-              <h2 className="text-lg font-black">Gruppe anlegen</h2>
-
-              <div className="space-y-2">
-                <label className="form-label">Gruppenname</label>
-                <input
-                  className="form-input"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="z.B. Leitungsteam"
-                  disabled={creatingGroup}
-                />
+          <div className="space-y-6">
+            {!selectedGroup ? (
+              <div className="app-card">
+                <div className="text-sm text-slate-500 dark:text-white/60">
+                  Bitte zuerst links eine Gruppe auswählen. Erst danach kannst du sie bearbeiten, Mitglieder zuweisen oder Rechte setzen.
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="form-label">Projekt</label>
-                <input
-                  className="form-input"
-                  value={project?.title || `Projekt #${activeProjectId}`}
-                  disabled
-                />
-              </div>
-
-              <label className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newGroupCanWrite}
-                  onChange={(e) => setNewGroupCanWrite(e.target.checked)}
-                  disabled={creatingGroup}
-                />
-                <span>Gruppe darf schreiben</span>
-              </label>
-
-              <label className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newGroupCanUploadImages}
-                  onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
-                  disabled={creatingGroup}
-                />
-                <span>Gruppe darf Bilder senden</span>
-              </label>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleCreateGroup}
-                  disabled={creatingGroup || !newGroupName.trim()}
-                  className="btn-primary"
-                >
-                  {creatingGroup ? '...' : 'Gruppe anlegen'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {!selectedGroup ? (
-            <div className="app-card">
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Bitte zuerst links eine Gruppe auswählen. Erst danach kannst du sie bearbeiten, Mitglieder zuweisen, Rechte setzen oder den Chat öffnen.
-              </div>
-            </div>
-          ) : (
-            <>
+            ) : (
               <div className="app-card space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
@@ -907,112 +1029,10 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                   </div>
                 </div>
               </div>
-
-              {openChatGroup && (
-                <div className="app-card space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
-                      <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                        Projekt-ID: {openChatGroup.project_id} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => loadMessages(openChatGroup.id)}
-                      disabled={loadingMessages}
-                      className="btn-secondary"
-                    >
-                      {loadingMessages ? '...' : 'Chat laden'}
-                    </button>
-                  </div>
-
-                  <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
-                    {messages.length === 0 ? (
-                      <div className="text-sm text-slate-500 dark:text-white/60">
-                        Noch keine Nachrichten vorhanden.
-                      </div>
-                    ) : (
-                      messages.map((message) => {
-                        const own = Number(message.user_id) === Number(user.id);
-
-                        return (
-                          <div
-                            key={message.id}
-                            className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
-                          >
-                            {!own && (
-                              <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
-                                {message.profile_image_url ? (
-                                  <img
-                                    src={message.profile_image_url}
-                                    alt={message.display_name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : null}
-                              </div>
-                            )}
-
-                            <div
-                              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                                own
-                                  ? 'bg-[#B5A47A] text-[#1A1A1A]'
-                                  : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
-                              }`}
-                            >
-                              <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                                {message.display_name}
-                              </div>
-                              <div className="text-sm whitespace-pre-wrap break-words">
-                                {message.message}
-                              </div>
-                              <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
-                                {new Date(message.created_at).toLocaleString('de-AT', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      className="form-input flex-1"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Nachricht schreiben..."
-                      disabled={sendingMessage}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={handleSendMessage}
-                      disabled={sendingMessage || !newMessage.trim()}
-                      className="btn-primary"
-                    >
-                      {sendingMessage ? '...' : 'Senden'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
