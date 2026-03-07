@@ -199,7 +199,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
-    return projects.find((p) => p.id === selectedProjectId) || null;
+    return projects.find((p) => Number(p.id) === Number(selectedProjectId)) || null;
   }, [projects, selectedProjectId]);
 
   useEffect(() => {
@@ -263,7 +263,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       label: project.title?.trim() || `Projekt #${project.id}`,
       actionKey: 'project',
       slotType: 'project',
-      projectId: project.id
+      projectId: Number(project.id)
     }));
 
     if (projectPage > 0) {
@@ -316,7 +316,13 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     try {
       const data = await api.apiRequest<Project[]>('/gug/v1/projects', {}, undefined);
-      const list = Array.isArray(data) ? data : [];
+      const list = Array.isArray(data)
+        ? data.map((p) => ({
+            ...p,
+            id: Number(p.id)
+          }))
+        : [];
+
       setProjects(list);
 
       if (!selectedProjectId && list.length > 0) {
@@ -387,7 +393,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
     if (wheelMode === 'project-select') {
       if (item.slotType === 'project' && item.projectId) {
-        setSelectedProjectId(item.projectId);
+        setSelectedProjectId(Number(item.projectId));
         localStorage.setItem('gug_active_project', String(item.projectId));
         setWheelMode('actions');
         triggerWheelAnimation();
@@ -429,7 +435,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     setError(null);
 
     try {
-      const res = await api.apiRequest<{ success?: boolean; id?: number; project_id?: number }>(
+      const res = await api.apiRequest<{ success?: boolean; id?: number | string; project_id?: number | string }>(
         '/gug/v1/projects',
         {
           method: 'POST',
@@ -438,22 +444,37 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         undefined
       );
 
-      const newId = (res?.id || res?.project_id) as number | undefined;
+      const rawNewId = res?.id ?? res?.project_id;
+      const newId = rawNewId ? Number(rawNewId) : undefined;
 
       setNewTitle('');
       setNewDescription('');
+
       await loadProjects();
 
-      if (newId) {
-        const newIndex = sortedProjects.findIndex((p) => p.id === newId);
+      if (newId && Number.isFinite(newId)) {
+        const refreshedProjects = await api
+          .apiRequest<Project[]>('/gug/v1/projects', {}, undefined)
+          .catch(() => []);
+
+        const normalizedProjects = Array.isArray(refreshedProjects)
+          ? refreshedProjects.map((p) => ({
+              ...p,
+              id: Number(p.id)
+            }))
+          : [];
+
+        setProjects(normalizedProjects);
+        setSelectedProjectId(newId);
+        localStorage.setItem('gug_active_project', String(newId));
+
+        const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
         if (newIndex >= 0) {
           setProjectPage(Math.floor(newIndex / PROJECT_PAGE_SIZE));
         } else {
           setProjectPage(0);
         }
 
-        setSelectedProjectId(newId);
-        localStorage.setItem('gug_active_project', String(newId));
         setWheelMode('actions');
         triggerWheelAnimation();
       }
@@ -690,7 +711,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                   key={p.id}
                   type="button"
                   onClick={() => {
-                    setSelectedProjectId(p.id);
+                    setSelectedProjectId(Number(p.id));
                     localStorage.setItem('gug_active_project', String(p.id));
                     setWheelMode('actions');
                     triggerWheelAnimation();
