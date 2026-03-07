@@ -27,7 +27,7 @@ interface Props {
   setHoveredIndex: (i: number | null) => void;
   handleWheelClick: (item: WheelItem) => void;
   wheelColors: string[];
-  wheelGroupRef: React.RefObject<SVGGElement | null>;
+  wheelGroupRef: React.RefObject<SVGGElement>;
   center: number;
   centerRadius: number;
   buttonRadius: number;
