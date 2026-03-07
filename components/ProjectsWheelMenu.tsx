@@ -94,30 +94,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
-        <defs>
-          {wheelColors.map((color, i) => (
-            <React.Fragment key={i}>
-              <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.12" />
-                <stop offset="10%" stopColor={color} stopOpacity="1" />
-                <stop offset="78%" stopColor={color} stopOpacity="1" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0.12" />
-              </linearGradient>
-
-              <linearGradient id={`seg-highlight-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
-                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.05" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </linearGradient>
-            </React.Fragment>
-          ))}
-
-          <radialGradient id="center-base" cx="50%" cy="35%" r="75%">
-            <stop offset="0%" stopColor="#ded2b0" />
-            <stop offset="100%" stopColor="#cdbd96" />
-          </radialGradient>
-        </defs>
-
         <g
           ref={rotatingRingRef}
           style={{
@@ -166,26 +142,12 @@ Z
                 transform={`translate(${translateX}, ${translateY})`}
                 style={{
                   cursor: item.comingSoon ? 'default' : 'pointer',
-                  transition: 'transform 0.28s ease, filter 0.28s ease'
+                  transition: 'transform 0.28s ease'
                 }}
               >
                 <path
                   d={path}
-                  fill={`url(#seg-fill-${i})`}
-                  stroke="#ffffff"
-                  strokeOpacity="0.12"
-                  strokeWidth="0.8"
-                  style={{
-                    filter:
-                      hoveredIndex === i
-                        ? 'drop-shadow(0 8px 14px rgba(0,0,0,0.2))'
-                        : 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))'
-                  }}
-                />
-
-                <path
-                  d={path}
-                  fill={`url(#seg-highlight-${i})`}
+                  fill={wheelColors[i] || '#cccccc'}
                   stroke="none"
                 />
 
@@ -210,10 +172,8 @@ Z
             cx={center}
             cy={center}
             r={centerRadius}
-            fill="url(#center-base)"
-            stroke="#ffffff"
-            strokeOpacity="0.1"
-            strokeWidth="1"
+            fill="#cdbd96"
+            stroke="none"
           />
 
           <text
