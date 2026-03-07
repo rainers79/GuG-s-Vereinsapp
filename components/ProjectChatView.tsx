@@ -74,6 +74,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
 
@@ -90,10 +91,6 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const openChatGroup = useMemo(() => {
     return groups.find((group) => group.id === openChatGroupId) || null;
   }, [groups, openChatGroupId]);
-
-  const selectedMemberCards = useMemo(() => {
-    return members.filter((member) => selectedMemberIds.includes(Number(member.id)));
-  }, [members, selectedMemberIds]);
 
   useEffect(() => {
     if (!selectedGroup) return;
@@ -510,6 +507,41 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
     }
   };
 
+  const handleUploadImage = async (file: File) => {
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.uploadProjectChatImage(
+        {
+          project_id: activeProjectId,
+          group_id: openChatGroup.id,
+          file,
+          message: newMessage.trim()
+        },
+        onUnauthorized
+      );
+
+      setNewMessage('');
+      await loadMessages(openChatGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Bild konnte nicht hochgeladen werden.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   if (!activeProjectId) {
     return (
       <div className="app-card">
@@ -538,7 +570,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
       {success && <div className="alert-success">{success}</div>}
 
       {!selectedGroup ? (
-        <>
+        <div className="space-y-6">
           <div className="app-card space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-black">Gruppen</h2>
@@ -558,44 +590,33 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
               </div>
             ) : (
               <div className="space-y-2">
-                {groups.map((group) => {
-                  const isSelected = group.id === selectedGroupId;
-                  const isOpen = group.id === openChatGroupId;
-
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedGroupId(group.id);
-                        setError(null);
-                        setSuccess(null);
-                      }}
-                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                        isSelected
-                          ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
-                            {group.name}
-                          </div>
-                          <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                            Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                          </div>
+                {groups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGroupId(group.id);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    className="w-full text-left rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 transition hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:text-white dark:hover:bg-[#181818]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-black text-slate-900 dark:text-white">
+                          {group.name}
                         </div>
-
-                        {isOpen && (
-                          <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
-                            Chat offen
-                          </div>
-                        )}
+                        <div className="mt-1 text-[11px] text-slate-500 dark:text-white/50">
+                          Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                        </div>
                       </div>
-                    </button>
-                  );
-                })}
+
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A]">
+                        Verwalten
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -656,9 +677,9 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
               </div>
             </div>
           )}
-        </>
+        </div>
       ) : (
-        <>
+        <div className="space-y-6">
           <div className="app-card space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -672,6 +693,14 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
               </div>
 
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGroupId(null)}
+                  className="btn-secondary"
+                >
+                  Zur Gruppenliste
+                </button>
+
                 {openChatGroupId === selectedGroup.id ? (
                   <button
                     type="button"
@@ -691,11 +720,13 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="grid xl:grid-cols-2 gap-6">
-              <div className="app-card space-y-4">
-                <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
+          <div className="app-card space-y-6">
+            <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
 
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="form-label">Projekt-ID</label>
                   <input
@@ -749,249 +780,25 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                 </div>
               </div>
 
-              <div className="app-card space-y-4">
-                <h3 className="text-lg font-black">Einzelrechte</h3>
+              <div className="space-y-6">
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Aktuell in der Gruppe</h3>
 
-                <div className="grid md:grid-cols-3 gap-3">
-                  <div className="space-y-2 md:col-span-1">
-                    <label className="form-label">Mitglied</label>
-                    <select
-                      className="form-input"
-                      value={permissionUserId}
-                      onChange={(e) => setPermissionUserId(e.target.value)}
-                      disabled={savingPermission}
-                    >
-                      <option value="">Bitte auswählen</option>
-                      {groupMembers.map((member) => (
-                        <option key={member.user_id} value={member.user_id}>
-                          {member.display_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="form-label">Schreibrecht</label>
-                    <select
-                      className="form-input"
-                      value={permissionCanWrite}
-                      onChange={(e) => setPermissionCanWrite(e.target.value)}
-                      disabled={savingPermission}
-                    >
-                      <option value="inherit">Von Gruppe übernehmen</option>
-                      <option value="allow">Erlauben</option>
-                      <option value="deny">Verbieten</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="form-label">Bildrecht</label>
-                    <select
-                      className="form-input"
-                      value={permissionCanUploadImages}
-                      onChange={(e) => setPermissionCanUploadImages(e.target.value)}
-                      disabled={savingPermission}
-                    >
-                      <option value="inherit">Von Gruppe übernehmen</option>
-                      <option value="allow">Erlauben</option>
-                      <option value="deny">Verbieten</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSavePermission}
-                    disabled={savingPermission || !permissionUserId}
-                    className="btn-primary"
-                  >
-                    {savingPermission ? '...' : 'Rechte speichern'}
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {permissions.length === 0 ? (
-                    <div className="text-sm text-slate-500 dark:text-white/60">
-                      Keine Einzelrechte gesetzt.
-                    </div>
-                  ) : (
-                    permissions.map((permission) => (
-                      <div
-                        key={`${permission.group_id}-${permission.user_id}`}
-                        className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3 text-sm"
-                      >
-                        <div className="font-black text-slate-900 dark:text-white">
-                          {permission.display_name}
-                        </div>
-                        <div className="text-slate-500 dark:text-white/60 mt-1">
-                          Schreiben:{' '}
-                          {permission.can_write_override === null
-                            ? 'Gruppe'
-                            : permission.can_write_override
-                              ? 'Erlaubt'
-                              : 'Verboten'}
-                        </div>
-                        <div className="text-slate-500 dark:text-white/60">
-                          Bilder:{' '}
-                          {permission.can_upload_images_override === null
-                            ? 'Gruppe'
-                            : permission.can_upload_images_override
-                              ? 'Erlaubt'
-                              : 'Verboten'}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Gruppen</h2>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={loadGroups}
-                disabled={loadingGroups}
-                className="btn-secondary"
-              >
-                {loadingGroups ? '...' : 'Aktualisieren'}
-              </button>
-            </div>
-
-            {groups.length === 0 ? (
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Noch keine Chat-Gruppen vorhanden.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groups.map((group) => {
-                  const isSelected = group.id === selectedGroupId;
-                  const isOpen = group.id === openChatGroupId;
-
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedGroupId(group.id);
-                        setError(null);
-                        setSuccess(null);
-                      }}
-                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                        isSelected
-                          ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
-                            {group.name}
-                          </div>
-                          <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                            Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                          </div>
-                        </div>
-
-                        {isOpen && (
-                          <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
-                            Chat offen
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Gruppe anlegen</h2>
-
-            <div className="space-y-2">
-              <label className="form-label">Gruppenname</label>
-              <input
-                className="form-input"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="z.B. Leitungsteam"
-                disabled={creatingGroup}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="form-label">Projekt</label>
-              <input
-                className="form-input"
-                value={project?.title || `Projekt #${activeProjectId}`}
-                disabled
-              />
-            </div>
-
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={newGroupCanWrite}
-                onChange={(e) => setNewGroupCanWrite(e.target.checked)}
-                disabled={creatingGroup}
-              />
-              <span>Gruppe darf schreiben</span>
-            </label>
-
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={newGroupCanUploadImages}
-                onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
-                disabled={creatingGroup}
-              />
-              <span>Gruppe darf Bilder senden</span>
-            </label>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleCreateGroup}
-                disabled={creatingGroup || !newGroupName.trim()}
-                className="btn-primary"
-              >
-                {creatingGroup ? '...' : 'Gruppe anlegen'}
-              </button>
-            </div>
-          </div>
-
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Mitglieder</h2>
-
-            {loadingMembers ? (
-              <div className="text-sm text-slate-500 dark:text-white/60">Lädt…</div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <div className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-white/50">
-                    Aktuell in der Gruppe
-                  </div>
-
-                  {selectedMemberCards.length === 0 ? (
+                  {groupMembers.length === 0 ? (
                     <div className="text-sm text-slate-500 dark:text-white/60">
                       Noch keine Mitglieder in dieser Gruppe.
                     </div>
                   ) : (
-                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {selectedMemberCards.map((member) => (
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {groupMembers.map((member) => (
                         <div
-                          key={`selected-${member.id}`}
-                          className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3 border border-slate-200 dark:border-white/10"
+                          key={member.user_id}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#121212]"
                         >
                           <div className="font-black text-slate-900 dark:text-white">
                             {member.display_name}
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-white/60 mt-1 break-all">
+                          <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
                             {member.email}
                           </div>
                         </div>
@@ -1000,32 +807,32 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                   )}
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <div className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-white/50">
-                    Mitglieder auswählen
-                  </div>
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Mitglieder auswählen</h3>
 
-                  {members.length === 0 ? (
+                  {loadingMembers ? (
+                    <div className="text-sm text-slate-500 dark:text-white/60">Lädt…</div>
+                  ) : members.length === 0 ? (
                     <div className="text-sm text-slate-500 dark:text-white/60">
                       Keine Mitglieder verfügbar.
                     </div>
                   ) : (
-                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
                       {members.map((member) => (
                         <label
                           key={member.id}
-                          className="flex items-start gap-3 rounded-lg bg-slate-50 dark:bg-[#121212] p-3 text-sm border border-slate-200 dark:border-white/10"
+                          className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm cursor-pointer hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:hover:bg-[#181818]"
                         >
                           <input
                             type="checkbox"
                             checked={selectedMemberIds.includes(Number(member.id))}
                             onChange={() => toggleMemberSelection(Number(member.id))}
                           />
-                          <div className="min-w-0">
+                          <div>
                             <div className="font-black text-slate-900 dark:text-white">
                               {member.display_name}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-white/60 break-all">
+                            <div className="text-xs text-slate-500 dark:text-white/60">
                               {member.email}
                             </div>
                           </div>
@@ -1033,21 +840,179 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                       ))}
                     </div>
                   )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveMembers}
+                      disabled={savingMembers}
+                      className="btn-primary"
+                    >
+                      {savingMembers ? '...' : 'Mitglieder speichern'}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSaveMembers}
-                    disabled={savingMembers}
-                    className="btn-primary"
-                  >
-                    {savingMembers ? '...' : 'Mitglieder speichern'}
-                  </button>
+                <div className="app-card space-y-4">
+                  <h3 className="text-lg font-black">Einzelrechte</h3>
+
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <label className="form-label">Mitglied</label>
+                      <select
+                        className="form-input"
+                        value={permissionUserId}
+                        onChange={(e) => setPermissionUserId(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="">Bitte auswählen</option>
+                        {groupMembers.map((member) => (
+                          <option key={member.user_id} value={member.user_id}>
+                            {member.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="form-label">Schreibrecht</label>
+                      <select
+                        className="form-input"
+                        value={permissionCanWrite}
+                        onChange={(e) => setPermissionCanWrite(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="inherit">Von Gruppe übernehmen</option>
+                        <option value="allow">Erlauben</option>
+                        <option value="deny">Verbieten</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="form-label">Bildrecht</label>
+                      <select
+                        className="form-input"
+                        value={permissionCanUploadImages}
+                        onChange={(e) => setPermissionCanUploadImages(e.target.value)}
+                        disabled={savingPermission}
+                      >
+                        <option value="inherit">Von Gruppe übernehmen</option>
+                        <option value="allow">Erlauben</option>
+                        <option value="deny">Verbieten</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSavePermission}
+                      disabled={savingPermission || !permissionUserId}
+                      className="btn-primary"
+                    >
+                      {savingPermission ? '...' : 'Rechte speichern'}
+                    </button>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {permissions.length === 0 ? (
+                      <div className="text-sm text-slate-500 dark:text-white/60">
+                        Keine Einzelrechte gesetzt.
+                      </div>
+                    ) : (
+                      permissions.map((permission) => (
+                        <div
+                          key={`${permission.group_id}-${permission.user_id}`}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-white/10 dark:bg-[#121212]"
+                        >
+                          <div className="font-black text-slate-900 dark:text-white">
+                            {permission.display_name}
+                          </div>
+                          <div className="text-slate-500 dark:text-white/60 mt-1">
+                            Schreiben:{' '}
+                            {permission.can_write_override === null
+                              ? 'Gruppe'
+                              : permission.can_write_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                          <div className="text-slate-500 dark:text-white/60">
+                            Bilder:{' '}
+                            {permission.can_upload_images_override === null
+                              ? 'Gruppe'
+                              : permission.can_upload_images_override
+                                ? 'Erlaubt'
+                                : 'Verboten'}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
           </div>
+
+          {isAdmin && (
+            <div className="app-card space-y-4">
+              <h2 className="text-lg font-black">Gruppe anlegen</h2>
+
+              <div className="grid lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="form-label">Gruppenname</label>
+                  <input
+                    className="form-input"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="z.B. Leitungsteam"
+                    disabled={creatingGroup}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Projekt</label>
+                  <input
+                    className="form-input"
+                    value={project?.title || `Projekt #${activeProjectId}`}
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanWrite}
+                    onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf schreiben</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newGroupCanUploadImages}
+                    onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                    disabled={creatingGroup}
+                  />
+                  <span>Gruppe darf Bilder senden</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCreateGroup}
+                  disabled={creatingGroup || !newGroupName.trim()}
+                  className="btn-primary"
+                >
+                  {creatingGroup ? '...' : 'Gruppe anlegen'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {openChatGroup && (
             <div className="app-card space-y-4">
@@ -1105,9 +1070,23 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                           <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
                             {message.display_name}
                           </div>
-                          <div className="text-sm whitespace-pre-wrap break-words">
-                            {message.message}
-                          </div>
+
+                          {message.message_type === 'image' && message.attachment_url && (
+                            <div className="mb-2">
+                              <img
+                                src={message.attachment_url}
+                                alt="Chat Bild"
+                                className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
+                              />
+                            </div>
+                          )}
+
+                          {message.message && (
+                            <div className="text-sm whitespace-pre-wrap break-words">
+                              {message.message}
+                            </div>
+                          )}
+
                           <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
                             {new Date(message.created_at).toLocaleString('de-AT', {
                               day: '2-digit',
@@ -1124,33 +1103,57 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <input
-                  className="form-input flex-1"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Nachricht schreiben..."
-                  disabled={sendingMessage}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input
+                    className="form-input flex-1"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Nachricht schreiben oder Bildtext ergänzen..."
+                    disabled={sendingMessage || uploadingImage}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
 
-                <button
-                  type="button"
-                  onClick={handleSendMessage}
-                  disabled={sendingMessage || !newMessage.trim()}
-                  className="btn-primary"
-                >
-                  {sendingMessage ? '...' : 'Senden'}
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleSendMessage}
+                    disabled={sendingMessage || uploadingImage || !newMessage.trim()}
+                    className="btn-primary"
+                  >
+                    {sendingMessage ? '...' : 'Senden'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="btn-secondary cursor-pointer">
+                    {uploadingImage ? 'Upload läuft...' : 'Bild auswählen'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingImage || sendingMessage}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        handleUploadImage(file);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+
+                  <div className="text-xs text-slate-500 dark:text-white/60">
+                    Bild wird direkt in den Chat hochgeladen.
+                  </div>
+                </div>
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
