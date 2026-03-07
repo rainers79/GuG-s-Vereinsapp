@@ -15,6 +15,7 @@ import CalendarView from './components/CalendarView';
 import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 import ProjectsView from './components/ProjectsView';
+import ProjectChatView from './components/project-chat/ProjectChatView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -334,6 +335,14 @@ const App: React.FC = () => {
         return (
           <ProjectsView
             onNavigate={navigateTo}
+          />
+        );
+
+      case 'project-chat':
+        return (
+          <ProjectChatView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
           />
         );
 
