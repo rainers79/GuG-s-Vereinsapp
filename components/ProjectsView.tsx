@@ -106,6 +106,7 @@ const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
+const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -263,11 +264,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     list.sort((a, b) => a.name.localeCompare(b.name, 'de'));
     return list;
   }, [chatGroups]);
-
-  const selectedChatGroup = useMemo(() => {
-    if (!selectedChatGroupId) return null;
-    return sortedChatGroups.find((group) => Number(group.id) === Number(selectedChatGroupId)) || null;
-  }, [sortedChatGroups, selectedChatGroupId]);
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -531,6 +527,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setSelectedChatGroupId(null);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
       }
 
@@ -678,6 +675,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       if (item.slotType === 'project' && item.projectId) {
         const nextGroupId = Number(item.projectId);
         localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
+        localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
         setSelectedChatGroupId(nextGroupId);
         onNavigate('project-chat');
         return;
@@ -767,6 +765,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
 
         const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
         if (newIndex >= 0) {
@@ -915,6 +914,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     onClick={() => {
                       setSelectedChatGroupId(group.id);
                       localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
+                      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
                       onNavigate('project-chat');
                     }}
                     className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
@@ -946,7 +946,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                           isActive ? 'text-[#1A1A1A]/70' : 'text-slate-600 dark:text-white/40'
                         }`}
                       >
-                        Chat
+                        Verwalten
                       </div>
                     </div>
                   </button>
@@ -1098,6 +1098,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                         localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
                         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
                         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+                        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
                         setSelectedProjectId(nextId);
                         setSelectedChatGroupId(null);
                         setWheelMode('actions');
