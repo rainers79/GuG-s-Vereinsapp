@@ -1,1149 +1,1210 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ViewType } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  AppRole,
+  Member,
+  ProjectChatGroup,
+  ProjectChatGroupMember,
+  ProjectChatMessage,
+  ProjectChatPermission,
+  User
+} from '../types';
 import * as api from '../services/api';
-import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 
 interface Props {
-  onNavigate: (view: ViewType) => void;
+  user: User;
+  onUnauthorized: () => void;
 }
 
-type Project = {
+type ProjectLite = {
   id: number;
   title?: string;
   description?: string;
-  created_at?: string;
-  updated_at?: string;
-  start_date?: string | null;
-  end_date?: string | null;
-  next_date?: string | null;
-  target_date?: string | null;
 };
-
-type LinkType = 'event' | 'task' | 'poll';
-
-type CalendarEventLite = {
-  id: string;
-  title: string;
-  date?: string;
-  target_date?: string;
-};
-
-type TaskLite = {
-  id: number;
-  title: string;
-  deadline_date?: string | null;
-  status?: string;
-};
-
-type PollLite = {
-  id: number;
-  question: string;
-  target_date?: string;
-  created_at?: string;
-};
-
-type ProjectChatGroupLite = {
-  id: number;
-  project_id: number;
-  name: string;
-  can_write: boolean;
-  can_upload_images: boolean;
-  created_by: number;
-  created_at: string;
-  updated_at?: string | null;
-};
-
-export interface WheelItem {
-  label: string;
-  view?: ViewType;
-  comingSoon?: boolean;
-  actionKey:
-    | 'calendar'
-    | 'tasks'
-    | 'polls'
-    | 'invoices'
-    | 'shopping'
-    | 'coreteam'
-    | 'chatlog'
-    | 'more';
-}
-
-type WheelMode = 'project-select' | 'actions' | 'chat-groups';
-
-const actionWheelItems: WheelItem[] = [
-  { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
-  { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
-  { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
-  { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
-  { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
-  { label: 'Kernteam', comingSoon: true, actionKey: 'coreteam' },
-  { label: 'Projekt Chat', actionKey: 'chatlog' },
-  { label: 'comming soon', comingSoon: true, actionKey: 'more' }
-];
-
-const center = 200;
-const centerRadius = 70;
-const buttonRadius = 170;
-const labelRadius = 125;
-
-const wheelColors = [
-  '#2D8CFF',
-  '#FF9A2B',
-  '#FF4FB3',
-  '#E6A61A',
-  '#7C3AED',
-  '#65C431',
-  '#F44336',
-  '#53B62C'
-];
-
-const PROJECT_PAGE_SIZE = 6;
-const CHAT_GROUP_PAGE_SIZE = 6;
-const WHEEL_SLOT_COUNT = 8;
 
 const LS_ACTIVE_PROJECT = 'gug_active_project';
-const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
-const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
-const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
 const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
 
-const safeDate = (raw?: string | null): Date | null => {
-  if (!raw) return null;
-  const d = new Date(raw);
-  return Number.isFinite(d.getTime()) ? d : null;
-};
+const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
+  const [project, setProject] = useState<ProjectLite | null>(null);
 
-const formatDate = (raw?: string | null) => {
-  const d = safeDate(raw);
-  if (!d) return '';
-  return d.toLocaleDateString('de-AT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
+  const [groups, setGroups] = useState<ProjectChatGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
   });
-};
 
-const pickProjectDate = (p: Project): Date | null => {
-  return (
-    safeDate(p.next_date) ||
-    safeDate(p.target_date) ||
-    safeDate(p.start_date) ||
-    safeDate(p.created_at) ||
-    null
-  );
-};
+  const [openChatGroupId, setOpenChatGroupId] = useState<number | null>(() => {
+    const raw = localStorage.getItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
 
-const wrapLines = (text: string, maxLineLen = 14): string[] => {
-  const t = (text || '').trim();
-  if (!t) return ['Projekt'];
+  const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [groupMembers, setGroupMembers] = useState<ProjectChatGroupMember[]>([]);
+  const [permissions, setPermissions] = useState<ProjectChatPermission[]>([]);
 
-  const words = t.split(/\s+/);
-  const lines: string[] = [];
-  let current = '';
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  for (const w of words) {
-    const next = current ? `${current} ${w}` : w;
-    if (next.length <= maxLineLen) {
-      current = next;
-      continue;
-    }
-    if (current) lines.push(current);
-    if (w.length > maxLineLen) {
-      lines.push(w.slice(0, maxLineLen));
-      current = w.slice(maxLineLen);
-    } else {
-      current = w;
-    }
-  }
-
-  if (current) lines.push(current);
-
-  return lines.slice(0, 3);
-};
-
-export const polarToCartesian = (
-  cx: number,
-  cy: number,
-  radius: number,
-  angleDeg: number
-) => {
-  const angleRad = (angleDeg - 90) * (Math.PI / 180);
-  return {
-    x: cx + radius * Math.cos(angleRad),
-    y: cy + radius * Math.sin(angleRad)
-  };
-};
-
-export const getSliceLift = (index: number, total: number) => {
-  const sliceAngle = 360 / total;
-  const midDeg = index * sliceAngle + sliceAngle / 2;
-  const midRad = (midDeg - 90) * (Math.PI / 180);
-  const lift = 12;
-
-  return {
-    dx: Math.cos(midRad) * lift,
-    dy: Math.sin(midRad) * lift
-  };
-};
-
-const getStoredProjectId = (): number | null => {
-  const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
-
-const getStoredWheelMode = (): WheelMode => {
-  const raw = localStorage.getItem(LS_PROJECTS_WHEEL_MODE);
-  if (raw === 'actions') return 'actions';
-  if (raw === 'chat-groups') return 'chat-groups';
-  return 'project-select';
-};
-
-const getStoredProjectPage = (): number => {
-  const raw = localStorage.getItem(LS_PROJECTS_PAGE);
-  const n = raw ? Number(raw) : 0;
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-};
-
-const getStoredChatGroupId = (): number | null => {
-  const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_ID);
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
-
-const getStoredChatGroupPage = (): number => {
-  const raw = localStorage.getItem(LS_PROJECT_CHAT_GROUP_PAGE);
-  const n = raw ? Number(raw) : 0;
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-};
-
-const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
-  const [loading, setLoading] = useState(false);
-  const [loadingChatGroups, setLoadingChatGroups] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => getStoredProjectId());
-
-  const [chatGroups, setChatGroups] = useState<ProjectChatGroupLite[]>([]);
-  const [selectedChatGroupId, setSelectedChatGroupId] = useState<number | null>(() => getStoredChatGroupId());
-
-  const [newTitle, setNewTitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const [events, setEvents] = useState<CalendarEventLite[]>([]);
-  const [tasks, setTasks] = useState<TaskLite[]>([]);
-  const [polls, setPolls] = useState<PollLite[]>([]);
-
-  const [assignType, setAssignType] = useState<LinkType>('event');
-  const [assignId, setAssignId] = useState<string>('');
-  const [assigning, setAssigning] = useState(false);
-  const [assignResult, setAssignResult] = useState<string | null>(null);
-
-  const [wheelMode, setWheelMode] = useState<WheelMode>(() => getStoredWheelMode());
-  const [projectPage, setProjectPage] = useState<number>(() => getStoredProjectPage());
-  const [chatGroupPage, setChatGroupPage] = useState<number>(() => getStoredChatGroupPage());
-
-  const loadedOnce = useRef(false);
-  const hasStartedInitialWheelAnimation = useRef(false);
-  const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
-
-  const selectedProject = useMemo(() => {
-    if (!selectedProjectId) return null;
-    return projects.find((p) => Number(p.id) === Number(selectedProjectId)) || null;
-  }, [projects, selectedProjectId]);
-
-  const sortedChatGroups = useMemo(() => {
-    const list = [...chatGroups];
-    list.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-    return list;
-  }, [chatGroups]);
-
-  useEffect(() => {
-    if (selectedProjectId) {
-      localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
-    } else {
-      localStorage.removeItem(LS_ACTIVE_PROJECT);
-    }
-  }, [selectedProjectId]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, wheelMode);
-  }, [wheelMode]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECTS_PAGE, String(projectPage));
-  }, [projectPage]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(chatGroupPage));
-  }, [chatGroupPage]);
-
-  useEffect(() => {
-    if (selectedChatGroupId) {
-      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedChatGroupId));
-    } else {
-      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-    }
-  }, [selectedChatGroupId]);
-
-  const sortedProjects = useMemo(() => {
-    const now = new Date();
-    const list = [...projects];
-
-    list.sort((a, b) => {
-      const da = pickProjectDate(a);
-      const db = pickProjectDate(b);
-
-      const aIsPast = da ? da.getTime() < now.getTime() : false;
-      const bIsPast = db ? db.getTime() < now.getTime() : false;
-
-      if (aIsPast !== bIsPast) return aIsPast ? 1 : -1;
-
-      if (!da && !db) return (b.id || 0) - (a.id || 0);
-      if (!da) return 1;
-      if (!db) return -1;
-
-      const diff = da.getTime() - db.getTime();
-      if (diff !== 0) return diff;
-
-      return (b.id || 0) - (a.id || 0);
-    });
-
-    return list;
-  }, [projects]);
-
-  const projectPageCount = useMemo(() => {
-    return Math.max(1, Math.ceil(sortedProjects.length / PROJECT_PAGE_SIZE));
-  }, [sortedProjects]);
-
-  const chatGroupPageCount = useMemo(() => {
-    return Math.max(1, Math.ceil(sortedChatGroups.length / CHAT_GROUP_PAGE_SIZE));
-  }, [sortedChatGroups]);
-
-  useEffect(() => {
-    if (projectPage > projectPageCount - 1) {
-      setProjectPage(Math.max(0, projectPageCount - 1));
-    }
-  }, [projectPage, projectPageCount]);
-
-  useEffect(() => {
-    if (chatGroupPage > chatGroupPageCount - 1) {
-      setChatGroupPage(Math.max(0, chatGroupPageCount - 1));
-    }
-  }, [chatGroupPage, chatGroupPageCount]);
-
-  useEffect(() => {
-    if (!selectedProjectId || sortedProjects.length === 0) return;
-
-    const selectedIndex = sortedProjects.findIndex((p) => Number(p.id) === Number(selectedProjectId));
-    if (selectedIndex < 0) return;
-
-    const targetPage = Math.floor(selectedIndex / PROJECT_PAGE_SIZE);
-    if (targetPage !== projectPage) {
-      setProjectPage(targetPage);
-    }
-  }, [selectedProjectId, sortedProjects, projectPage]);
-
-  useEffect(() => {
-    if (!selectedChatGroupId || sortedChatGroups.length === 0) return;
-
-    const selectedIndex = sortedChatGroups.findIndex((g) => Number(g.id) === Number(selectedChatGroupId));
-    if (selectedIndex < 0) return;
-
-    const targetPage = Math.floor(selectedIndex / CHAT_GROUP_PAGE_SIZE);
-    if (targetPage !== chatGroupPage) {
-      setChatGroupPage(targetPage);
-    }
-  }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
-
-  const currentProjectPageItems = useMemo(() => {
-    const start = projectPage * PROJECT_PAGE_SIZE;
-    return sortedProjects.slice(start, start + PROJECT_PAGE_SIZE);
-  }, [sortedProjects, projectPage]);
-
-  const currentChatGroupPageItems = useMemo(() => {
-    const start = chatGroupPage * CHAT_GROUP_PAGE_SIZE;
-    return sortedChatGroups.slice(start, start + CHAT_GROUP_PAGE_SIZE);
-  }, [sortedChatGroups, chatGroupPage]);
-
-  const wheelDisplayItems = useMemo<ProjectsWheelDisplayItem[]>(() => {
-    if (wheelMode === 'actions') {
-      return actionWheelItems.map((item) => ({
-        label: item.label,
-        actionKey: item.actionKey,
-        view: item.view,
-        comingSoon: item.comingSoon,
-        slotType: item.comingSoon ? 'locked' : 'action'
-      }));
-    }
-
-    if (wheelMode === 'chat-groups') {
-      const items: ProjectsWheelDisplayItem[] = currentChatGroupPageItems.map((group) => ({
-        label: group.name?.trim() || `Chat #${group.id}`,
-        actionKey: 'chat-group',
-        slotType: 'project',
-        projectId: Number(group.id)
-      }));
-
-      if (chatGroupPage > 0) {
-        items.push({
-          label: 'Zurück',
-          actionKey: 'chat-prev',
-          slotType: 'prev'
-        });
-      }
-
-      if (chatGroupPage < chatGroupPageCount - 1) {
-        items.push({
-          label: 'Weiter',
-          actionKey: 'chat-next',
-          slotType: 'next'
-        });
-      }
-
-      while (items.length < WHEEL_SLOT_COUNT) {
-        items.push({
-          label: sortedChatGroups.length === 0 ? 'Keine Gruppe' : 'Freier Slot',
-          actionKey: 'empty',
-          slotType: 'empty'
-        });
-      }
-
-      return items.slice(0, WHEEL_SLOT_COUNT);
-    }
-
-    const items: ProjectsWheelDisplayItem[] = currentProjectPageItems.map((project) => ({
-      label: project.title?.trim() || `Projekt #${project.id}`,
-      actionKey: 'project',
-      slotType: 'project',
-      projectId: Number(project.id)
-    }));
-
-    if (projectPage > 0) {
-      items.push({
-        label: 'Zurück',
-        actionKey: 'prev',
-        slotType: 'prev'
-      });
-    }
-
-    if (projectPage < projectPageCount - 1) {
-      items.push({
-        label: 'Weiter',
-        actionKey: 'next',
-        slotType: 'next'
-      });
-    }
-
-    while (items.length < WHEEL_SLOT_COUNT) {
-      items.push({
-        label: 'Freier Slot',
-        actionKey: 'empty',
-        slotType: 'empty'
-      });
-    }
-
-    return items.slice(0, WHEEL_SLOT_COUNT);
-  }, [
-    wheelMode,
-    currentProjectPageItems,
-    currentChatGroupPageItems,
-    projectPage,
-    projectPageCount,
-    chatGroupPage,
-    chatGroupPageCount,
-    sortedChatGroups.length
-  ]);
-
-  const centerTitle = useMemo(() => {
-    if (wheelMode === 'project-select') return 'Projektauswahl';
-    if (wheelMode === 'chat-groups') {
-      const title = selectedProject?.title?.trim();
-      return title ? `${title} Chat` : 'Projekt Chat';
-    }
-    const title = selectedProject?.title?.trim();
-    return title ? title : 'Projekt';
-  }, [wheelMode, selectedProject]);
-
-  const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
-
-  const centerSubLabel = useMemo(() => {
-    if (wheelMode === 'project-select') {
-      return `${projectPage + 1}/${projectPageCount}`;
-    }
-
-    if (wheelMode === 'chat-groups') {
-      if (sortedChatGroups.length === 0) {
-        return '0/0';
-      }
-      return `${chatGroupPage + 1}/${chatGroupPageCount}`;
-    }
-
-    return '';
-  }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
-
-  const triggerWheelAnimation = () => {
-    setWheelAnimationTick((prev) => prev + 1);
-  };
-
-  const loadProjects = async () => {
-    setError(null);
-    setLoading(true);
-
-    try {
-      const data = await api.apiRequest<Project[]>('/gug/v1/projects', {}, undefined);
-      const list = Array.isArray(data)
-        ? data.map((p) => ({
-            ...p,
-            id: Number(p.id)
-          }))
-        : [];
-
-      setProjects(list);
-
-      const storedId = getStoredProjectId();
-      const storedMode = getStoredWheelMode();
-      const storedPage = getStoredProjectPage();
-
-      if (Number.isFinite(storedPage) && storedPage >= 0) {
-        setProjectPage(storedPage);
-      }
-
-      if (storedId && list.some((p) => Number(p.id) === Number(storedId))) {
-        setSelectedProjectId(storedId);
-        setWheelMode(storedMode);
-      } else if (selectedProjectId && list.some((p) => Number(p.id) === Number(selectedProjectId))) {
-        setWheelMode(getStoredWheelMode());
-      } else {
-        setSelectedProjectId(null);
-        setWheelMode('project-select');
-        setSelectedChatGroupId(null);
-        localStorage.removeItem(LS_ACTIVE_PROJECT);
-        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-      }
-
-      if (list.length > 0 && !hasStartedInitialWheelAnimation.current) {
-        hasStartedInitialWheelAnimation.current = true;
-        triggerWheelAnimation();
-      }
-    } catch (e: any) {
-      setError(e?.message || 'Projekte konnten nicht geladen werden.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadChatGroups = async (projectId: number) => {
-    if (!projectId) {
-      setChatGroups([]);
-      setSelectedChatGroupId(null);
-      return;
-    }
-
-    setLoadingChatGroups(true);
-
-    try {
-      const data = await api.getProjectChatGroups(projectId, undefined as any);
-      const list = Array.isArray(data)
-        ? data.map((g) => ({
-            ...g,
-            id: Number(g.id),
-            project_id: Number(g.project_id)
-          }))
-        : [];
-
-      setChatGroups(list);
-
-      const storedChatGroupId = getStoredChatGroupId();
-      const storedChatGroupPage = getStoredChatGroupPage();
-
-      if (Number.isFinite(storedChatGroupPage) && storedChatGroupPage >= 0) {
-        setChatGroupPage(storedChatGroupPage);
-      }
-
-      if (storedChatGroupId && list.some((g) => Number(g.id) === Number(storedChatGroupId))) {
-        setSelectedChatGroupId(storedChatGroupId);
-      } else if (list.length > 0) {
-        setSelectedChatGroupId(list[0].id);
-      } else {
-        setSelectedChatGroupId(null);
-        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-      }
-    } catch {
-      setChatGroups([]);
-      setSelectedChatGroupId(null);
-      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-    } finally {
-      setLoadingChatGroups(false);
-    }
-  };
-
-  const loadAssignableData = async () => {
-    try {
-      const [ev, ta, po] = await Promise.all([
-        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, undefined).catch(() => []),
-        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined).catch(() => []),
-        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, undefined).catch(() => [])
-      ]);
-
-      setEvents(Array.isArray(ev) ? ev : []);
-      setTasks(Array.isArray(ta) ? ta : []);
-      setPolls(Array.isArray(po) ? po : []);
-    } catch {
-      // silent
-    }
-  };
-
-  useEffect(() => {
-    if (loadedOnce.current) return;
-    loadedOnce.current = true;
-    loadProjects();
-    loadAssignableData();
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupCanWrite, setNewGroupCanWrite] = useState(true);
+  const [newGroupCanUploadImages, setNewGroupCanUploadImages] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  const [editingProjectId, setEditingProjectId] = useState<string>('');
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [editingGroupCanWrite, setEditingGroupCanWrite] = useState(true);
+  const [editingGroupCanUploadImages, setEditingGroupCanUploadImages] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
+
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [savingMembers, setSavingMembers] = useState(false);
+
+  const [permissionUserId, setPermissionUserId] = useState<string>('');
+  const [permissionCanWrite, setPermissionCanWrite] = useState<string>('inherit');
+  const [permissionCanUploadImages, setPermissionCanUploadImages] = useState<string>('inherit');
+  const [savingPermission, setSavingPermission] = useState(false);
+
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+
+  const activeProjectId = useMemo(() => {
+    const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
   }, []);
 
+  const selectedGroup = useMemo(() => {
+    return groups.find((group) => group.id === selectedGroupId) || null;
+  }, [groups, selectedGroupId]);
+
+  const openChatGroup = useMemo(() => {
+    return groups.find((group) => group.id === openChatGroupId) || null;
+  }, [groups, openChatGroupId]);
+
+  const isDirectChatMode = useMemo(() => {
+    return !!openChatGroup;
+  }, [openChatGroup]);
+
   useEffect(() => {
-    if (!selectedProjectId) {
-      setChatGroups([]);
-      setSelectedChatGroupId(null);
-      return;
+    if (!selectedGroup) return;
+    setEditingProjectId(String(selectedGroup.project_id));
+    setEditingGroupName(selectedGroup.name);
+    setEditingGroupCanWrite(selectedGroup.can_write);
+    setEditingGroupCanUploadImages(selectedGroup.can_upload_images);
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (selectedGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
     }
+  }, [selectedGroupId]);
 
-    loadChatGroups(selectedProjectId);
-  }, [selectedProjectId]);
-
-  const handleCenterClick = () => {
-    if (wheelMode === 'project-select') {
-      if (selectedProjectId) {
-        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-        setWheelMode('actions');
-      }
-      return;
+  useEffect(() => {
+    if (openChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(openChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     }
+  }, [openChatGroupId]);
 
-    if (wheelMode === 'chat-groups') {
-      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-      setWheelMode('actions');
-      triggerWheelAnimation();
-      return;
-    }
+  useEffect(() => {
+    if (!activeProjectId) return;
 
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-    setWheelMode('project-select');
-    triggerWheelAnimation();
-  };
+    api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
+        setProject(found);
+      })
+      .catch(() => {
+        setProject(null);
+      });
+  }, [activeProjectId, onUnauthorized]);
 
-  const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
-    if (wheelMode === 'project-select') {
-      if (item.slotType === 'project' && item.projectId) {
-        const nextId = Number(item.projectId);
-        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-        setSelectedProjectId(nextId);
-        setWheelMode('actions');
-        triggerWheelAnimation();
-        return;
-      }
+  const loadGroups = async () => {
+    if (!activeProjectId) return;
 
-      if (item.slotType === 'next') {
-        const nextPage = Math.min(projectPage + 1, projectPageCount - 1);
-        localStorage.setItem(LS_PROJECTS_PAGE, String(nextPage));
-        setProjectPage(nextPage);
-        triggerWheelAnimation();
-        return;
-      }
-
-      if (item.slotType === 'prev') {
-        const prevPage = Math.max(projectPage - 1, 0);
-        localStorage.setItem(LS_PROJECTS_PAGE, String(prevPage));
-        setProjectPage(prevPage);
-        triggerWheelAnimation();
-      }
-
-      return;
-    }
-
-    if (wheelMode === 'chat-groups') {
-      if (item.slotType === 'project' && item.projectId) {
-        const nextGroupId = Number(item.projectId);
-        localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
-        localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
-        setSelectedChatGroupId(nextGroupId);
-        onNavigate('project-chat');
-        return;
-      }
-
-      if (item.slotType === 'next') {
-        const nextPage = Math.min(chatGroupPage + 1, chatGroupPageCount - 1);
-        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(nextPage));
-        setChatGroupPage(nextPage);
-        triggerWheelAnimation();
-        return;
-      }
-
-      if (item.slotType === 'prev') {
-        const prevPage = Math.max(chatGroupPage - 1, 0);
-        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(prevPage));
-        setChatGroupPage(prevPage);
-        triggerWheelAnimation();
-        return;
-      }
-
-      return;
-    }
-
-    if (item.slotType !== 'action') return;
-    if (!selectedProjectId) return;
-
-    localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-
-    if (item.actionKey === 'chatlog') {
-      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
-      setWheelMode('chat-groups');
-      triggerWheelAnimation();
-      return;
-    }
-
-    if (item.view) onNavigate(item.view);
-  };
-
-  const handleCreateProject = async () => {
-    const title = newTitle.trim();
-    const description = newDescription.trim();
-
-    if (!title) {
-      setError('Projektname fehlt.');
-      return;
-    }
-
-    setCreating(true);
+    setLoadingGroups(true);
     setError(null);
 
     try {
-      const res = await api.apiRequest<{ success?: boolean; id?: number | string; project_id?: number | string }>(
-        '/gug/v1/projects',
-        {
-          method: 'POST',
-          body: JSON.stringify({ title, description })
-        },
-        undefined
-      );
+      const data = await api.getProjectChatGroups(activeProjectId, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      setGroups(list);
 
-      const rawNewId = res?.id ?? res?.project_id;
-      const newId = rawNewId ? Number(rawNewId) : undefined;
-
-      setNewTitle('');
-      setNewDescription('');
-
-      await loadProjects();
-
-      if (newId && Number.isFinite(newId)) {
-        const refreshedProjects = await api
-          .apiRequest<Project[]>('/gug/v1/projects', {}, undefined)
-          .catch(() => []);
-
-        const normalizedProjects = Array.isArray(refreshedProjects)
-          ? refreshedProjects.map((p) => ({
-              ...p,
-              id: Number(p.id)
-            }))
-          : [];
-
-        setProjects(normalizedProjects);
-        setSelectedProjectId(newId);
-        setSelectedChatGroupId(null);
-        setChatGroups([]);
-        localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
-        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-
-        const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
-        if (newIndex >= 0) {
-          const page = Math.floor(newIndex / PROJECT_PAGE_SIZE);
-          localStorage.setItem(LS_PROJECTS_PAGE, String(page));
-          setProjectPage(page);
-        } else {
-          localStorage.setItem(LS_PROJECTS_PAGE, '0');
-          setProjectPage(0);
-        }
-
-        setWheelMode('actions');
-        triggerWheelAnimation();
+      if (list.length === 0) {
+        setSelectedGroupId(null);
+        setOpenChatGroupId(null);
+        setMessages([]);
+        setGroupMembers([]);
+        setPermissions([]);
+        return;
       }
+
+      setSelectedGroupId((prev) => {
+        if (prev && list.some((group) => group.id === prev)) {
+          return prev;
+        }
+        return list[0].id;
+      });
+
+      setOpenChatGroupId((prev) => {
+        if (prev && list.some((group) => group.id === prev)) {
+          return prev;
+        }
+        return null;
+      });
     } catch (e: any) {
-      setError(e?.message || 'Projekt konnte nicht erstellt werden.');
+      setError(e?.message || 'Chat-Gruppen konnten nicht geladen werden.');
     } finally {
-      setCreating(false);
+      setLoadingGroups(false);
     }
   };
 
-  const optionsForAssign = useMemo(() => {
-    if (assignType === 'event') {
-      return events.map((e) => ({
-        id: String(e.id),
-        label: `${e.title}${e.date ? ` (${formatDate(e.date)})` : ''}`
-      }));
-    }
+  const loadAllMembers = async () => {
+    if (!isAdmin) return;
 
-    if (assignType === 'task') {
-      return tasks.map((t) => ({
-        id: String(t.id),
-        label: `${t.title}${t.deadline_date ? ` (${formatDate(t.deadline_date)})` : ''}`
-      }));
-    }
-
-    return polls.map((p) => ({
-      id: String(p.id),
-      label: `${p.question}${p.target_date ? ` (${formatDate(p.target_date)})` : ''}`
-    }));
-  }, [assignType, events, tasks, polls]);
-
-  useEffect(() => {
-    setAssignId('');
-    setAssignResult(null);
-  }, [assignType, selectedProjectId]);
-
-  const handleAssignToProject = async () => {
-    if (!selectedProjectId) {
-      setAssignResult('Kein Projekt ausgewählt.');
-      return;
-    }
-
-    if (!assignId) {
-      setAssignResult('Kein Eintrag ausgewählt.');
-      return;
-    }
-
-    setAssigning(true);
-    setAssignResult(null);
+    setLoadingMembers(true);
 
     try {
-      const payload = {
-        project_id: selectedProjectId,
-        type: assignType,
-        item_id: Number(assignId)
-      };
-
-      await api.apiRequest<{ success: boolean; message?: string }>(
-        '/gug/v1/projects/link',
-        {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        },
-        undefined
-      );
-
-      setAssignResult('Zuordnung gespeichert.');
-      await loadAssignableData();
-    } catch (e: any) {
-      setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
+      const data = await api.getMembers(onUnauthorized);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch {
+      setMembers([]);
     } finally {
-      setAssigning(false);
+      setLoadingMembers(false);
     }
   };
 
-  return (
-    <div className="space-y-10">
-      {error && (
-        <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
-          {error}
+  const loadGroupMembers = async (groupId: number) => {
+    try {
+      const data = await api.getProjectChatGroupMembers(groupId, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      setGroupMembers(list);
+      setSelectedMemberIds(list.map((item) => Number(item.user_id)));
+    } catch {
+      setGroupMembers([]);
+      setSelectedMemberIds([]);
+    }
+  };
+
+  const loadPermissions = async (groupId: number) => {
+    try {
+      const data = await api.getProjectChatPermissions(groupId, onUnauthorized);
+      setPermissions(Array.isArray(data) ? data : []);
+    } catch {
+      setPermissions([]);
+    }
+  };
+
+  const loadMessages = async (groupId: number) => {
+    if (!activeProjectId) return;
+
+    setLoadingMessages(true);
+
+    try {
+      const data = await api.getProjectChatMessages(
+        {
+          project_id: activeProjectId,
+          group_id: groupId,
+          limit: 50
+        },
+        onUnauthorized
+      );
+
+      setMessages(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setError(e?.message || 'Nachrichten konnten nicht geladen werden.');
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGroups();
+    loadAllMembers();
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    loadGroupMembers(selectedGroupId);
+    loadPermissions(selectedGroupId);
+  }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (!openChatGroupId) {
+      setMessages([]);
+      return;
+    }
+    loadMessages(openChatGroupId);
+  }, [openChatGroupId]);
+
+  useEffect(() => {
+    if (!openChatGroupId || !activeProjectId) return;
+
+    const interval = setInterval(() => {
+      loadMessages(openChatGroupId);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [openChatGroupId, activeProjectId]);
+
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+
+    if (!isAdmin) {
+      setError('Keine Berechtigung zum Anlegen von Gruppen.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    if (!name) {
+      setError('Gruppenname fehlt.');
+      return;
+    }
+
+    setCreatingGroup(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const result = await api.createProjectChatGroup(
+        {
+          project_id: activeProjectId,
+          name,
+          can_write: newGroupCanWrite,
+          can_upload_images: newGroupCanUploadImages
+        },
+        onUnauthorized
+      );
+
+      setNewGroupName('');
+      setNewGroupCanWrite(true);
+      setNewGroupCanUploadImages(false);
+      setSuccess('Chat-Gruppe erstellt.');
+
+      await loadGroups();
+
+      if (result?.id) {
+        setSelectedGroupId(Number(result.id));
+        setOpenChatGroupId(null);
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Chat-Gruppe konnte nicht erstellt werden.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const handleSaveGroup = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    const name = editingGroupName.trim();
+    const nextProjectId = Number(editingProjectId);
+
+    if (!name) {
+      setError('Gruppenname fehlt.');
+      return;
+    }
+
+    if (!Number.isFinite(nextProjectId) || nextProjectId <= 0) {
+      setError('Projekt-Zuordnung fehlt.');
+      return;
+    }
+
+    setSavingGroup(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.updateProjectChatGroup(
+        selectedGroup.id,
+        {
+          project_id: nextProjectId,
+          name,
+          can_write: editingGroupCanWrite,
+          can_upload_images: editingGroupCanUploadImages
+        },
+        onUnauthorized
+      );
+
+      const projectChanged = Number(selectedGroup.project_id) !== nextProjectId;
+
+      setSuccess(projectChanged ? 'Gruppe wurde einem anderen Projekt zugeordnet.' : 'Gruppe gespeichert.');
+
+      if (projectChanged) {
+        if (openChatGroupId === selectedGroup.id) {
+          setOpenChatGroupId(null);
+        }
+        setSelectedGroupId(null);
+        await loadGroups();
+        return;
+      }
+
+      await loadGroups();
+    } catch (e: any) {
+      setError(e?.message || 'Gruppe konnte nicht gespeichert werden.');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const toggleMemberSelection = (userId: number) => {
+    setSelectedMemberIds((prev) => {
+      if (prev.includes(userId)) {
+        return prev.filter((id) => id !== userId);
+      }
+      return [...prev, userId];
+    });
+  };
+
+  const handleSaveMembers = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    setSavingMembers(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectChatGroupMembers(
+        {
+          group_id: selectedGroup.id,
+          members: selectedMemberIds
+        },
+        onUnauthorized
+      );
+
+      setSuccess('Gruppenmitglieder gespeichert.');
+      await loadGroupMembers(selectedGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Gruppenmitglieder konnten nicht gespeichert werden.');
+    } finally {
+      setSavingMembers(false);
+    }
+  };
+
+  const handleSavePermission = async () => {
+    if (!isAdmin || !selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    const userId = Number(permissionUserId);
+
+    if (!Number.isFinite(userId) || userId <= 0) {
+      setError('Bitte ein Mitglied auswählen.');
+      return;
+    }
+
+    setSavingPermission(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectChatPermission(
+        {
+          group_id: selectedGroup.id,
+          user_id: userId,
+          can_write_override:
+            permissionCanWrite === 'inherit'
+              ? null
+              : permissionCanWrite === 'allow',
+          can_upload_images_override:
+            permissionCanUploadImages === 'inherit'
+              ? null
+              : permissionCanUploadImages === 'allow'
+        },
+        onUnauthorized
+      );
+
+      setSuccess('Einzelrechte gespeichert.');
+      setPermissionUserId('');
+      setPermissionCanWrite('inherit');
+      setPermissionCanUploadImages('inherit');
+      await loadPermissions(selectedGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Einzelrechte konnten nicht gespeichert werden.');
+    } finally {
+      setSavingPermission(false);
+    }
+  };
+
+  const handleOpenChat = async () => {
+    if (!selectedGroup) {
+      setError('Keine Gruppe ausgewählt.');
+      return;
+    }
+
+    setOpenChatGroupId(selectedGroup.id);
+    setNewMessage('');
+    await loadMessages(selectedGroup.id);
+  };
+
+  const handleCloseChat = () => {
+    setOpenChatGroupId(null);
+    setMessages([]);
+    setNewMessage('');
+  };
+
+  const handleSendMessage = async () => {
+    const message = newMessage.trim();
+
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    if (!message) {
+      return;
+    }
+
+    setSendingMessage(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.sendProjectChatMessage(
+        {
+          project_id: activeProjectId,
+          group_id: openChatGroup.id,
+          message,
+          message_type: 'text'
+        },
+        onUnauthorized
+      );
+
+      setNewMessage('');
+      await loadMessages(openChatGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Nachricht konnte nicht gesendet werden.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!openChatGroup) {
+      setError('Kein Chat geöffnet.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.uploadProjectChatImage(
+        {
+          project_id: activeProjectId,
+          group_id: openChatGroup.id,
+          file,
+          message: newMessage.trim()
+        },
+        onUnauthorized
+      );
+
+      setNewMessage('');
+      await loadMessages(openChatGroup.id);
+    } catch (e: any) {
+      setError(e?.message || 'Bild konnte nicht hochgeladen werden.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  if (!activeProjectId) {
+    return (
+      <div className="app-card">
+        <div className="text-sm text-slate-500 dark:text-white/60">
+          Kein aktives Projekt gewählt. Öffne zuerst ein Projekt im Projektrad.
         </div>
-      )}
+      </div>
+    );
+  }
 
-      <ProjectsWheelMenu
-        wheelItems={wheelDisplayItems}
-        hoveredIndex={hoveredIndex}
-        setHoveredIndex={setHoveredIndex}
-        handleWheelClick={handleWheelClick}
-        wheelColors={wheelColors}
-        center={center}
-        centerRadius={centerRadius}
-        buttonRadius={buttonRadius}
-        labelRadius={labelRadius}
-        polarToCartesian={polarToCartesian}
-        getSliceLift={getSliceLift}
-        centerLines={centerLines}
-        centerSubLabel={centerSubLabel}
-        onCenterClick={handleCenterClick}
-        animationKey={wheelAnimationTick}
-      />
+  if (isDirectChatMode && openChatGroup) {
+    return (
+      <div className="space-y-6">
+        <div className="app-card">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-black">Projekt Chat</h1>
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Projekt:{' '}
+              <span className="font-black text-slate-900 dark:text-white">
+                {project?.title || `Projekt #${activeProjectId}`}
+              </span>
+            </div>
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Gruppe:{' '}
+              <span className="font-black text-slate-900 dark:text-white">
+                {openChatGroup.name}
+              </span>
+            </div>
+          </div>
+        </div>
 
-      {wheelMode === 'chat-groups' && (
+        {error && <div className="alert-error">{error}</div>}
+        {success && <div className="alert-success">{success}</div>}
+
         <div className="app-card space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
-              <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
-                {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
+              <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
+              <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
               </div>
             </div>
 
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenChatGroupId(null);
+                  setSelectedGroupId(openChatGroup.id);
+                }}
+                className="btn-secondary"
+              >
+                Zur Verwaltung
+              </button>
+
+              <button
+                type="button"
+                onClick={() => loadMessages(openChatGroup.id)}
+                disabled={loadingMessages}
+                className="btn-secondary"
+              >
+                {loadingMessages ? '...' : 'Chat laden'}
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
+            {messages.length === 0 ? (
+              <div className="text-sm text-slate-500 dark:text-white/60">
+                Noch keine Nachrichten vorhanden.
+              </div>
+            ) : (
+              messages.map((message) => {
+                const own = Number(message.user_id) === Number(user.id);
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${own ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {!own && (
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                        {message.profile_image_url ? (
+                          <img
+                            src={message.profile_image_url}
+                            alt={message.display_name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                        own
+                          ? 'bg-[#B5A47A] text-[#1A1A1A]'
+                          : 'bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10'
+                      }`}
+                    >
+                      <div className={`text-[11px] font-black mb-1 ${own ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
+                        {message.display_name}
+                      </div>
+
+                      {message.message_type === 'image' && message.attachment_url && (
+                        <div className="mb-2">
+                          <img
+                            src={message.attachment_url}
+                            alt="Chat Bild"
+                            className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
+                          />
+                        </div>
+                      )}
+
+                      {message.message && (
+                        <div className="text-sm whitespace-pre-wrap break-words">
+                          {message.message}
+                        </div>
+                      )}
+
+                      <div className={`text-[10px] mt-2 ${own ? 'text-[#1A1A1A]/60' : 'text-slate-400 dark:text-white/40'}`}>
+                        {new Date(message.created_at).toLocaleString('de-AT', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <input
+                className="form-input flex-1"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Nachricht schreiben oder Bildtext ergänzen..."
+                disabled={sendingMessage || uploadingImage}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                disabled={sendingMessage || uploadingImage || !newMessage.trim()}
+                className="btn-primary"
+              >
+                {sendingMessage ? '...' : 'Senden'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="btn-secondary cursor-pointer">
+                {uploadingImage ? 'Upload läuft...' : 'Bild auswählen'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingImage || sendingMessage}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    handleUploadImage(file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+
+              <div className="text-xs text-slate-500 dark:text-white/60">
+                Bild wird direkt in den Chat hochgeladen.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedGroup) {
+    return (
+      <div className="space-y-6">
+        <div className="app-card">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-black">Projekt Chat Verwaltung</h1>
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Projekt:{' '}
+              <span className="font-black text-slate-900 dark:text-white">
+                {project?.title || `Projekt #${activeProjectId}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {error && <div className="alert-error">{error}</div>}
+        {success && <div className="alert-success">{success}</div>}
+
+        <div className="app-card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black">Gruppen</h2>
             <button
               type="button"
-              onClick={() => selectedProjectId && loadChatGroups(selectedProjectId)}
-              disabled={loadingChatGroups || !selectedProjectId}
+              onClick={loadGroups}
+              disabled={loadingGroups}
               className="btn-secondary"
             >
-              {loadingChatGroups ? '...' : 'Aktualisieren'}
+              {loadingGroups ? '...' : 'Aktualisieren'}
             </button>
           </div>
 
-          {sortedChatGroups.length === 0 ? (
-            <div className="text-sm text-slate-500 dark:text-white/50">
-              Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
+          {groups.length === 0 ? (
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Noch keine Chat-Gruppen vorhanden.
             </div>
           ) : (
-            <div className="space-y-3">
-              {sortedChatGroups.map((group) => {
-                const isActive = group.id === selectedChatGroupId;
-
-                return (
-                  <button
-                    key={group.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChatGroupId(group.id);
-                      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
-                      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                      onNavigate('project-chat');
-                    }}
-                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
-                      isActive
-                        ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                        : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div
-                          className={`font-black ${
-                            isActive ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
-                          }`}
-                        >
-                          {group.name}
-                        </div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
-                          }`}
-                        >
-                          Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                        </div>
+            <div className="space-y-2">
+              {groups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedGroupId(group.id);
+                    setOpenChatGroupId(null);
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="w-full text-left rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 transition hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:text-white dark:hover:bg-[#181818]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-900 dark:text-white">
+                        {group.name}
                       </div>
-
-                      <div
-                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isActive ? 'text-[#1A1A1A]/70' : 'text-slate-600 dark:text-white/40'
-                        }`}
-                      >
-                        Verwalten
+                      <div className="mt-1 text-[11px] text-slate-500 dark:text-white/50">
+                        Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
                       </div>
                     </div>
-                  </button>
-                );
-              })}
+
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A]">
+                      Verwalten
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
-      )}
 
-      {wheelMode !== 'chat-groups' && (
-        <>
+        {isAdmin && (
           <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Projekt erstellen</h2>
+            <h2 className="text-lg font-black">Gruppe anlegen</h2>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Projektname
-                </label>
-                <input
-                  className="form-input w-full"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="z.B. Ostermarkt 2026"
-                  disabled={creating}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Beschreibung
-                </label>
-                <input
-                  className="form-input w-full"
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Kurzbeschreibung"
-                  disabled={creating}
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="form-label">Gruppenname</label>
+              <input
+                className="form-input"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="z.B. Leitungsteam"
+                disabled={creatingGroup}
+              />
             </div>
+
+            <div className="space-y-2">
+              <label className="form-label">Projekt</label>
+              <input
+                className="form-input"
+                value={project?.title || `Projekt #${activeProjectId}`}
+                disabled
+              />
+            </div>
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={newGroupCanWrite}
+                onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                disabled={creatingGroup}
+              />
+              <span>Gruppe darf schreiben</span>
+            </label>
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={newGroupCanUploadImages}
+                onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                disabled={creatingGroup}
+              />
+              <span>Gruppe darf Bilder senden</span>
+            </label>
 
             <div className="flex justify-end">
               <button
                 type="button"
+                onClick={handleCreateGroup}
+                disabled={creatingGroup || !newGroupName.trim()}
                 className="btn-primary"
-                onClick={handleCreateProject}
-                disabled={creating || !newTitle.trim()}
               >
-                {creating ? '...' : 'Projekt anlegen'}
+                {creatingGroup ? '...' : 'Gruppe anlegen'}
               </button>
             </div>
           </div>
+        )}
+      </div>
+    );
+  }
 
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
+  return (
+    <div className="space-y-6">
+      <div className="app-card">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-black">Projekt Chat Verwaltung</h1>
+          <div className="text-sm text-slate-500 dark:text-white/60">
+            Projekt:{' '}
+            <span className="font-black text-slate-900 dark:text-white">
+              {project?.title || `Projekt #${activeProjectId}`}
+            </span>
+          </div>
+        </div>
+      </div>
 
-            <div className="grid md:grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Typ
-                </label>
-                <select
-                  className="form-input w-full"
-                  value={assignType}
-                  onChange={(e) => setAssignType(e.target.value as LinkType)}
-                  disabled={!selectedProjectId || assigning}
-                >
-                  <option value="event">Kalender</option>
-                  <option value="task">Aufgaben</option>
-                  <option value="poll">Umfragen</option>
-                </select>
-              </div>
+      {error && <div className="alert-error">{error}</div>}
+      {success && <div className="alert-success">{success}</div>}
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Eintrag
-                </label>
-                <select
-                  className="form-input w-full"
-                  value={assignId}
-                  onChange={(e) => setAssignId(e.target.value)}
-                  disabled={!selectedProjectId || assigning}
-                >
-                  <option value="">Bitte auswählen</option>
-                  {optionsForAssign.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <div className="app-card space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-black">Gruppenverwaltung</h2>
+            <div className="text-sm text-slate-500 dark:text-white/60 mt-1">
+              Ausgewählt:{' '}
+              <span className="font-black text-slate-900 dark:text-white">
+                {selectedGroup.name}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedGroupId(null)}
+              className="btn-secondary"
+            >
+              Zur Gruppenliste
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenChat}
+              className="btn-primary"
+            >
+              Chat öffnen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="app-card space-y-6">
+        <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="form-label">Projekt-ID</label>
+              <input
+                className="form-input"
+                value={editingProjectId}
+                onChange={(e) => setEditingProjectId(e.target.value)}
+                disabled={savingGroup}
+                placeholder="Projekt-ID"
+              />
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-white/40">
-                {selectedProject ? (
-                  <>
-                    Ziel:{' '}
-                    <span className="text-white/70 font-bold">
-                      {selectedProject.title || `Projekt #${selectedProject.id}`}
-                    </span>
-                  </>
-                ) : (
-                  <>Kein Projekt ausgewählt.</>
-                )}
-              </div>
+            <div className="space-y-2">
+              <label className="form-label">Gruppenname</label>
+              <input
+                className="form-input"
+                value={editingGroupName}
+                onChange={(e) => setEditingGroupName(e.target.value)}
+                disabled={savingGroup}
+              />
+            </div>
 
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={editingGroupCanWrite}
+                onChange={(e) => setEditingGroupCanWrite(e.target.checked)}
+                disabled={savingGroup}
+              />
+              <span>Gruppe darf schreiben</span>
+            </label>
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={editingGroupCanUploadImages}
+                onChange={(e) => setEditingGroupCanUploadImages(e.target.checked)}
+                disabled={savingGroup}
+              />
+              <span>Gruppe darf Bilder senden</span>
+            </label>
+
+            <div className="flex justify-end">
               <button
                 type="button"
-                className="btn-secondary"
-                onClick={handleAssignToProject}
-                disabled={!selectedProjectId || assigning || !assignId}
+                onClick={handleSaveGroup}
+                disabled={savingGroup || !editingGroupName.trim() || !editingProjectId.trim()}
+                className="btn-primary"
               >
-                {assigning ? '...' : 'Zuordnen'}
+                {savingGroup ? '...' : 'Gruppe speichern'}
               </button>
             </div>
-
-            {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
           </div>
 
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Projektliste</h2>
+          <div className="space-y-4">
+            <div className="app-card space-y-4">
+              <h3 className="text-lg font-black">Aktuell in der Gruppe</h3>
 
-            {sortedProjects.length === 0 ? (
-              <div className="text-sm text-white/50">
-                Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sortedProjects.map((p) => {
-                  const d = pickProjectDate(p);
-                  const dateLabel = d
-                    ? d.toLocaleDateString('de-AT', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })
-                    : '';
-                  const isActive = p.id === selectedProjectId;
-
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        const nextId = Number(p.id);
-                        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-                        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-                        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                        setSelectedProjectId(nextId);
-                        setSelectedChatGroupId(null);
-                        setWheelMode('actions');
-                        triggerWheelAnimation();
-                      }}
-                      className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
-                        isActive
-                          ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                          : 'bg-white/5 hover:bg-white/10 text-white/80'
-                      }`}
+              {groupMembers.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-white/60">
+                  Noch keine Mitglieder in dieser Gruppe.
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {groupMembers.map((member) => (
+                    <div
+                      key={member.user_id}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#121212]"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                            {p.title || `Projekt #${p.id}`}
-                          </div>
-                          {p.description && (
-                            <div
-                              className={`text-xs mt-1 ${
-                                isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
-                              }`}
-                            >
-                              {p.description}
-                            </div>
-                          )}
-                        </div>
+                      <div className="font-black text-slate-900 dark:text-white">
+                        {member.display_name}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                        {member.email}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                        <div
-                          className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
-                          }`}
-                        >
-                          {dateLabel || 'ohne Datum'}
+            <div className="app-card space-y-4">
+              <h3 className="text-lg font-black">Mitglieder auswählen</h3>
+
+              {loadingMembers ? (
+                <div className="text-sm text-slate-500 dark:text-white/60">Lädt…</div>
+              ) : members.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-white/60">
+                  Keine Mitglieder verfügbar.
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {members.map((member) => (
+                    <label
+                      key={member.id}
+                      className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm cursor-pointer hover:bg-slate-50 dark:border-white/10 dark:bg-[#121212] dark:hover:bg-[#181818]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMemberIds.includes(Number(member.id))}
+                        onChange={() => toggleMemberSelection(Number(member.id))}
+                      />
+                      <div>
+                        <div className="font-black text-slate-900 dark:text-white">
+                          {member.display_name}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-white/60">
+                          {member.email}
                         </div>
                       </div>
-                    </button>
-                  );
-                })}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveMembers}
+                  disabled={savingMembers}
+                  className="btn-primary"
+                >
+                  {savingMembers ? '...' : 'Mitglieder speichern'}
+                </button>
               </div>
-            )}
+            </div>
+
+            <div className="app-card space-y-4">
+              <h3 className="text-lg font-black">Einzelrechte</h3>
+
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <label className="form-label">Mitglied</label>
+                  <select
+                    className="form-input"
+                    value={permissionUserId}
+                    onChange={(e) => setPermissionUserId(e.target.value)}
+                    disabled={savingPermission}
+                  >
+                    <option value="">Bitte auswählen</option>
+                    {groupMembers.map((member) => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {member.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Schreibrecht</label>
+                  <select
+                    className="form-input"
+                    value={permissionCanWrite}
+                    onChange={(e) => setPermissionCanWrite(e.target.value)}
+                    disabled={savingPermission}
+                  >
+                    <option value="inherit">Von Gruppe übernehmen</option>
+                    <option value="allow">Erlauben</option>
+                    <option value="deny">Verbieten</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="form-label">Bildrecht</label>
+                  <select
+                    className="form-input"
+                    value={permissionCanUploadImages}
+                    onChange={(e) => setPermissionCanUploadImages(e.target.value)}
+                    disabled={savingPermission}
+                  >
+                    <option value="inherit">Von Gruppe übernehmen</option>
+                    <option value="allow">Erlauben</option>
+                    <option value="deny">Verbieten</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSavePermission}
+                  disabled={savingPermission || !permissionUserId}
+                  className="btn-primary"
+                >
+                  {savingPermission ? '...' : 'Rechte speichern'}
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                {permissions.length === 0 ? (
+                  <div className="text-sm text-slate-500 dark:text-white/60">
+                    Keine Einzelrechte gesetzt.
+                  </div>
+                ) : (
+                  permissions.map((permission) => (
+                    <div
+                      key={`${permission.group_id}-${permission.user_id}`}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-white/10 dark:bg-[#121212]"
+                    >
+                      <div className="font-black text-slate-900 dark:text-white">
+                        {permission.display_name}
+                      </div>
+                      <div className="text-slate-500 dark:text-white/60 mt-1">
+                        Schreiben:{' '}
+                        {permission.can_write_override === null
+                          ? 'Gruppe'
+                          : permission.can_write_override
+                            ? 'Erlaubt'
+                            : 'Verboten'}
+                      </div>
+                      <div className="text-slate-500 dark:text-white/60">
+                        Bilder:{' '}
+                        {permission.can_upload_images_override === null
+                          ? 'Gruppe'
+                          : permission.can_upload_images_override
+                            ? 'Erlaubt'
+                            : 'Verboten'}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
-        </>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="app-card space-y-4">
+          <h2 className="text-lg font-black">Gruppe anlegen</h2>
+
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="form-label">Gruppenname</label>
+              <input
+                className="form-input"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="z.B. Leitungsteam"
+                disabled={creatingGroup}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="form-label">Projekt</label>
+              <input
+                className="form-input"
+                value={project?.title || `Projekt #${activeProjectId}`}
+                disabled
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={newGroupCanWrite}
+                onChange={(e) => setNewGroupCanWrite(e.target.checked)}
+                disabled={creatingGroup}
+              />
+              <span>Gruppe darf schreiben</span>
+            </label>
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={newGroupCanUploadImages}
+                onChange={(e) => setNewGroupCanUploadImages(e.target.checked)}
+                disabled={creatingGroup}
+              />
+              <span>Gruppe darf Bilder senden</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleCreateGroup}
+              disabled={creatingGroup || !newGroupName.trim()}
+              className="btn-primary"
+            >
+              {creatingGroup ? '...' : 'Gruppe anlegen'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
-export default ProjectsView;
+export default ProjectChatView;
