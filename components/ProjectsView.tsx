@@ -66,7 +66,7 @@ const actionWheelItems: WheelItem[] = [
   { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
   { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
   { label: 'Kernteam', comingSoon: true, actionKey: 'coreteam' },
-  { label: 'Projekt Chat', comingSoon: true, actionKey: 'chatlog' },
+  { label: 'Projekt Chat', view: 'project-chat', actionKey: 'chatlog' },
   { label: 'comming soon', comingSoon: true, actionKey: 'more' }
 ];
 
@@ -414,7 +414,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setTasks(Array.isArray(ta) ? ta : []);
       setPolls(Array.isArray(po) ? po : []);
     } catch {
-      // silent
     }
   };
 
