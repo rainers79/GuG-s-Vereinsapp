@@ -63,15 +63,15 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (!outerWheelRef.current) return;
 
     outerWheelRef.current.getAnimations().forEach((animation) => animation.cancel());
-    outerWheelRef.current.style.transform = 'rotate(0deg)';
 
     const animation = outerWheelRef.current.animate(
       [
         { transform: 'rotate(0deg)' },
-        { transform: 'rotate(0deg)' }
+        { transform: 'rotate(360deg)' }
       ],
       {
-        duration: 1,
+        duration: 2600,
+        easing: 'ease-in-out',
         fill: 'forwards'
       }
     );
