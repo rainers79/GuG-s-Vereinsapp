@@ -106,7 +106,7 @@ const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
-const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
+const LS_PROJECT_CHAT_ENTRY_MODE = 'gug_project_chat_entry_mode';
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -532,7 +532,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setSelectedChatGroupId(null);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+        localStorage.removeItem(LS_PROJECT_CHAT_ENTRY_MODE);
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
       }
 
@@ -680,7 +680,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       if (item.slotType === 'project' && item.projectId) {
         const nextGroupId = Number(item.projectId);
         localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
-        localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
+        localStorage.setItem(LS_PROJECT_CHAT_ENTRY_MODE, 'chat');
         setSelectedChatGroupId(nextGroupId);
         onNavigate('project-chat');
         return;
@@ -770,7 +770,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+        localStorage.removeItem(LS_PROJECT_CHAT_ENTRY_MODE);
 
         const newIndex = normalizedProjects.findIndex((p) => p.id === newId);
         if (newIndex >= 0) {
@@ -887,8 +887,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         <div className="app-card space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">Projekt Chat Gruppen</h2>
-              <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
+              <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
+              <div className="text-xs text-white/50 mt-1">
                 {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
               </div>
             </div>
@@ -904,7 +904,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           </div>
 
           {sortedChatGroups.length === 0 ? (
-            <div className="text-sm text-slate-500 dark:text-white/50">
+            <div className="text-sm text-white/50">
               Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
             </div>
           ) : (
@@ -913,23 +913,22 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                 const isActive = group.id === selectedChatGroupId;
 
                 return (
-                  <button
+                  <div
                     key={group.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChatGroupId(group.id);
-                      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
-                      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                      onNavigate('project-chat');
-                    }}
-                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
+                    className={`w-full px-5 py-4 rounded-xl transition-all duration-300 border ${
                       isActive
-                        ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                        : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-white/5 dark:border-white/10 dark:text-white/80 dark:hover:bg-white/10'
+                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20 border-[#B5A47A]'
+                        : 'bg-white dark:bg-white/5 text-slate-900 dark:text-white border-slate-200 dark:border-white/10'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedChatGroupId(group.id);
+                        }}
+                        className="flex-1 text-left"
+                      >
                         <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
                           {group.name}
                         </div>
@@ -940,17 +939,24 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                         >
                           Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
                         </div>
-                      </div>
+                      </button>
 
-                      <div
-                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isActive ? 'text-[#1A1A1A]/70' : 'text-slate-600 dark:text-white/40'
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedChatGroupId(group.id);
+                          localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
+                          localStorage.setItem(LS_PROJECT_CHAT_ENTRY_MODE, 'admin');
+                          onNavigate('project-chat');
+                        }}
+                        className={`text-xs font-black uppercase tracking-widest ${
+                          isActive ? 'text-[#1A1A1A]/70' : 'text-slate-700 dark:text-white/70'
                         }`}
                       >
                         Verwalten
-                      </div>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -1097,7 +1103,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
                     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
                     localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-                    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+                    localStorage.removeItem(LS_PROJECT_CHAT_ENTRY_MODE);
                     setSelectedProjectId(nextId);
                     setSelectedChatGroupId(null);
                     setWheelMode('actions');
