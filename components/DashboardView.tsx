@@ -39,6 +39,10 @@ const DashboardView: React.FC<Props> = ({
   const loadingOlderMessages = useRef(false);
   const [privateReceiver, setPrivateReceiver] = useState<{ id:number,name:string } | null>(null);
 
+  /* =====================================================
+     DATE FORMAT HELPER
+  ===================================================== */
+
   const formatChatDate = (dateString: string) => {
 
     const messageDate = new Date(dateString);
@@ -60,6 +64,10 @@ const DashboardView: React.FC<Props> = ({
 
   };
 
+  /* =====================================================
+     LOAD PROFILE IMAGE
+  ===================================================== */
+
   useEffect(() => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/profile-image', {
       headers: {
@@ -74,6 +82,10 @@ const DashboardView: React.FC<Props> = ({
       });
   }, []);
 
+  /* =====================================================
+     DASHBOARD TASKS
+  ===================================================== */
+
   const loadDashboardTasks = async () => {
     setLoadingDashboardTasks(true);
     try {
@@ -85,6 +97,10 @@ const DashboardView: React.FC<Props> = ({
       setLoadingDashboardTasks(false);
     }
   };
+
+  /* =====================================================
+     CHAT LOAD
+  ===================================================== */
 
   const loadChat = async () => {
     try {
@@ -100,6 +116,10 @@ const DashboardView: React.FC<Props> = ({
         const existingIds = new Set(prev.map(m => m.id));
         const newMessages = data.filter(m => !existingIds.has(m.id));
 
+        if (newMessages.length === 0) {
+          return prev;
+        }
+
         const merged = [...prev, ...newMessages];
         merged.sort((a, b) => a.id - b.id);
         return merged;
@@ -111,17 +131,37 @@ const DashboardView: React.FC<Props> = ({
     }
   };
 
+  /* =====================================================
+     CHAT INITIAL LOAD
+  ===================================================== */
+
   useEffect(() => {
     loadChat();
-    loadDashboardTasks();
 
     const interval = setInterval(() => {
       loadChat();
-      loadDashboardTasks();
     }, 3000);
 
     return () => clearInterval(interval);
   }, []);
+
+  /* =====================================================
+     DASHBOARD TASKS INITIAL LOAD
+  ===================================================== */
+
+  useEffect(() => {
+    loadDashboardTasks();
+
+    const interval = setInterval(() => {
+      loadDashboardTasks();
+    }, 300000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  /* =====================================================
+     CHAT SCROLL
+  ===================================================== */
 
   useEffect(() => {
 
@@ -144,6 +184,10 @@ const DashboardView: React.FC<Props> = ({
     }
 
   }, [messages]);
+
+  /* =====================================================
+     LOAD OLDER MESSAGES
+  ===================================================== */
 
   const loadOlderMessages = async () => {
 
@@ -187,6 +231,10 @@ const DashboardView: React.FC<Props> = ({
     loadingOlderMessages.current = false;
 
   };
+
+  /* =====================================================
+     SEND MESSAGE
+  ===================================================== */
 
   const handleSend = async () => {
 
@@ -241,6 +289,10 @@ const DashboardView: React.FC<Props> = ({
       handleSend();
     }
   };
+
+  /* =====================================================
+     IMAGE CROP
+  ===================================================== */
 
   const onCropComplete = useCallback((_: any, croppedPixels: any) => {
     setCroppedAreaPixels(croppedPixels);
@@ -301,6 +353,10 @@ const DashboardView: React.FC<Props> = ({
 
   };
 
+  /* =====================================================
+     MEMO DATA
+  ===================================================== */
+
   const openTasks = useMemo(
     () => dashboardTasks.filter(task => !task.completed).slice(0, 5),
     [dashboardTasks]
@@ -311,8 +367,14 @@ const DashboardView: React.FC<Props> = ({
     [polls]
   );
 
+  /* =====================================================
+     UI
+  ===================================================== */
+
   return (
     <div className="space-y-10">
+
+      {/* PROFILE */}
 
       <div className="app-card">
         <div className="flex items-center gap-6 flex-col sm:flex-row">
@@ -359,6 +421,8 @@ const DashboardView: React.FC<Props> = ({
 
         </div>
       </div>
+
+      {/* DASHBOARD OVERVIEW */}
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="app-card cursor-pointer" onClick={() => onNavigate('tasks')}>
@@ -421,6 +485,8 @@ const DashboardView: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* CHAT */}
 
       <div className="app-card space-y-4">
 
@@ -565,6 +631,8 @@ const DashboardView: React.FC<Props> = ({
         </div>
 
       </div>
+
+      {/* NAVIGATION */}
 
       <div className="grid md:grid-cols-3 gap-6">
 
