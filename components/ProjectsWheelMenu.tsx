@@ -64,15 +64,17 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
     outerWheelRef.current.getAnimations().forEach((animation) => animation.cancel());
 
+    outerWheelRef.current.style.transform = 'rotate(0deg)';
+
     const animation = outerWheelRef.current.animate(
       [
-        { transform: 'rotate(-220deg)' },
-        { transform: 'rotate(18deg)' },
+        { transform: 'rotate(-140deg)' },
+        { transform: 'rotate(12deg)' },
         { transform: 'rotate(0deg)' }
       ],
       {
-        duration: 1800,
-        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        duration: 3200,
+        easing: 'cubic-bezier(0.22, 0.9, 0.2, 1)',
         fill: 'forwards'
       }
     );
@@ -99,7 +101,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         <g
           ref={outerWheelRef}
           style={{
-            transformBox: 'fill-box',
             transformOrigin: `${center}px ${center}px`
           }}
         >
