@@ -186,6 +186,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const loadedOnce = useRef(false);
+  const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
   const selectedProject = useMemo(() => {
@@ -231,6 +232,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
+  const triggerWheelAnimation = () => {
+    setWheelAnimationTick(prev => prev + 1);
+  };
+
   const loadProjects = async () => {
     setError(null);
     setLoading(true);
@@ -244,18 +249,32 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         const storedIdRaw = localStorage.getItem('gug_active_project');
         const storedId = storedIdRaw ? Number(storedIdRaw) : null;
 
+        let nextId: number | null = null;
+
         if (storedId && list.some(p => p.id === storedId)) {
-          setSelectedProjectId(storedId);
+          nextId = storedId;
         } else {
-          setSelectedProjectId(list[0].id);
+          nextId = list[0].id;
+        }
+
+        setSelectedProjectId(nextId);
+
+        if (nextId && !hasStartedInitialWheelAnimation.current) {
+          hasStartedInitialWheelAnimation.current = true;
+          triggerWheelAnimation();
         }
       } else if (selectedProjectId) {
         const stillExists = list.some(p => p.id === selectedProjectId);
         if (!stillExists) {
           const fallbackId = list.length ? list[0].id : null;
           setSelectedProjectId(fallbackId);
+
           if (fallbackId) {
             localStorage.setItem('gug_active_project', String(fallbackId));
+            if (!hasStartedInitialWheelAnimation.current) {
+              hasStartedInitialWheelAnimation.current = true;
+              triggerWheelAnimation();
+            }
           } else {
             localStorage.removeItem('gug_active_project');
           }
@@ -289,11 +308,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     loadProjects();
     loadAssignableData();
   }, []);
-
-  useEffect(() => {
-    if (!selectedProjectId) return;
-    setWheelAnimationTick(prev => prev + 1);
-  }, [selectedProjectId]);
 
   const handleWheelClick = (item: WheelItem) => {
     if (item.comingSoon) return;
@@ -335,6 +349,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       if (newId) {
         setSelectedProjectId(newId);
         localStorage.setItem('gug_active_project', String(newId));
+        triggerWheelAnimation();
       }
     } catch (e: any) {
       setError(e?.message || 'Projekt konnte nicht erstellt werden.');
@@ -591,6 +606,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                   onClick={() => {
                     setSelectedProjectId(p.id);
                     localStorage.setItem('gug_active_project', String(p.id));
+                    triggerWheelAnimation();
                   }}
                   className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
                     isActive
@@ -632,4 +648,4 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   );
 };
 
-export default ProjectsView;
+export default ProjectsView;ctsView;
