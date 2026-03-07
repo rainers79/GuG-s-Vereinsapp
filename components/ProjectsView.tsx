@@ -42,7 +42,7 @@ type PollLite = {
   created_at?: string;
 };
 
-interface WheelItem {
+export interface WheelItem {
   label: string;
   view?: ViewType;
   comingSoon?: boolean;
@@ -93,7 +93,11 @@ const safeDate = (raw?: string | null): Date | null => {
 const formatDate = (raw?: string | null) => {
   const d = safeDate(raw);
   if (!d) return '';
-  return d.toLocaleDateString('de-AT');
+  return d.toLocaleDateString('de-AT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 };
 
 const pickProjectDate = (p: Project): Date | null => {
@@ -121,14 +125,20 @@ const wrapLines = (text: string, maxLineLen = 14): string[] => {
       continue;
     }
     if (current) lines.push(current);
-    current = w;
+    if (w.length > maxLineLen) {
+      lines.push(w.slice(0, maxLineLen));
+      current = w.slice(maxLineLen);
+    } else {
+      current = w;
+    }
   }
 
   if (current) lines.push(current);
+
   return lines.slice(0, 3);
 };
 
-const polarToCartesian = (
+export const polarToCartesian = (
   cx: number,
   cy: number,
   radius: number,
@@ -141,7 +151,7 @@ const polarToCartesian = (
   };
 };
 
-const getSliceLift = (index: number, total: number) => {
+export const getSliceLift = (index: number, total: number) => {
   const sliceAngle = 360 / total;
   const midDeg = index * sliceAngle + sliceAngle / 2;
   const midRad = (midDeg - 90) * (Math.PI / 180);
@@ -154,8 +164,10 @@ const getSliceLift = (index: number, total: number) => {
 };
 
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
-
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -170,14 +182,47 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const [assignType, setAssignType] = useState<LinkType>('event');
   const [assignId, setAssignId] = useState<string>('');
+  const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
+  const loadedOnce = useRef(false);
   const wheelGroupRef = useRef<SVGGElement | null>(null);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find(p => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    localStorage.setItem('gug_active_project', String(selectedProjectId));
+  }, [selectedProjectId]);
+
+  const sortedProjects = useMemo(() => {
+    const now = new Date();
+    const list = [...projects];
+
+    list.sort((a, b) => {
+      const da = pickProjectDate(a);
+      const db = pickProjectDate(b);
+
+      const aIsPast = da ? da.getTime() < now.getTime() : false;
+      const bIsPast = db ? db.getTime() < now.getTime() : false;
+
+      if (aIsPast !== bIsPast) return aIsPast ? 1 : -1;
+
+      if (!da && !db) return (b.id || 0) - (a.id || 0);
+      if (!da) return 1;
+      if (!db) return -1;
+
+      const diff = da.getTime() - db.getTime();
+      if (diff !== 0) return diff;
+
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    return list;
+  }, [projects]);
 
   const centerTitle = useMemo(() => {
     const title = selectedProject?.title?.trim();
@@ -187,141 +232,415 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
   useEffect(() => {
-    loadProjects();
-    loadAssignableData();
-  }, []);
+    if (!wheelGroupRef.current) return;
+
+    wheelGroupRef.current.animate(
+      [
+        { transform: 'rotate(-12deg) scale(0.97)' },
+        { transform: 'rotate(0deg) scale(1)' }
+      ],
+      {
+        duration: 280,
+        easing: 'ease-out'
+      }
+    );
+  }, [selectedProjectId]);
 
   const loadProjects = async () => {
-    const data = await api.apiRequest<Project[]>('/gug/v1/projects', {}, undefined);
-    const list = Array.isArray(data) ? data : [];
-    setProjects(list);
+    setError(null);
+    setLoading(true);
 
-    if (!selectedProjectId && list.length > 0) {
-      setSelectedProjectId(list[0].id);
+    try {
+      const data = await api.apiRequest<Project[]>('/gug/v1/projects', {}, undefined);
+      const list = Array.isArray(data) ? data : [];
+      setProjects(list);
+
+      if (!selectedProjectId && list.length > 0) {
+        const storedIdRaw = localStorage.getItem('gug_active_project');
+        const storedId = storedIdRaw ? Number(storedIdRaw) : null;
+
+        if (storedId && list.some(p => p.id === storedId)) {
+          setSelectedProjectId(storedId);
+        } else {
+          setSelectedProjectId(list[0].id);
+        }
+      } else if (selectedProjectId) {
+        const stillExists = list.some(p => p.id === selectedProjectId);
+        if (!stillExists) {
+          const fallbackId = list.length ? list[0].id : null;
+          setSelectedProjectId(fallbackId);
+          if (fallbackId) {
+            localStorage.setItem('gug_active_project', String(fallbackId));
+          } else {
+            localStorage.removeItem('gug_active_project');
+          }
+        }
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Projekte konnten nicht geladen werden.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const loadAssignableData = async () => {
+    try {
+      const [ev, ta, po] = await Promise.all([
+        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, undefined).catch(() => []),
+        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined).catch(() => []),
+        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, undefined).catch(() => [])
+      ]);
 
-    const [ev, ta, po] = await Promise.all([
-      api.apiRequest('/gug/v1/events', {}, undefined).catch(() => []),
-      api.apiRequest('/gug/v1/tasks', {}, undefined).catch(() => []),
-      api.apiRequest('/gug/v1/polls', {}, undefined).catch(() => [])
-    ]);
-
-setEvents(Array.isArray(ev) ? ev : []);
-setTasks(Array.isArray(ta) ? ta : []);
-setPolls(Array.isArray(po) ? po : []);
-
+      setEvents(Array.isArray(ev) ? ev : []);
+      setTasks(Array.isArray(ta) ? ta : []);
+      setPolls(Array.isArray(po) ? po : []);
+    } catch {
+      // silent
+    }
   };
 
-  const handleWheelClick = (item: WheelItem) => {
+  useEffect(() => {
+    if (loadedOnce.current) return;
+    loadedOnce.current = true;
+    loadProjects();
+    loadAssignableData();
+  }, []);
 
+  const handleWheelClick = (item: WheelItem) => {
     if (item.comingSoon) return;
     if (!selectedProjectId) return;
 
     localStorage.setItem('gug_active_project', String(selectedProjectId));
 
     if (item.view) onNavigate(item.view);
-
   };
 
   const handleCreateProject = async () => {
-
     const title = newTitle.trim();
     const description = newDescription.trim();
 
-    if (!title) return;
+    if (!title) {
+      setError('Projektname fehlt.');
+      return;
+    }
 
     setCreating(true);
+    setError(null);
 
-    await api.apiRequest(
-      '/gug/v1/projects',
-      {
-        method: 'POST',
-        body: JSON.stringify({ title, description })
-      },
-      undefined
-    );
+    try {
+      const res = await api.apiRequest<{ success?: boolean; id?: number; project_id?: number }>(
+        '/gug/v1/projects',
+        {
+          method: 'POST',
+          body: JSON.stringify({ title, description })
+        },
+        undefined
+      );
 
-    setNewTitle('');
-    setNewDescription('');
+      const newId = (res?.id || res?.project_id) as number | undefined;
 
-    await loadProjects();
+      setNewTitle('');
+      setNewDescription('');
+      await loadProjects();
 
-    setCreating(false);
-
+      if (newId) {
+        setSelectedProjectId(newId);
+        localStorage.setItem('gug_active_project', String(newId));
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht erstellt werden.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const optionsForAssign = useMemo(() => {
-
     if (assignType === 'event') {
       return events.map(e => ({
         id: String(e.id),
-        label: e.title
+        label: `${e.title}${e.date ? ` (${formatDate(e.date)})` : ''}`
       }));
     }
 
     if (assignType === 'task') {
       return tasks.map(t => ({
         id: String(t.id),
-        label: t.title
+        label: `${t.title}${t.deadline_date ? ` (${formatDate(t.deadline_date)})` : ''}`
       }));
     }
 
     return polls.map(p => ({
       id: String(p.id),
-      label: p.question
+      label: `${p.question}${p.target_date ? ` (${formatDate(p.target_date)})` : ''}`
     }));
-
   }, [assignType, events, tasks, polls]);
 
+  useEffect(() => {
+    setAssignId('');
+    setAssignResult(null);
+  }, [assignType, selectedProjectId]);
+
   const handleAssignToProject = async () => {
+    if (!selectedProjectId) {
+      setAssignResult('Kein Projekt ausgewählt.');
+      return;
+    }
 
-    if (!selectedProjectId) return;
-    if (!assignId) return;
+    if (!assignId) {
+      setAssignResult('Kein Eintrag ausgewählt.');
+      return;
+    }
 
-    const payload = {
-      project_id: selectedProjectId,
-      type: assignType,
-      item_id: Number(assignId)
-    };
+    setAssigning(true);
+    setAssignResult(null);
 
-    await api.apiRequest(
-      '/gug/v1/projects/link',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      },
-      undefined
-    );
+    try {
+      const payload = {
+        project_id: selectedProjectId,
+        type: assignType,
+        item_id: Number(assignId)
+      };
 
-    setAssignResult('Zuordnung gespeichert.');
+      await api.apiRequest<{ success: boolean; message?: string }>(
+        '/gug/v1/projects/link',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        },
+        undefined
+      );
 
+      setAssignResult('Zuordnung gespeichert.');
+      await loadAssignableData();
+    } catch (e: any) {
+      setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
+    } finally {
+      setAssigning(false);
+    }
   };
 
   return (
     <div className="space-y-10">
+      <div className="app-card">
+        <div className="flex flex-col md:flex-row gap-6 md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-black">Projekte</h1>
+            <p className="text-xs text-white/40 mt-1">
+              Projekt auswählen, dann im Rad navigieren. Zuordnungen kommen über Dropdown.
+            </p>
+          </div>
 
-     <ProjectsWheelMenu
-  wheelItems={wheelItems}
-  hoveredIndex={hoveredIndex}
-  setHoveredIndex={setHoveredIndex}
-  handleWheelClick={handleWheelClick}
-  wheelColors={wheelColors}
-  wheelGroupRef={wheelGroupRef}
-  center={center}
-  centerRadius={centerRadius}
-  buttonRadius={buttonRadius}
-  labelRadius={labelRadius}
-  polarToCartesian={polarToCartesian}
-  getSliceLift={getSliceLift}
-  centerLines={centerLines}
-/>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={loadProjects}
+              disabled={loading}
+              className="btn-secondary"
+            >
+              {loading ? '...' : 'Aktualisieren'}
+            </button>
+          </div>
+        </div>
 
+        {error && (
+          <div className="mt-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <ProjectsWheelMenu
+        wheelItems={wheelItems}
+        hoveredIndex={hoveredIndex}
+        setHoveredIndex={setHoveredIndex}
+        handleWheelClick={handleWheelClick}
+        wheelColors={wheelColors}
+        wheelGroupRef={wheelGroupRef}
+        center={center}
+        centerRadius={centerRadius}
+        buttonRadius={buttonRadius}
+        labelRadius={labelRadius}
+        polarToCartesian={polarToCartesian}
+        getSliceLift={getSliceLift}
+        centerLines={centerLines}
+      />
+
+      <div className="app-card space-y-4">
+        <h2 className="text-lg font-black">Projekt erstellen</h2>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+              Projektname
+            </label>
+            <input
+              className="form-input w-full"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="z.B. Ostermarkt 2026"
+              disabled={creating}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+              Beschreibung
+            </label>
+            <input
+              className="form-input w-full"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Kurzbeschreibung"
+              disabled={creating}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleCreateProject}
+            disabled={creating || !newTitle.trim()}
+          >
+            {creating ? '...' : 'Projekt anlegen'}
+          </button>
+        </div>
+      </div>
+
+      <div className="app-card space-y-4">
+        <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
+
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="space-y-2">
+            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+              Typ
+            </label>
+            <select
+              className="form-input w-full"
+              value={assignType}
+              onChange={(e) => setAssignType(e.target.value as LinkType)}
+              disabled={!selectedProjectId || assigning}
+            >
+              <option value="event">Kalender</option>
+              <option value="task">Aufgaben</option>
+              <option value="poll">Umfragen</option>
+            </select>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+              Eintrag
+            </label>
+            <select
+              className="form-input w-full"
+              value={assignId}
+              onChange={(e) => setAssignId(e.target.value)}
+              disabled={!selectedProjectId || assigning}
+            >
+              <option value="">Bitte auswählen</option>
+              {optionsForAssign.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-white/40">
+            {selectedProject ? (
+              <>
+                Ziel:{' '}
+                <span className="text-white/70 font-bold">
+                  {selectedProject.title || `Projekt #${selectedProject.id}`}
+                </span>
+              </>
+            ) : (
+              <>Kein Projekt ausgewählt.</>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleAssignToProject}
+            disabled={!selectedProjectId || assigning || !assignId}
+          >
+            {assigning ? '...' : 'Zuordnen'}
+          </button>
+        </div>
+
+        {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
+      </div>
+
+      <div className="app-card space-y-4">
+        <h2 className="text-lg font-black">Projektliste</h2>
+
+        {sortedProjects.length === 0 ? (
+          <div className="text-sm text-white/50">
+            Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sortedProjects.map((p) => {
+              const d = pickProjectDate(p);
+              const dateLabel = d
+                ? d.toLocaleDateString('de-AT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })
+                : '';
+              const isActive = p.id === selectedProjectId;
+
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProjectId(p.id);
+                    localStorage.setItem('gug_active_project', String(p.id));
+                  }}
+                  className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                    isActive
+                      ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                      : 'bg-white/5 hover:bg-white/10 text-white/80'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                        {p.title || `Projekt #${p.id}`}
+                      </div>
+                      {p.description && (
+                        <div
+                          className={`text-xs mt-1 ${
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                          }`}
+                        >
+                          {p.description}
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                        isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                      }`}
+                    >
+                      {dateLabel || 'ohne Datum'}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
-
 };
 
 export default ProjectsView;
