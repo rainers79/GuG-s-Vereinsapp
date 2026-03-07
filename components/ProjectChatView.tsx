@@ -720,8 +720,12 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="grid xl:grid-cols-[340px_1fr] gap-6">
+          <div className="app-card space-y-6">
+            <h3 className="text-lg font-black">Gruppe bearbeiten</h3>
+
+            <div className="grid lg:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="form-label">Projekt-ID</label>
@@ -785,7 +789,7 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                       Noch keine Mitglieder in dieser Gruppe.
                     </div>
                   ) : (
-                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div className="grid md:grid-cols-2 gap-3">
                       {groupMembers.map((member) => (
                         <div
                           key={member.user_id}
@@ -910,13 +914,13 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                     </button>
                   </div>
 
-                  {permissions.length === 0 ? (
-                    <div className="text-sm text-slate-500 dark:text-white/60">
-                      Keine Einzelrechte gesetzt.
-                    </div>
-                  ) : (
-                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {permissions.map((permission) => (
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {permissions.length === 0 ? (
+                      <div className="text-sm text-slate-500 dark:text-white/60">
+                        Keine Einzelrechte gesetzt.
+                      </div>
+                    ) : (
+                      permissions.map((permission) => (
                         <div
                           key={`${permission.group_id}-${permission.user_id}`}
                           className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-white/10 dark:bg-[#121212]"
@@ -941,73 +945,12 @@ const ProjectChatView: React.FC<Props> = ({ user, onUnauthorized }) => {
                                 : 'Verboten'}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="app-card space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">Gruppen</h2>
-              <button
-                type="button"
-                onClick={loadGroups}
-                disabled={loadingGroups}
-                className="btn-secondary"
-              >
-                {loadingGroups ? '...' : 'Aktualisieren'}
-              </button>
-            </div>
-
-            {groups.length === 0 ? (
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Noch keine Chat-Gruppen vorhanden.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groups.map((group) => {
-                  const isSelected = group.id === selectedGroupId;
-                  const isOpen = group.id === openChatGroupId;
-
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedGroupId(group.id);
-                        setError(null);
-                        setSuccess(null);
-                      }}
-                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                        isSelected
-                          ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A]'
-                          : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'}`}>
-                            {group.name}
-                          </div>
-                          <div className={`text-[11px] mt-1 ${isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'}`}>
-                            Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                          </div>
-                        </div>
-
-                        {isOpen && (
-                          <div className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#1A1A1A]/70' : 'text-[#B5A47A]'}`}>
-                            Chat offen
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {isAdmin && (
