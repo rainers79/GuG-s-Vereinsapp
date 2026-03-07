@@ -65,6 +65,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
+  const [viewHistory, setViewHistory] = useState<ViewType[]>([]);
   const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
@@ -96,6 +97,32 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
+  const navigateTo = useCallback((view: ViewType) => {
+    setActiveView((prev) => {
+      if (prev === view) return prev;
+      setViewHistory((history) => [...history, prev]);
+      return view;
+    });
+  }, []);
+
+  const navigateToRoot = useCallback((view: ViewType) => {
+    setViewHistory([]);
+    setActiveView(view);
+  }, []);
+
+  const goBack = useCallback(() => {
+    setViewHistory((history) => {
+      if (history.length === 0) return history;
+
+      const previousView = history[history.length - 1];
+      setActiveView(previousView);
+
+      return history.slice(0, -1);
+    });
+  }, []);
+
+  const canGoBack = viewHistory.length > 0;
+
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
     setToasts(prev => [...prev, { id, message, type }]);
@@ -111,6 +138,8 @@ const App: React.FC = () => {
     setPolls([]);
     setError('Ihre Sitzung ist abgelaufen.');
     setIsSidebarOpen(false);
+    setViewHistory([]);
+    setActiveView('dashboard');
   }, []);
 
   const fetchAppData = useCallback(async () => {
@@ -273,7 +302,7 @@ const App: React.FC = () => {
           <DashboardView
             user={user!}
             polls={polls}
-            onNavigate={setActiveView}
+            onNavigate={navigateTo}
             onUnauthorized={handleUnauthorized}
           />
         );
@@ -281,7 +310,7 @@ const App: React.FC = () => {
       case 'projects':
         return (
           <ProjectsView
-            onNavigate={setActiveView}
+            onNavigate={navigateTo}
           />
         );
 
@@ -293,7 +322,7 @@ const App: React.FC = () => {
             onRefresh={fetchAppData}
             onOpenPoll={(pollId) => {
               setSelectedPollId(pollId);
-              setActiveView('polls');
+              navigateTo('polls');
             }}
           />
         );
@@ -306,7 +335,6 @@ const App: React.FC = () => {
             selectedPollId={selectedPollId}
             onRefresh={fetchAppData}
             onUnauthorized={handleUnauthorized}
-            onBackToProjects={() => setActiveView('projects')}
           />
         );
 
@@ -334,7 +362,6 @@ const App: React.FC = () => {
             userId={user!.id}
             userRole={user!.role}
             onUnauthorized={handleUnauthorized}
-            onBack={() => setActiveView('projects')}
           />
         );
 
@@ -351,7 +378,7 @@ const App: React.FC = () => {
             user={user!}
             onUnauthorized={handleUnauthorized}
             onExit={() => {
-              setActiveView('dashboard');
+              navigateToRoot('dashboard');
               setIsSidebarOpen(false);
             }}
           />
@@ -436,7 +463,7 @@ const App: React.FC = () => {
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             activeView={activeView}
-            onViewChange={setActiveView}
+            onViewChange={navigateTo}
             userRole={user.role}
           />
 
@@ -445,12 +472,25 @@ const App: React.FC = () => {
             onLogout={() => {
               api.clearToken();
               setUser(null);
+              setViewHistory([]);
             }}
             onOpenMenu={() => setIsSidebarOpen(true)}
-            onGoHome={() => setActiveView('dashboard')}
+            onGoHome={() => navigateToRoot('dashboard')}
           />
 
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+            {canGoBack && (
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="btn-secondary"
+                >
+                  Zurück
+                </button>
+              </div>
+            )}
+
             {renderContent()}
           </main>
 
