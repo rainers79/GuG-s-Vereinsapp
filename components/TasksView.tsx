@@ -1,24 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppRole } from '../types';
+import { AppRole, ProjectLite, Task } from '../types';
 import * as api from '../services/api';
-
-type LinkType = 'event' | 'poll';
-
-interface Task {
-  id: number;
-  event_id: number | null;
-  poll_id: number | null;
-  title: string;
-  description: string;
-  assigned_user_id: number | null;
-  role_tag: string;
-  deadline_date: string | null;
-  completed: boolean;
-  completed_by: number | null;
-  completed_at: string | null;
-  created_by: number | null;
-  created_at: string;
-}
 
 interface MemberLite {
   id: number;
@@ -42,6 +24,7 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<MemberLite[]>([]);
+  const [projects, setProjects] = useState<ProjectLite[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -51,6 +34,7 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
   const [newDescription, setNewDescription] = useState('');
   const [newAssignedUserId, setNewAssignedUserId] = useState('');
   const [newDeadlineDate, setNewDeadlineDate] = useState('');
+  const [newProjectId, setNewProjectId] = useState('');
 
   const activeProjectIdRaw = localStorage.getItem('gug_active_project');
   const activeProjectId = activeProjectIdRaw ? Number(activeProjectIdRaw) : 0;
@@ -59,12 +43,12 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
     setLoading(true);
     setError(null);
     try {
-      const endpoint =
+      const data = await api.getTasks(
+        onUnauthorized,
         activeProjectId > 0
-          ? `/gug/v1/tasks?project_id=${activeProjectId}`
-          : '/gug/v1/tasks';
-
-      const data = await api.apiRequest<Task[]>(endpoint, { method: 'GET' }, onUnauthorized);
+          ? { project_id: activeProjectId, scope: 'project' }
+          : { scope: 'personal' }
+      );
       setTasks(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e?.message || 'Fehler beim Laden der Aufgaben.');
@@ -84,10 +68,39 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
     }
   };
 
+  const loadProjects = async () => {
+    if (!canCreate) return;
+
+    try {
+      const data = await api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized);
+      const list = Array.isArray(data)
+        ? data.map((project) => ({
+            ...project,
+            id: Number(project.id)
+          }))
+        : [];
+
+      setProjects(list);
+
+      if (activeProjectId > 0) {
+        setNewProjectId(String(activeProjectId));
+      }
+    } catch {
+      setProjects([]);
+    }
+  };
+
   useEffect(() => {
     loadTasks();
     loadMembers();
+    loadProjects();
   }, []);
+
+  useEffect(() => {
+    if (activeProjectId > 0) {
+      setNewProjectId(String(activeProjectId));
+    }
+  }, [activeProjectId]);
 
   const memberNameMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -106,6 +119,16 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
     return map;
   }, [members]);
 
+  const projectNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+
+    projects.forEach((project) => {
+      map.set(Number(project.id), project.title?.trim() || `Projekt #${project.id}`);
+    });
+
+    return map;
+  }, [projects]);
+
   const sortedTasks = useMemo(() => {
     const copy = [...tasks];
     copy.sort((a, b) => {
@@ -115,7 +138,7 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
       const db = b.deadline_date ? new Date(b.deadline_date).getTime() : Number.POSITIVE_INFINITY;
       if (da !== db) return da - db;
 
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
     });
     return copy;
   }, [tasks]);
@@ -125,6 +148,7 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
     setNewDescription('');
     setNewAssignedUserId('');
     setNewDeadlineDate('');
+    setNewProjectId(activeProjectId > 0 ? String(activeProjectId) : '');
   };
 
   const handleCreateTask = async () => {
@@ -141,6 +165,11 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
       return;
     }
 
+    if (!newProjectId) {
+      setError('Projektzuordnung fehlt.');
+      return;
+    }
+
     setCreating(true);
     setError(null);
     setSuccess(null);
@@ -152,9 +181,9 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
           description,
           assigned_user_id: newAssignedUserId ? Number(newAssignedUserId) : null,
           deadline_date: newDeadlineDate || null,
-          project_id: activeProjectId > 0 ? activeProjectId : undefined,
+          project_id: Number(newProjectId),
           role_tag: ''
-        } as any,
+        },
         onUnauthorized
       );
 
@@ -171,7 +200,9 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
 
   const toggleComplete = async (task: Task, completed: boolean) => {
     const isAssigned = task.assigned_user_id === userId;
-    if (!isAssigned && !canCreate) {
+    const canToggle = isAssigned || canCreate;
+
+    if (!canToggle) {
       setError('Keine Berechtigung, diese Aufgabe zu ändern.');
       return;
     }
@@ -179,12 +210,9 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed } : t)));
 
     try {
-      await api.apiRequest(
-        `/gug/v1/tasks/${task.id}`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ completed })
-        },
+      await api.updateTask(
+        task.id,
+        { completed },
         onUnauthorized
       );
       setSuccess(completed ? 'Aufgabe erledigt.' : 'Aufgabe wieder offen.');
@@ -278,6 +306,27 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
 
             <div className="space-y-2">
               <label className="text-xs text-slate-500 dark:text-white/60 font-black uppercase tracking-widest">
+                Projekt
+              </label>
+              <select
+                className="form-input w-full"
+                value={newProjectId}
+                onChange={(e) => setNewProjectId(e.target.value)}
+                disabled={creating}
+              >
+                <option value="">Bitte auswählen</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.title || `Projekt #${project.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs text-slate-500 dark:text-white/60 font-black uppercase tracking-widest">
                 Mitglied zuweisen
               </label>
               <select
@@ -298,6 +347,19 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
                 ))}
               </select>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-slate-500 dark:text-white/60 font-black uppercase tracking-widest">
+                Fälligkeitsdatum
+              </label>
+              <input
+                type="date"
+                className="form-input w-full"
+                value={newDeadlineDate}
+                onChange={(e) => setNewDeadlineDate(e.target.value)}
+                disabled={creating}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -313,29 +375,14 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
             />
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs text-slate-500 dark:text-white/60 font-black uppercase tracking-widest">
-                Fälligkeitsdatum
-              </label>
-              <input
-                type="date"
-                className="form-input w-full"
-                value={newDeadlineDate}
-                onChange={(e) => setNewDeadlineDate(e.target.value)}
-                disabled={creating}
-              />
-            </div>
-
-            <div className="flex items-end justify-end">
-              <button
-                onClick={handleCreateTask}
-                disabled={creating || !newTitle.trim()}
-                className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]"
-              >
-                {creating ? '...' : 'Aufgabe speichern'}
-              </button>
-            </div>
+          <div className="flex items-end justify-end">
+            <button
+              onClick={handleCreateTask}
+              disabled={creating || !newTitle.trim() || !newProjectId}
+              className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]"
+            >
+              {creating ? '...' : 'Aufgabe speichern'}
+            </button>
           </div>
         </div>
       )}
@@ -368,6 +415,12 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
             const assignedLabel = t.assigned_user_id
               ? memberNameMap.get(Number(t.assigned_user_id)) || `Mitglied #${t.assigned_user_id}`
               : 'Nicht zugewiesen';
+
+            const projectLabel = t.project_id
+              ? projectNameMap.get(Number(t.project_id)) || `Projekt #${t.project_id}`
+              : activeProjectId > 0
+                ? projectNameMap.get(Number(activeProjectId)) || `Projekt #${activeProjectId}`
+                : 'Kein Projekt';
 
             return (
               <div
@@ -408,6 +461,7 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized,
 
                         <div className="text-xs text-slate-400 mt-2 space-y-1">
                           <div>#{t.id} • {t.created_at}</div>
+                          <div>Projekt: {projectLabel}</div>
                           <div>Zugewiesen an: {assignedLabel}</div>
                           {t.deadline_date && <div>Fällig: {t.deadline_date}</div>}
                         </div>
