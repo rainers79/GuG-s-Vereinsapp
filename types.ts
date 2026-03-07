@@ -104,19 +104,32 @@ export interface Member {
   meta: MemberMeta;
 }
 
-export type TaskStatus = 'open' | 'done';
+export interface ProjectLite {
+  id: number;
+  title?: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  next_date?: string | null;
+  target_date?: string | null;
+}
 
 export interface Task {
   id: number;
   event_id?: number | null;
   poll_id?: number | null;
+  project_id?: number | null;
   title: string;
   description?: string;
-  assigned_user_id: number;
+  assigned_user_id?: number | null;
   role_tag?: string | null;
-  status: TaskStatus;
   deadline_date?: string | null;
-  created_by?: number;
+  completed: boolean;
+  completed_by?: number | null;
+  completed_at?: string | null;
+  created_by?: number | null;
   created_at?: string;
 }
 
