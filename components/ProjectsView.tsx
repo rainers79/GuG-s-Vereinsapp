@@ -209,9 +209,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       api.apiRequest('/gug/v1/polls', {}, undefined).catch(() => [])
     ]);
 
-    setEvents(ev || []);
-    setTasks(ta || []);
-    setPolls(po || []);
+setEvents(Array.isArray(ev) ? ev : []);
+setTasks(Array.isArray(ta) ? ta : []);
+setPolls(Array.isArray(po) ? po : []);
 
   };
 
