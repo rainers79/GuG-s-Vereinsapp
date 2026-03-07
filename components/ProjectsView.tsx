@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ViewType } from '../types';
 import * as api from '../services/api';
-import ProjectsWheelMenu from './ProjectsWheelMenu';
+import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 
 interface Props {
   onNavigate: (view: ViewType) => void;
@@ -57,7 +57,9 @@ export interface WheelItem {
     | 'more';
 }
 
-const wheelItems: WheelItem[] = [
+type WheelMode = 'project-select' | 'actions';
+
+const actionWheelItems: WheelItem[] = [
   { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
@@ -83,6 +85,9 @@ const wheelColors = [
   '#F44336',
   '#53B62C'
 ];
+
+const PROJECT_PAGE_SIZE = 6;
+const WHEEL_SLOT_COUNT = 8;
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -185,13 +190,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
+  const [wheelMode, setWheelMode] = useState<WheelMode>('project-select');
+  const [projectPage, setProjectPage] = useState(0);
+
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
-    return projects.find(p => p.id === selectedProjectId) || null;
+    return projects.find((p) => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
   useEffect(() => {
@@ -225,15 +233,81 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     return list;
   }, [projects]);
 
+  const projectPageCount = useMemo(() => {
+    return Math.max(1, Math.ceil(sortedProjects.length / PROJECT_PAGE_SIZE));
+  }, [sortedProjects]);
+
+  useEffect(() => {
+    if (projectPage > projectPageCount - 1) {
+      setProjectPage(Math.max(0, projectPageCount - 1));
+    }
+  }, [projectPage, projectPageCount]);
+
+  const currentProjectPageItems = useMemo(() => {
+    const start = projectPage * PROJECT_PAGE_SIZE;
+    return sortedProjects.slice(start, start + PROJECT_PAGE_SIZE);
+  }, [sortedProjects, projectPage]);
+
+  const wheelDisplayItems = useMemo<ProjectsWheelDisplayItem[]>(() => {
+    if (wheelMode === 'actions') {
+      return actionWheelItems.map((item) => ({
+        label: item.label,
+        actionKey: item.actionKey,
+        view: item.view,
+        comingSoon: item.comingSoon,
+        slotType: item.comingSoon ? 'locked' : 'action'
+      }));
+    }
+
+    const items: ProjectsWheelDisplayItem[] = currentProjectPageItems.map((project) => ({
+      label: project.title?.trim() || `Projekt #${project.id}`,
+      actionKey: 'project',
+      slotType: 'project',
+      projectId: project.id
+    }));
+
+    if (projectPage > 0) {
+      items.push({
+        label: 'Zurück',
+        actionKey: 'prev',
+        slotType: 'prev'
+      });
+    }
+
+    if (projectPage < projectPageCount - 1) {
+      items.push({
+        label: 'Weiter',
+        actionKey: 'next',
+        slotType: 'next'
+      });
+    }
+
+    while (items.length < WHEEL_SLOT_COUNT) {
+      items.push({
+        label: 'Freier Slot',
+        actionKey: 'empty',
+        slotType: 'empty'
+      });
+    }
+
+    return items.slice(0, WHEEL_SLOT_COUNT);
+  }, [wheelMode, currentProjectPageItems, projectPage, projectPageCount]);
+
   const centerTitle = useMemo(() => {
+    if (wheelMode === 'project-select') return 'Projektauswahl';
     const title = selectedProject?.title?.trim();
     return title ? title : 'Projekt';
-  }, [selectedProject]);
+  }, [wheelMode, selectedProject]);
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
+  const centerSubLabel = useMemo(() => {
+    if (wheelMode !== 'project-select') return '';
+    return `${projectPage + 1}/${projectPageCount}`;
+  }, [wheelMode, projectPage, projectPageCount]);
+
   const triggerWheelAnimation = () => {
-    setWheelAnimationTick(prev => prev + 1);
+    setWheelAnimationTick((prev) => prev + 1);
   };
 
   const loadProjects = async () => {
@@ -251,33 +325,21 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
         let nextId: number | null = null;
 
-        if (storedId && list.some(p => p.id === storedId)) {
+        if (storedId && list.some((p) => p.id === storedId)) {
           nextId = storedId;
-        } else {
-          nextId = list[0].id;
         }
 
         setSelectedProjectId(nextId);
 
-        if (nextId && !hasStartedInitialWheelAnimation.current) {
+        if (list.length > 0 && !hasStartedInitialWheelAnimation.current) {
           hasStartedInitialWheelAnimation.current = true;
           triggerWheelAnimation();
         }
       } else if (selectedProjectId) {
-        const stillExists = list.some(p => p.id === selectedProjectId);
+        const stillExists = list.some((p) => p.id === selectedProjectId);
         if (!stillExists) {
-          const fallbackId = list.length ? list[0].id : null;
-          setSelectedProjectId(fallbackId);
-
-          if (fallbackId) {
-            localStorage.setItem('gug_active_project', String(fallbackId));
-            if (!hasStartedInitialWheelAnimation.current) {
-              hasStartedInitialWheelAnimation.current = true;
-              triggerWheelAnimation();
-            }
-          } else {
-            localStorage.removeItem('gug_active_project');
-          }
+          setSelectedProjectId(null);
+          localStorage.removeItem('gug_active_project');
         }
       }
     } catch (e: any) {
@@ -299,6 +361,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setTasks(Array.isArray(ta) ? ta : []);
       setPolls(Array.isArray(po) ? po : []);
     } catch {
+      // silent
     }
   };
 
@@ -309,8 +372,43 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     loadAssignableData();
   }, []);
 
-  const handleWheelClick = (item: WheelItem) => {
-    if (item.comingSoon) return;
+  const handleCenterClick = () => {
+    if (wheelMode === 'project-select') {
+      if (selectedProjectId) {
+        setWheelMode('actions');
+      }
+      return;
+    }
+
+    setWheelMode('project-select');
+    triggerWheelAnimation();
+  };
+
+  const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
+    if (wheelMode === 'project-select') {
+      if (item.slotType === 'project' && item.projectId) {
+        setSelectedProjectId(item.projectId);
+        localStorage.setItem('gug_active_project', String(item.projectId));
+        setWheelMode('actions');
+        triggerWheelAnimation();
+        return;
+      }
+
+      if (item.slotType === 'next') {
+        setProjectPage((prev) => Math.min(prev + 1, projectPageCount - 1));
+        triggerWheelAnimation();
+        return;
+      }
+
+      if (item.slotType === 'prev') {
+        setProjectPage((prev) => Math.max(prev - 1, 0));
+        triggerWheelAnimation();
+      }
+
+      return;
+    }
+
+    if (item.slotType !== 'action') return;
     if (!selectedProjectId) return;
 
     localStorage.setItem('gug_active_project', String(selectedProjectId));
@@ -347,8 +445,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       await loadProjects();
 
       if (newId) {
+        const newIndex = sortedProjects.findIndex((p) => p.id === newId);
+        if (newIndex >= 0) {
+          setProjectPage(Math.floor(newIndex / PROJECT_PAGE_SIZE));
+        } else {
+          setProjectPage(0);
+        }
+
         setSelectedProjectId(newId);
         localStorage.setItem('gug_active_project', String(newId));
+        setWheelMode('actions');
         triggerWheelAnimation();
       }
     } catch (e: any) {
@@ -360,20 +466,20 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const optionsForAssign = useMemo(() => {
     if (assignType === 'event') {
-      return events.map(e => ({
+      return events.map((e) => ({
         id: String(e.id),
         label: `${e.title}${e.date ? ` (${formatDate(e.date)})` : ''}`
       }));
     }
 
     if (assignType === 'task') {
-      return tasks.map(t => ({
+      return tasks.map((t) => ({
         id: String(t.id),
         label: `${t.title}${t.deadline_date ? ` (${formatDate(t.deadline_date)})` : ''}`
       }));
     }
 
-    return polls.map(p => ({
+    return polls.map((p) => ({
       id: String(p.id),
       label: `${p.question}${p.target_date ? ` (${formatDate(p.target_date)})` : ''}`
     }));
@@ -430,7 +536,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           <div>
             <h1 className="text-2xl font-black">Projekte</h1>
             <p className="text-xs text-white/40 mt-1">
-              Projekt auswählen, dann im Rad navigieren. Zuordnungen kommen über Dropdown.
+              In der Mitte Projektauswahl öffnen und außen ein Projekt oder später die Module wählen.
             </p>
           </div>
 
@@ -454,7 +560,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       <ProjectsWheelMenu
-        wheelItems={wheelItems}
+        wheelItems={wheelDisplayItems}
         hoveredIndex={hoveredIndex}
         setHoveredIndex={setHoveredIndex}
         handleWheelClick={handleWheelClick}
@@ -466,6 +572,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         polarToCartesian={polarToCartesian}
         getSliceLift={getSliceLift}
         centerLines={centerLines}
+        centerSubLabel={centerSubLabel}
+        onCenterClick={handleCenterClick}
         animationKey={wheelAnimationTick}
       />
 
@@ -606,6 +714,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                   onClick={() => {
                     setSelectedProjectId(p.id);
                     localStorage.setItem('gug_active_project', String(p.id));
+                    setWheelMode('actions');
                     triggerWheelAnimation();
                   }}
                   className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
