@@ -90,6 +90,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
   const segmentGapAngle = 4;
   const innerGapRadius = 16;
+  const cornerRoundStroke = 8;
 
   return (
     <div className="flex justify-center items-center py-10">
@@ -132,6 +133,7 @@ Z
 
             const translateX = hoveredIndex === i ? lift.dx * 2 : lift.dx;
             const translateY = hoveredIndex === i ? lift.dy * 2 : lift.dy;
+            const segmentColor = wheelColors[i] || '#cccccc';
 
             return (
               <g
@@ -147,8 +149,11 @@ Z
               >
                 <path
                   d={path}
-                  fill={wheelColors[i] || '#cccccc'}
-                  stroke="none"
+                  fill={segmentColor}
+                  stroke={segmentColor}
+                  strokeWidth={cornerRoundStroke}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
                 />
 
                 <text
