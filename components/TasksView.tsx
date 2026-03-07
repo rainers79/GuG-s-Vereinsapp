@@ -24,9 +24,10 @@ interface TasksViewProps {
   userId: number;
   userRole: AppRole;
   onUnauthorized: () => void;
+  onBack?: () => void;
 }
 
-const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized }) => {
+const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized, onBack }) => {
 
   const canCreate = userRole === AppRole.SUPERADMIN || userRole === AppRole.VORSTAND;
   const canDelete = canCreate; // gleiche Berechtigung
@@ -139,9 +140,20 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
     <div className="bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5 rounded-xl p-4 sm:p-6">
 
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-          Aufgaben
-        </h3>
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-white dark:bg-[#121212] border border-slate-200 dark:border-white/10"
+            >
+              Zurück
+            </button>
+          )}
+
+          <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+            Aufgaben
+          </h3>
+        </div>
 
         <button
           onClick={loadTasks}
@@ -221,7 +233,6 @@ const TasksView: React.FC<TasksViewProps> = ({ userId, userRole, onUnauthorized 
                         </div>
                       </div>
 
-                      {/* NEU: Delete Button */}
                       {canDelete && t.completed && (
                         <button
                           onClick={() => deleteTask(t)}
