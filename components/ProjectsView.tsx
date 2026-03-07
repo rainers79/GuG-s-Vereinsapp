@@ -186,7 +186,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const loadedOnce = useRef(false);
-  const wheelGroupRef = useRef<SVGGElement>(null);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -230,21 +229,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   }, [selectedProject]);
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
-
-  useEffect(() => {
-    if (!wheelGroupRef.current) return;
-
-    wheelGroupRef.current.animate(
-      [
-        { transform: 'rotate(-12deg) scale(0.97)' },
-        { transform: 'rotate(0deg) scale(1)' }
-      ],
-      {
-        duration: 280,
-        easing: 'ease-out'
-      }
-    );
-  }, [selectedProjectId]);
 
   const loadProjects = async () => {
     setError(null);
@@ -454,7 +438,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         setHoveredIndex={setHoveredIndex}
         handleWheelClick={handleWheelClick}
         wheelColors={wheelColors}
-        wheelGroupRef={wheelGroupRef}
         center={center}
         centerRadius={centerRadius}
         buttonRadius={buttonRadius}
@@ -462,6 +445,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         polarToCartesian={polarToCartesian}
         getSliceLift={getSliceLift}
         centerLines={centerLines}
+        animationKey={selectedProjectId}
       />
 
       <div className="app-card space-y-4">
