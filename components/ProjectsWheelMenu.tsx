@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ViewType } from '../types';
 
 type WheelItem = {
@@ -27,7 +27,6 @@ interface Props {
   setHoveredIndex: (i: number | null) => void;
   handleWheelClick: (item: WheelItem) => void;
   wheelColors: string[];
-  wheelGroupRef: React.RefObject<SVGGElement>;
   center: number;
   centerRadius: number;
   buttonRadius: number;
@@ -40,6 +39,7 @@ interface Props {
   ) => Point;
   getSliceLift: (index: number, total: number) => { dx: number; dy: number };
   centerLines: string[];
+  animationKey: number | null;
 }
 
 const ProjectsWheelMenu: React.FC<Props> = ({
@@ -48,15 +48,32 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   setHoveredIndex,
   handleWheelClick,
   wheelColors,
-  wheelGroupRef,
   center,
   centerRadius,
   buttonRadius,
   labelRadius,
   polarToCartesian,
   getSliceLift,
-  centerLines
+  centerLines,
+  animationKey
 }) => {
+  const wheelGroupRef = useRef<SVGGElement>(null);
+
+  useEffect(() => {
+    if (!wheelGroupRef.current) return;
+
+    wheelGroupRef.current.animate(
+      [
+        { transform: 'rotate(-12deg) scale(0.97)' },
+        { transform: 'rotate(0deg) scale(1)' }
+      ],
+      {
+        duration: 280,
+        easing: 'ease-out'
+      }
+    );
+  }, [animationKey]);
+
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
