@@ -884,7 +884,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
-              <div className="text-xs text-white/50 mt-1">
+              <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
                 {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
               </div>
             </div>
@@ -900,11 +900,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           </div>
 
           {sortedChatGroups.length === 0 ? (
-            <div className="text-sm text-white/50">
+            <div className="text-sm text-slate-500 dark:text-white/50">
               Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sortedChatGroups.map((group) => {
                 const isActive = group.id === selectedChatGroupId;
 
@@ -917,20 +917,24 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                       localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
                       onNavigate('project-chat');
                     }}
-                    className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
                       isActive
-                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                        : 'bg-white/5 hover:bg-white/10 text-white/80'
+                        ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                        : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                        <div
+                          className={`font-black ${
+                            isActive ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
+                          }`}
+                        >
                           {group.name}
                         </div>
                         <div
                           className={`text-xs mt-1 ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
                           }`}
                         >
                           Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
@@ -939,7 +943,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
                       <div
                         className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                          isActive ? 'text-[#1A1A1A]/70' : 'text-slate-600 dark:text-white/40'
                         }`}
                       >
                         Chat
