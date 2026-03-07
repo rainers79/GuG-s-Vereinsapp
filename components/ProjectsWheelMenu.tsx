@@ -39,7 +39,7 @@ interface Props {
   ) => Point;
   getSliceLift: (index: number, total: number) => { dx: number; dy: number };
   centerLines: string[];
-  animationKey: number | null;
+  animationKey: number;
 }
 
 const ProjectsWheelMenu: React.FC<Props> = ({
@@ -62,16 +62,25 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   useEffect(() => {
     if (!wheelGroupRef.current) return;
 
-    wheelGroupRef.current.animate(
+    const animation = wheelGroupRef.current.animate(
       [
-        { transform: 'rotate(-12deg) scale(0.97)' },
-        { transform: 'rotate(0deg) scale(1)' }
+        {
+          transform: 'rotate(-140deg)'
+        },
+        {
+          transform: 'rotate(0deg)'
+        }
       ],
       {
-        duration: 280,
-        easing: 'ease-out'
+        duration: 1400,
+        easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)',
+        fill: 'forwards'
       }
     );
+
+    return () => {
+      animation.cancel();
+    };
   }, [animationKey]);
 
   return (
@@ -88,7 +97,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           ))}
         </defs>
 
-        <g ref={wheelGroupRef}>
+        <g ref={wheelGroupRef} transformOrigin={`${center}px ${center}px`}>
           {wheelItems.map((item, i) => {
             const startAngle = (i / wheelItems.length) * 360;
             const endAngle = ((i + 1) / wheelItems.length) * 360;
@@ -113,6 +122,9 @@ Z
             const label = polarToCartesian(center, center, labelRadius, mid);
             const lift = getSliceLift(i, wheelItems.length);
 
+            const baseDx = lift.dx;
+            const baseDy = lift.dy;
+
             return (
               <g
                 key={i}
@@ -121,8 +133,8 @@ Z
                 onMouseLeave={() => setHoveredIndex(null)}
                 transform={
                   hoveredIndex === i
-                    ? `translate(${lift.dx}, ${lift.dy})`
-                    : 'translate(0, 0)'
+                    ? `translate(${baseDx}, ${baseDy})`
+                    : `translate(${baseDx}, ${baseDy})`
                 }
                 style={{
                   cursor: item.comingSoon ? 'default' : 'pointer',
@@ -136,8 +148,8 @@ Z
                   style={{
                     filter:
                       hoveredIndex === i
-                        ? 'drop-shadow(0 12px 18px rgba(0,0,0,0.9))'
-                        : 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))'
+                        ? 'drop-shadow(0 14px 22px rgba(0,0,0,0.95))'
+                        : 'drop-shadow(0 7px 12px rgba(0,0,0,0.78))'
                   }}
                 />
 
@@ -155,44 +167,44 @@ Z
               </g>
             );
           })}
+
+          <circle
+            cx={center}
+            cy={center}
+            r={centerRadius}
+            fill="#d6c39a"
+            stroke="none"
+          />
+
+          <text
+            x={center}
+            y={center}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#000"
+            fontWeight="900"
+            fontSize="14"
+          >
+            {centerLines.map((line, idx) => (
+              <tspan
+                key={idx}
+                x={center}
+                dy={
+                  idx === 0
+                    ? centerLines.length > 1
+                      ? -((centerLines.length - 1) * 7)
+                      : 0
+                    : 14
+                }
+              >
+                {line}
+              </tspan>
+            ))}
+          </text>
         </g>
-
-        <circle
-          cx={center}
-          cy={center}
-          r={centerRadius}
-          fill="#d6c39a"
-          stroke="none"
-        />
-
-        <text
-          x={center}
-          y={center}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#000"
-          fontWeight="900"
-          fontSize="14"
-        >
-          {centerLines.map((line, idx) => (
-            <tspan
-              key={idx}
-              x={center}
-              dy={
-                idx === 0
-                  ? centerLines.length > 1
-                    ? -((centerLines.length - 1) * 7)
-                    : 0
-                  : 14
-              }
-            >
-              {line}
-            </tspan>
-          ))}
-        </text>
       </svg>
     </div>
   );
 };
 
-export default ProjectsWheelMenu;
+export default ProjectsWheelMenu;;
