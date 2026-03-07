@@ -95,6 +95,37 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
+        <defs>
+          {wheelColors.map((color, i) => (
+            <React.Fragment key={i}>
+              <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+                <stop offset="10%" stopColor={color} stopOpacity="1" />
+                <stop offset="70%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.14" />
+              </linearGradient>
+
+              <linearGradient id={`seg-top-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
+                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.12" />
+                <stop offset="42%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </linearGradient>
+
+              <linearGradient id={`seg-bottom-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                <stop offset="72%" stopColor="#000000" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+              </linearGradient>
+            </React.Fragment>
+          ))}
+
+          <radialGradient id="center-fill" cx="50%" cy="35%" r="75%">
+            <stop offset="0%" stopColor="#ded2b0" />
+            <stop offset="100%" stopColor="#cdbd96" />
+          </radialGradient>
+        </defs>
+
         <g
           ref={rotatingRingRef}
           style={{
@@ -149,11 +180,23 @@ Z
               >
                 <path
                   d={path}
-                  fill={segmentColor}
+                  fill={`url(#seg-fill-${i})`}
                   stroke={segmentColor}
                   strokeWidth={cornerRoundStroke}
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-top-${i})`}
+                  stroke="none"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-bottom-${i})`}
+                  stroke="none"
                 />
 
                 <text
@@ -177,7 +220,7 @@ Z
             cx={center}
             cy={center}
             r={centerRadius}
-            fill="#cdbd96"
+            fill="url(#center-fill)"
             stroke="none"
           />
 
