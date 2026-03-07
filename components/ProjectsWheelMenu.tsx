@@ -57,20 +57,24 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   centerLines,
   animationKey
 }) => {
-  const outerWheelRef = useRef<SVGGElement>(null);
+  const rotatingRingRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
-    if (!outerWheelRef.current) return;
+    if (!rotatingRingRef.current) return;
 
-    outerWheelRef.current.getAnimations().forEach((animation) => animation.cancel());
+    rotatingRingRef.current.getAnimations().forEach((animation) => animation.cancel());
 
-    const animation = outerWheelRef.current.animate(
+    const animation = rotatingRingRef.current.animate(
       [
-        { transform: 'rotate(0deg)' },
-        { transform: 'rotate(360deg)' }
+        {
+          transform: `rotate(0deg)`
+        },
+        {
+          transform: `rotate(360deg)`
+        }
       ],
       {
-        duration: 2600,
+        duration: 3200,
         easing: 'ease-in-out',
         fill: 'forwards'
       }
@@ -99,9 +103,10 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         </defs>
 
         <g
-          ref={outerWheelRef}
+          ref={rotatingRingRef}
           style={{
-            transformOrigin: `${center}px ${center}px`
+            transformOrigin: `${center}px ${center}px`,
+            transformBox: 'view-box'
           }}
         >
           {wheelItems.map((item, i) => {
@@ -176,40 +181,42 @@ Z
           })}
         </g>
 
-        <circle
-          cx={center}
-          cy={center}
-          r={centerRadius}
-          fill="#d6c39a"
-          stroke="none"
-        />
+        <g>
+          <circle
+            cx={center}
+            cy={center}
+            r={centerRadius}
+            fill="#d6c39a"
+            stroke="none"
+          />
 
-        <text
-          x={center}
-          y={center}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#000"
-          fontWeight="900"
-          fontSize="14"
-          style={{ pointerEvents: 'none' }}
-        >
-          {centerLines.map((line, idx) => (
-            <tspan
-              key={idx}
-              x={center}
-              dy={
-                idx === 0
-                  ? centerLines.length > 1
-                    ? -((centerLines.length - 1) * 7)
-                    : 0
-                  : 14
-              }
-            >
-              {line}
-            </tspan>
-          ))}
-        </text>
+          <text
+            x={center}
+            y={center}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#000"
+            fontWeight="900"
+            fontSize="14"
+            style={{ pointerEvents: 'none' }}
+          >
+            {centerLines.map((line, idx) => (
+              <tspan
+                key={idx}
+                x={center}
+                dy={
+                  idx === 0
+                    ? centerLines.length > 1
+                      ? -((centerLines.length - 1) * 7)
+                      : 0
+                    : 14
+                }
+              >
+                {line}
+              </tspan>
+            ))}
+          </text>
+        </g>
       </svg>
     </div>
   );
