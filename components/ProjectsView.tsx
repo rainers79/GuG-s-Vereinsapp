@@ -942,7 +942,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                           isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
                         }`}
                       >
-                        Chat
+                        Verwalten
                       </div>
                     </div>
                   </button>
@@ -950,189 +950,202 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
               })}
             </div>
           )}
+
+          {selectedChatGroup && (
+            <div className="text-xs text-white/40">
+              Ausgewählt:{' '}
+              <span className="text-white/70 font-bold">
+                {selectedChatGroup.name}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="app-card space-y-4">
-        <h2 className="text-lg font-black">Projekt erstellen</h2>
+      {wheelMode !== 'chat-groups' && (
+        <>
+          <div className="app-card space-y-4">
+            <h2 className="text-lg font-black">Projekt erstellen</h2>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-              Projektname
-            </label>
-            <input
-              className="form-input w-full"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="z.B. Ostermarkt 2026"
-              disabled={creating}
-            />
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Projektname
+                </label>
+                <input
+                  className="form-input w-full"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="z.B. Ostermarkt 2026"
+                  disabled={creating}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Beschreibung
+                </label>
+                <input
+                  className="form-input w-full"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Kurzbeschreibung"
+                  disabled={creating}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateProject}
+                disabled={creating || !newTitle.trim()}
+              >
+                {creating ? '...' : 'Projekt anlegen'}
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-              Beschreibung
-            </label>
-            <input
-              className="form-input w-full"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="Kurzbeschreibung"
-              disabled={creating}
-            />
-          </div>
-        </div>
+          <div className="app-card space-y-4">
+            <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleCreateProject}
-            disabled={creating || !newTitle.trim()}
-          >
-            {creating ? '...' : 'Projekt anlegen'}
-          </button>
-        </div>
-      </div>
-
-      <div className="app-card space-y-4">
-        <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
-
-        <div className="grid md:grid-cols-3 gap-3">
-          <div className="space-y-2">
-            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-              Typ
-            </label>
-            <select
-              className="form-input w-full"
-              value={assignType}
-              onChange={(e) => setAssignType(e.target.value as LinkType)}
-              disabled={!selectedProjectId || assigning}
-            >
-              <option value="event">Kalender</option>
-              <option value="task">Aufgaben</option>
-              <option value="poll">Umfragen</option>
-            </select>
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-              Eintrag
-            </label>
-            <select
-              className="form-input w-full"
-              value={assignId}
-              onChange={(e) => setAssignId(e.target.value)}
-              disabled={!selectedProjectId || assigning}
-            >
-              <option value="">Bitte auswählen</option>
-              {optionsForAssign.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-white/40">
-            {selectedProject ? (
-              <>
-                Ziel:{' '}
-                <span className="text-white/70 font-bold">
-                  {selectedProject.title || `Projekt #${selectedProject.id}`}
-                </span>
-              </>
-            ) : (
-              <>Kein Projekt ausgewählt.</>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleAssignToProject}
-            disabled={!selectedProjectId || assigning || !assignId}
-          >
-            {assigning ? '...' : 'Zuordnen'}
-          </button>
-        </div>
-
-        {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
-      </div>
-
-      <div className="app-card space-y-4">
-        <h2 className="text-lg font-black">Projektliste</h2>
-
-        {sortedProjects.length === 0 ? (
-          <div className="text-sm text-white/50">
-            Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {sortedProjects.map((p) => {
-              const d = pickProjectDate(p);
-              const dateLabel = d
-                ? d.toLocaleDateString('de-AT', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                  })
-                : '';
-              const isActive = p.id === selectedProjectId;
-
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    const nextId = Number(p.id);
-                    localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-                    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-                    localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-                    setSelectedProjectId(nextId);
-                    setSelectedChatGroupId(null);
-                    setWheelMode('actions');
-                    triggerWheelAnimation();
-                  }}
-                  className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
-                    isActive
-                      ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                      : 'bg-white/5 hover:bg-white/10 text-white/80'
-                  }`}
+            <div className="grid md:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Typ
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={assignType}
+                  onChange={(e) => setAssignType(e.target.value as LinkType)}
+                  disabled={!selectedProjectId || assigning}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                        {p.title || `Projekt #${p.id}`}
-                      </div>
-                      {p.description && (
-                        <div
-                          className={`text-xs mt-1 ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
-                          }`}
-                        >
-                          {p.description}
-                        </div>
-                      )}
-                    </div>
+                  <option value="event">Kalender</option>
+                  <option value="task">Aufgaben</option>
+                  <option value="poll">Umfragen</option>
+                </select>
+              </div>
 
-                    <div
-                      className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                        isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Eintrag
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={assignId}
+                  onChange={(e) => setAssignId(e.target.value)}
+                  disabled={!selectedProjectId || assigning}
+                >
+                  <option value="">Bitte auswählen</option>
+                  {optionsForAssign.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-white/40">
+                {selectedProject ? (
+                  <>
+                    Ziel:{' '}
+                    <span className="text-white/70 font-bold">
+                      {selectedProject.title || `Projekt #${selectedProject.id}`}
+                    </span>
+                  </>
+                ) : (
+                  <>Kein Projekt ausgewählt.</>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleAssignToProject}
+                disabled={!selectedProjectId || assigning || !assignId}
+              >
+                {assigning ? '...' : 'Zuordnen'}
+              </button>
+            </div>
+
+            {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
+          </div>
+
+          <div className="app-card space-y-4">
+            <h2 className="text-lg font-black">Projektliste</h2>
+
+            {sortedProjects.length === 0 ? (
+              <div className="text-sm text-white/50">
+                Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {sortedProjects.map((p) => {
+                  const d = pickProjectDate(p);
+                  const dateLabel = d
+                    ? d.toLocaleDateString('de-AT', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })
+                    : '';
+                  const isActive = p.id === selectedProjectId;
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        const nextId = Number(p.id);
+                        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+                        setSelectedProjectId(nextId);
+                        setSelectedChatGroupId(null);
+                        setWheelMode('actions');
+                        triggerWheelAnimation();
+                      }}
+                      className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                        isActive
+                          ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                          : 'bg-white/5 hover:bg-white/10 text-white/80'
                       }`}
                     >
-                      {dateLabel || 'ohne Datum'}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                            {p.title || `Projekt #${p.id}`}
+                          </div>
+                          {p.description && (
+                            <div
+                              className={`text-xs mt-1 ${
+                                isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                              }`}
+                            >
+                              {p.description}
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                          }`}
+                        >
+                          {dateLabel || 'ohne Datum'}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
