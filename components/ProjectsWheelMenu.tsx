@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { ViewType } from '../types';
 
 type WheelItem = {
@@ -59,32 +59,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 }) => {
   const rotatingRingRef = useRef<SVGGElement>(null);
 
-  useEffect(() => {
-    if (!rotatingRingRef.current) return;
-
-    rotatingRingRef.current.getAnimations().forEach((animation) => animation.cancel());
-
-    const animation = rotatingRingRef.current.animate(
-      [
-        {
-          transform: `rotate(0deg)`
-        },
-        {
-          transform: `rotate(360deg)`
-        }
-      ],
-      {
-        duration: 3200,
-        easing: 'ease-in-out',
-        fill: 'forwards'
-      }
-    );
-
-    return () => {
-      animation.cancel();
-    };
-  }, [animationKey]);
-
   const segmentGapAngle = 4;
   const innerGapRadius = 16;
 
@@ -104,10 +78,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
         <g
           ref={rotatingRingRef}
-          style={{
-            transformOrigin: `${center}px ${center}px`,
-            transformBox: 'view-box'
-          }}
+          transform={`rotate(0 ${center} ${center})`}
         >
           {wheelItems.map((item, i) => {
             const sliceAngle = 360 / wheelItems.length;
