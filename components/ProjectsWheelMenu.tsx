@@ -81,6 +81,9 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     };
   }, [animationKey]);
 
+  const segmentGapAngle = 4;
+  const innerGapRadius = 16;
+
   return (
     <div className="flex justify-center items-center py-10">
       <svg width="400" height="400" viewBox="0 0 400 400">
@@ -102,34 +105,36 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           }}
         >
           {wheelItems.map((item, i) => {
-            const startAngle = (i / wheelItems.length) * 360;
-            const endAngle = ((i + 1) / wheelItems.length) * 360;
+            const sliceAngle = 360 / wheelItems.length;
+            const rawStartAngle = i * sliceAngle;
+            const rawEndAngle = (i + 1) * sliceAngle;
 
-            const start = polarToCartesian(center, center, buttonRadius, startAngle);
-            const end = polarToCartesian(center, center, buttonRadius, endAngle);
+            const startAngle = rawStartAngle + segmentGapAngle / 2;
+            const endAngle = rawEndAngle - segmentGapAngle / 2;
+
+            const outerStart = polarToCartesian(center, center, buttonRadius, startAngle);
+            const outerEnd = polarToCartesian(center, center, buttonRadius, endAngle);
+
+            const innerRadiusWithGap = centerRadius + innerGapRadius;
+            const innerStart = polarToCartesian(center, center, innerRadiusWithGap, startAngle);
+            const innerEnd = polarToCartesian(center, center, innerRadiusWithGap, endAngle);
 
             const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
 
-            const innerStart = polarToCartesian(center, center, centerRadius, startAngle);
-            const innerEnd = polarToCartesian(center, center, centerRadius, endAngle);
-
             const path = `
-M ${start.x} ${start.y}
-A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${end.x} ${end.y}
+M ${outerStart.x} ${outerStart.y}
+A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}
 L ${innerEnd.x} ${innerEnd.y}
-A ${centerRadius} ${centerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
+A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
 Z
 `;
 
             const mid = (startAngle + endAngle) / 2;
-            const label = polarToCartesian(center, center, labelRadius, mid);
+            const label = polarToCartesian(center, center, labelRadius + 4, mid);
             const lift = getSliceLift(i, wheelItems.length);
 
-            const baseDx = lift.dx;
-            const baseDy = lift.dy;
-
-            const translateX = hoveredIndex === i ? baseDx * 2 : baseDx;
-            const translateY = hoveredIndex === i ? baseDy * 2 : baseDy;
+            const translateX = hoveredIndex === i ? lift.dx * 2 : lift.dx;
+            const translateY = hoveredIndex === i ? lift.dy * 2 : lift.dy;
 
             return (
               <g
