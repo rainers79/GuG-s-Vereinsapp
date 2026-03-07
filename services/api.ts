@@ -393,12 +393,7 @@ export async function uploadProjectChatImage(
     message?: string;
   },
   onUnauthorized: () => void
-): Promise<{
-  success: boolean;
-  id: number;
-  attachment_id: number;
-  attachment_url: string;
-}> {
+): Promise<{ success: boolean; id: number; attachment_id: number; attachment_url: string }> {
   const formData = new FormData();
   formData.append('project_id', String(payload.project_id));
   formData.append('group_id', String(payload.group_id));
@@ -408,12 +403,7 @@ export async function uploadProjectChatImage(
     formData.append('message', payload.message.trim());
   }
 
-  return await apiRequest<{
-    success: boolean;
-    id: number;
-    attachment_id: number;
-    attachment_url: string;
-  }>(
+  return await apiRequest<{ success: boolean; id: number; attachment_id: number; attachment_url: string }>(
     '/gug/v1/project-chat/upload',
     {
       method: 'POST',
