@@ -531,33 +531,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="space-y-10">
-      <div className="app-card">
-        <div className="flex flex-col md:flex-row gap-6 md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl font-black">Projekte</h1>
-            <p className="text-xs text-white/40 mt-1">
-              In der Mitte Projektauswahl öffnen und außen ein Projekt oder später die Module wählen.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={loadProjects}
-              disabled={loading}
-              className="btn-secondary"
-            >
-              {loading ? '...' : 'Aktualisieren'}
-            </button>
-          </div>
+      {error && (
+        <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
+          {error}
         </div>
-
-        {error && (
-          <div className="mt-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
-            {error}
-          </div>
-        )}
-      </div>
+      )}
 
       <ProjectsWheelMenu
         wheelItems={wheelDisplayItems}
