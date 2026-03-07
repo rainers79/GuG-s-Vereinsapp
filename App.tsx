@@ -33,6 +33,8 @@ interface ToastItem {
 const LS_NOTIFICATION_SETTINGS = 'gug_notification_settings';
 const LS_LAST_CHAT_ID = 'gug_last_chat_id';
 const LS_LAST_POLL_ID = 'gug_last_poll_id';
+const LS_ACTIVE_PROJECT = 'gug_active_project';
+const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 
 /* =====================================================
    DEFAULT SETTINGS
@@ -97,15 +99,30 @@ const App: React.FC = () => {
     }
   }, [activeView]);
 
+  const enforceProjectsActionState = useCallback(() => {
+    const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
+    if (activeProject) {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+    }
+  }, []);
+
   const navigateTo = useCallback((view: ViewType) => {
     setActiveView((prev) => {
       if (prev === view) return prev;
+
+      if (prev === 'projects' && view !== 'projects') {
+        enforceProjectsActionState();
+      }
+
       setViewHistory((history) => [...history, prev]);
       return view;
     });
-  }, []);
+  }, [enforceProjectsActionState]);
 
   const navigateToRoot = useCallback((view: ViewType) => {
+    if (view === 'dashboard') {
+      localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+    }
     setViewHistory([]);
     setActiveView(view);
   }, []);
@@ -115,11 +132,16 @@ const App: React.FC = () => {
       if (history.length === 0) return history;
 
       const previousView = history[history.length - 1];
+
+      if (previousView === 'projects') {
+        enforceProjectsActionState();
+      }
+
       setActiveView(previousView);
 
       return history.slice(0, -1);
     });
-  }, []);
+  }, [enforceProjectsActionState]);
 
   const canGoBack = viewHistory.length > 0;
 
@@ -140,6 +162,7 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
     setViewHistory([]);
     setActiveView('dashboard');
+    localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
   }, []);
 
   const fetchAppData = useCallback(async () => {
@@ -473,6 +496,7 @@ const App: React.FC = () => {
               api.clearToken();
               setUser(null);
               setViewHistory([]);
+              localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
             }}
             onOpenMenu={() => setIsSidebarOpen(true)}
             onGoHome={() => navigateToRoot('dashboard')}
