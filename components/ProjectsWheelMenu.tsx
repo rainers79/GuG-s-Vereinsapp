@@ -98,23 +98,17 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           {wheelColors.map((color, i) => (
             <React.Fragment key={i}>
               <linearGradient id={`seg-fill-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.12" />
                 <stop offset="10%" stopColor={color} stopOpacity="1" />
-                <stop offset="72%" stopColor={color} stopOpacity="1" />
+                <stop offset="78%" stopColor={color} stopOpacity="1" />
                 <stop offset="100%" stopColor="#000000" stopOpacity="0.12" />
               </linearGradient>
 
-              <linearGradient id={`seg-top-shine-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
-                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.12" />
+              <linearGradient id={`seg-highlight-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+                <stop offset="18%" stopColor="#ffffff" stopOpacity="0.05" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </linearGradient>
-
-              <radialGradient id={`seg-gloss-${i}`} cx="50%" cy="18%" r="24%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
-                <stop offset="45%" stopColor="#ffffff" stopOpacity="0.12" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
             </React.Fragment>
           ))}
 
@@ -179,25 +173,19 @@ Z
                   d={path}
                   fill={`url(#seg-fill-${i})`}
                   stroke="#ffffff"
-                  strokeOpacity="0.14"
+                  strokeOpacity="0.12"
                   strokeWidth="0.8"
                   style={{
                     filter:
                       hoveredIndex === i
-                        ? 'drop-shadow(0 8px 14px rgba(0,0,0,0.24))'
-                        : 'drop-shadow(0 4px 8px rgba(0,0,0,0.16))'
+                        ? 'drop-shadow(0 8px 14px rgba(0,0,0,0.2))'
+                        : 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))'
                   }}
                 />
 
                 <path
                   d={path}
-                  fill={`url(#seg-top-shine-${i})`}
-                  stroke="none"
-                />
-
-                <path
-                  d={path}
-                  fill={`url(#seg-gloss-${i})`}
+                  fill={`url(#seg-highlight-${i})`}
                   stroke="none"
                 />
 
