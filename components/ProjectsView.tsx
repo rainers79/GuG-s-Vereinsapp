@@ -186,7 +186,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const loadedOnce = useRef(false);
-  const wheelGroupRef = useRef<SVGGElement | null>(null);
+  const wheelGroupRef = useRef<SVGGElement>(null);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
@@ -295,7 +295,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setTasks(Array.isArray(ta) ? ta : []);
       setPolls(Array.isArray(po) ? po : []);
     } catch {
-      // silent
     }
   };
 
