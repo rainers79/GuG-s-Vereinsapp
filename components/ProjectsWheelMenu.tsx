@@ -96,13 +96,46 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       <svg width="400" height="400" viewBox="0 0 400 400">
         <defs>
           {wheelColors.map((color, i) => (
-            <radialGradient key={i} id={`grad-${i}`} cx="50%" cy="30%" r="80%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="25%" stopColor={color} />
-              <stop offset="65%" stopColor={color} />
-              <stop offset="100%" stopColor="#00000066" />
-            </radialGradient>
+            <React.Fragment key={i}>
+              <linearGradient id={`seg-base-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
+                <stop offset="10%" stopColor={color} stopOpacity="0.98" />
+                <stop offset="58%" stopColor={color} stopOpacity="1" />
+                <stop offset="82%" stopColor="#000000" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.52" />
+              </linearGradient>
+
+              <radialGradient id={`seg-gloss-${i}`} cx="50%" cy="20%" r="62%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                <stop offset="22%" stopColor="#ffffff" stopOpacity="0.48" />
+                <stop offset="52%" stopColor="#ffffff" stopOpacity="0.12" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
+
+              <linearGradient id={`seg-topshine-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
+                <stop offset="35%" stopColor="#ffffff" stopOpacity="0.16" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </linearGradient>
+
+              <linearGradient id={`seg-edge-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+                <stop offset="30%" stopColor="#ffffff" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.18" />
+              </linearGradient>
+            </React.Fragment>
           ))}
+
+          <radialGradient id="center-base" cx="50%" cy="35%" r="75%">
+            <stop offset="0%" stopColor="#e5d7b5" />
+            <stop offset="100%" stopColor="#cdbd96" />
+          </radialGradient>
+
+          <linearGradient id="center-shine" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+            <stop offset="40%" stopColor="#ffffff" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.08" />
+          </linearGradient>
         </defs>
 
         <g
@@ -158,8 +191,9 @@ Z
               >
                 <path
                   d={path}
-                  fill={`url(#grad-${i})`}
-                  stroke="none"
+                  fill={`url(#seg-base-${i})`}
+                  stroke={`url(#seg-edge-${i})`}
+                  strokeWidth="1.4"
                   style={{
                     filter:
                       hoveredIndex === i
@@ -168,12 +202,34 @@ Z
                   }}
                 />
 
+                <path
+                  d={path}
+                  fill={`url(#seg-topshine-${i})`}
+                  stroke="none"
+                  opacity="0.95"
+                />
+
+                <path
+                  d={path}
+                  fill={`url(#seg-gloss-${i})`}
+                  stroke="none"
+                  opacity="0.9"
+                />
+
+                <path
+                  d={path}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeOpacity="0.22"
+                  strokeWidth="0.8"
+                />
+
                 <text
                   x={label.x}
                   y={label.y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="#000"
+                  fill="#111111"
                   fontWeight="900"
                   fontSize="13"
                 >
@@ -189,7 +245,16 @@ Z
             cx={center}
             cy={center}
             r={centerRadius}
-            fill="#d6c39a"
+            fill="url(#center-base)"
+            stroke="#ffffff"
+            strokeOpacity="0.16"
+            strokeWidth="1"
+          />
+          <circle
+            cx={center}
+            cy={center}
+            r={centerRadius}
+            fill="url(#center-shine)"
             stroke="none"
           />
 
@@ -198,7 +263,7 @@ Z
             y={center}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#000"
+            fill="#111111"
             fontWeight="900"
             fontSize="14"
             style={{ pointerEvents: 'none' }}
