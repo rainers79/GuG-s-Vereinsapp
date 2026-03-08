@@ -211,7 +211,6 @@ const PosView: React.FC<PosViewProps> = ({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [received, setReceived] = useState('');
   const [note, setNote] = useState('');
-  const [cartPanelOpen, setCartPanelOpen] = useState(false);
 
   const [loadingArticles, setLoadingArticles] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -412,7 +411,6 @@ const PosView: React.FC<PosViewProps> = ({
     setCart([]);
     setReceived('');
     setNote('');
-    setCartPanelOpen(false);
   };
 
   const totalCents = useMemo(() => {
@@ -420,10 +418,6 @@ const PosView: React.FC<PosViewProps> = ({
       (sum, item) => sum + item.article.price_cents * item.qty,
       0
     );
-  }, [cart]);
-
-  const cartItemsCount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.qty, 0);
   }, [cart]);
 
   const receivedCents = useMemo(() => {
@@ -635,7 +629,7 @@ const PosView: React.FC<PosViewProps> = ({
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={[
-                    'flex-1 py-2.5 font-black uppercase text-[11px] rounded-xl transition active:scale-95',
+                    'flex-1 py-3 font-black uppercase text-xs rounded-xl transition active:scale-95',
                     isActive
                       ? 'bg-[#C9AE6A] text-black shadow-sm'
                       : 'bg-[#F3F3F3] text-black/80'
@@ -647,8 +641,8 @@ const PosView: React.FC<PosViewProps> = ({
             })}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 pb-[170px] space-y-6">
-            <div className="grid grid-cols-4 gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="flex-1 overflow-y-auto p-4 pb-[430px] space-y-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {loadingArticles ? (
                 <div className="col-span-full text-center py-10 font-semibold">
                   Lädt Artikel...
@@ -665,22 +659,22 @@ const PosView: React.FC<PosViewProps> = ({
                     <button
                       key={article.id}
                       onClick={() => addToCart(article)}
-                      className="rounded-xl transition active:scale-95 shadow-sm border border-black/10 overflow-hidden"
+                      className="rounded-2xl transition active:scale-95 shadow-md border border-black/10 overflow-hidden"
                       style={{ backgroundColor: bg }}
                     >
-                      <div className="p-2.5 h-full aspect-square flex flex-col">
-                        <div className="flex-1 min-h-0">
-                          <div className="text-left font-black text-[14px] leading-[1.02] text-black break-words whitespace-normal">
+                      <div className="p-3 flex flex-col justify-between h-full aspect-square">
+                        <div className="flex-1 flex items-start">
+                          <div className="w-full text-left font-black text-[20px] leading-[1.02] text-black break-words">
                             {article.name}
                           </div>
                         </div>
 
-                        <div className="mt-2 flex items-end justify-between gap-2">
-                          <div className="text-left text-[13px] font-black text-black whitespace-nowrap">
+                        <div className="mt-3 flex items-end justify-between gap-3">
+                          <div className="text-left text-[18px] font-black text-black leading-none">
                             {formatMoney(article.price_cents)}
                           </div>
 
-                          <div className="text-[11px] font-bold text-black/65 whitespace-nowrap text-right">
+                          <div className="text-right text-[15px] font-bold text-black/60 leading-none">
                             {article.serving_label || ''}
                           </div>
                         </div>
@@ -790,13 +784,13 @@ const PosView: React.FC<PosViewProps> = ({
                         {order.items.map((item, index) => (
                           <div
                             key={`${order.id}_${item.article_id}_${index}`}
-                            className="flex items-center justify-between text-sm gap-4"
+                            className="flex items-center justify-between text-sm"
                           >
-                            <div className="text-black/80 min-w-0 break-words">
+                            <div className="text-black/80">
                               {item.qty}x {item.article_name_snapshot}
                               {item.serving_label_snapshot ? ` · ${item.serving_label_snapshot}` : ''}
                             </div>
-                            <div className="font-bold text-black whitespace-nowrap">
+                            <div className="font-bold text-black">
                               {formatMoney(item.line_total_cents)}
                             </div>
                           </div>
@@ -839,193 +833,124 @@ const PosView: React.FC<PosViewProps> = ({
             </div>
           </div>
 
-          {cartPanelOpen && (
-            <>
-              <div
-                className="fixed inset-0 bg-black/35 z-40"
-                onClick={() => setCartPanelOpen(false)}
-              />
-
-              <div className="fixed left-0 right-0 bottom-[72px] z-50 px-3">
-                <div className="max-w-5xl mx-auto rounded-t-3xl rounded-b-2xl bg-white border border-black/10 shadow-[0_-12px_36px_rgba(0,0,0,0.14)] p-4 max-h-[72vh] overflow-y-auto">
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <div>
-                      <div className="font-black text-lg">Warenkorb</div>
-                      <div className="text-xs text-black/50 font-semibold">
-                        {cartItemsCount} Artikel · {formatMoney(totalCents)}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setCartPanelOpen(false)}
-                      className="px-4 py-2 rounded-lg bg-[#F3F3F3] text-black text-xs font-black uppercase"
-                    >
-                      Schließen
-                    </button>
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 p-4 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+            <div className="max-w-5xl mx-auto space-y-4">
+              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                {cart.length === 0 ? (
+                  <div className="text-sm text-black/50 font-semibold">
+                    Noch keine Artikel gewählt.
                   </div>
-
-                  <div className="space-y-2">
-                    {cart.length === 0 ? (
-                      <div className="text-sm text-black/50 font-semibold">
-                        Noch keine Artikel gewählt.
-                      </div>
-                    ) : (
-                      cart.map((item) => (
-                        <div
-                          key={item.article.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-black/10 px-3 py-3 bg-[#FAFAFA]"
-                        >
-                          <div className="min-w-0">
-                            <div className="font-black text-sm text-black break-words">
-                              {item.article.name}
-                              {item.article.serving_label ? ` · ${item.article.serving_label}` : ''}
-                            </div>
-                            <div className="text-xs text-black/50 font-semibold">
-                              {formatMoney(item.article.price_cents)} pro Stück
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => changeCartQty(item.article.id, -1)}
-                              className="w-8 h-8 rounded-lg bg-[#EAEAEA] text-black font-black"
-                            >
-                              -
-                            </button>
-
-                            <div className="min-w-[24px] text-center font-black text-black text-sm">
-                              {item.qty}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => changeCartQty(item.article.id, 1)}
-                              className="w-8 h-8 rounded-lg bg-[#C9AE6A] text-black font-black"
-                            >
-                              +
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => removeFromCart(item.article.id)}
-                              className="px-3 h-8 rounded-lg bg-red-600 text-white text-[11px] font-black uppercase"
-                            >
-                              Löschen
-                            </button>
-                          </div>
+                ) : (
+                  cart.map((item) => (
+                    <div
+                      key={item.article.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-black/10 px-3 py-3 bg-[#FAFAFA]"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-black text-sm text-black break-words">
+                          {item.article.name}
+                          {item.article.serving_label ? ` · ${item.article.serving_label}` : ''}
                         </div>
-                      ))
-                    )}
-                  </div>
+                        <div className="text-xs text-black/50 font-semibold">
+                          {formatMoney(item.article.price_cents)} pro Stück
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                    <input
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Notiz zur Bestellung"
-                      className="form-input rounded-xl"
-                    />
-
-                    <input
-                      value={received}
-                      onChange={(e) => setReceived(e.target.value)}
-                      placeholder="Erhalten €"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="form-input rounded-xl"
-                    />
-
-                    <div className="grid grid-cols-5 gap-2">
-                      {quickAmounts.map((amount) => (
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button
-                          key={amount}
                           type="button"
-                          onClick={() => setReceived(String(amount))}
-                          className="py-3 rounded-xl bg-[#F3F3F3] text-black text-xs font-black"
+                          onClick={() => changeCartQty(item.article.id, -1)}
+                          className="w-9 h-9 rounded-lg bg-[#EAEAEA] text-black font-black"
                         >
-                          {amount}
+                          -
                         </button>
-                      ))}
+
+                        <div className="min-w-[28px] text-center font-black text-black">
+                          {item.qty}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => changeCartQty(item.article.id, 1)}
+                          className="w-9 h-9 rounded-lg bg-[#C9AE6A] text-black font-black"
+                        >
+                          +
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.article.id)}
+                          className="px-3 h-9 rounded-lg bg-red-600 text-white text-xs font-black uppercase"
+                        >
+                          Löschen
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ))
+                )}
+              </div>
 
-                  <div className="flex items-center justify-between font-black text-lg mt-4">
-                    <span>Summe</span>
-                    <span>{formatMoney(totalCents)}</span>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Notiz zur Bestellung"
+                  className="form-input rounded-xl"
+                />
 
-                  <div className="flex items-center justify-between text-sm font-bold text-black/70 mt-2">
-                    <span>Retourgeld</span>
-                    <span className={changeCents < 0 ? 'text-red-700' : 'text-green-700'}>
-                      {formatMoney(changeCents)}
-                    </span>
-                  </div>
+                <input
+                  value={received}
+                  onChange={(e) => setReceived(e.target.value)}
+                  placeholder="Erhalten €"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-input rounded-xl"
+                />
 
-                  <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="grid grid-cols-5 gap-2">
+                  {quickAmounts.map((amount) => (
                     <button
+                      key={amount}
                       type="button"
-                      onClick={clearCart}
-                      disabled={cart.length === 0 || booking}
-                      className="w-full bg-[#EAEAEA] text-black py-4 font-black uppercase rounded-2xl shadow-sm disabled:opacity-50"
+                      onClick={() => setReceived(String(amount))}
+                      className="py-3 rounded-xl bg-[#F3F3F3] text-black text-xs font-black"
                     >
-                      Zurücksetzen
+                      {amount}
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={bookOrder}
-                      disabled={cart.length === 0 || booking}
-                      className="w-full bg-[#C9AE6A] text-black py-4 font-black uppercase rounded-2xl shadow-sm active:scale-[0.99] transition disabled:opacity-50"
-                    >
-                      {booking ? 'Speichert...' : 'Bonieren'}
-                    </button>
-                  </div>
+                  ))}
                 </div>
               </div>
-            </>
-          )}
 
-          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/10 bg-white shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
-            <div className="max-w-5xl mx-auto px-3 py-3">
-              <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+              <div className="flex items-center justify-between font-black text-lg">
+                <span>Summe</span>
+                <span>{formatMoney(totalCents)}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm font-bold text-black/70">
+                <span>Retourgeld</span>
+                <span className={changeCents < 0 ? 'text-red-700' : 'text-green-700'}>
+                  {formatMoney(changeCents)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setCartPanelOpen((prev) => !prev)}
-                  className="min-w-0 flex items-center justify-between gap-3 rounded-2xl bg-[#F3F3F3] px-4 py-3 text-left"
+                  onClick={clearCart}
+                  disabled={cart.length === 0 || booking}
+                  className="w-full bg-[#EAEAEA] text-black py-4 font-black uppercase rounded-2xl shadow-sm disabled:opacity-50"
                 >
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-black uppercase text-black/50">
-                      Warenkorb
-                    </div>
-                    <div className="font-black text-sm text-black truncate">
-                      {cartItemsCount} Artikel · {formatMoney(totalCents)}
-                    </div>
-                  </div>
-
-                  <div className="text-xs font-black uppercase text-black/60 whitespace-nowrap">
-                    {cartPanelOpen ? 'Zuklappen' : 'Öffnen'}
-                  </div>
+                  Zurücksetzen
                 </button>
-
-                <div className="hidden sm:flex flex-col items-end px-1">
-                  <div className="text-[11px] font-black uppercase text-black/50">
-                    Retour
-                  </div>
-                  <div className={`text-sm font-black ${changeCents < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                    {formatMoney(changeCents)}
-                  </div>
-                </div>
 
                 <button
                   type="button"
                   onClick={bookOrder}
                   disabled={cart.length === 0 || booking}
-                  className="rounded-2xl bg-[#C9AE6A] text-black px-5 py-3 font-black uppercase text-sm shadow-sm active:scale-[0.99] transition disabled:opacity-50"
+                  className="w-full bg-[#C9AE6A] text-black py-4 font-black uppercase rounded-2xl shadow-sm active:scale-[0.99] transition disabled:opacity-50"
                 >
-                  {booking ? '...' : 'Bonieren'}
+                  {booking ? 'Speichert...' : 'Bonieren'}
                 </button>
               </div>
             </div>
