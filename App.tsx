@@ -18,6 +18,7 @@ import ProjectsView from './components/ProjectsView';
 import ProjectChatView from './components/ProjectChatView';
 import ProjectCoreTeamView from './components/ProjectCoreTeamView';
 import ProjectShoppingView from './components/ProjectShoppingView';
+import ProjectInvoicesView from './components/ProjectInvoicesView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -361,6 +362,14 @@ const App: React.FC = () => {
       case 'project-shopping':
         return (
           <ProjectShoppingView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
+
+      case 'project-invoices':
+        return (
+          <ProjectInvoicesView
             user={user!}
             onUnauthorized={handleUnauthorized}
           />
