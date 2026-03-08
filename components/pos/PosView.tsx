@@ -1,5 +1,3 @@
-// components/pos/PosView.tsx
-
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User, PosArticle, PosCategory } from '../../types';
 import * as api from '../../services/api';
@@ -211,6 +209,7 @@ const PosView: React.FC<PosViewProps> = ({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [received, setReceived] = useState('');
   const [note, setNote] = useState('');
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const [loadingArticles, setLoadingArticles] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -411,6 +410,7 @@ const PosView: React.FC<PosViewProps> = ({
     setCart([]);
     setReceived('');
     setNote('');
+    setIsCartOpen(false);
   };
 
   const totalCents = useMemo(() => {
@@ -432,6 +432,10 @@ const PosView: React.FC<PosViewProps> = ({
     if (!selectedProjectId) return [];
     return pendingOrders.filter((item) => item.project_id === selectedProjectId);
   }, [pendingOrders, selectedProjectId]);
+
+  const cartItemsCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.qty, 0);
+  }, [cart]);
 
   const bookOrder = async () => {
     if (!selectedProjectId || cart.length === 0) return;
@@ -567,60 +571,60 @@ const PosView: React.FC<PosViewProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F6F1E4]">
-      <div className="px-4 py-4 flex justify-between items-center border-b border-black/10 bg-[#FFFFFF]">
-        <div className="flex flex-col">
+      <div className="px-3 py-3 flex justify-between items-center border-b border-black/10 bg-[#FFFFFF]">
+        <div className="flex flex-col min-w-0">
           <div className="font-black uppercase tracking-wide text-sm text-black">
             Kassa
           </div>
-          <div className="text-xs text-black/60 font-semibold">
+          <div className="text-[11px] text-black/60 font-semibold">
             {selectedProjectId ? `Projekt ID ${selectedProjectId}` : 'Kein Projekt aktiv'}
           </div>
-          <div className="text-xs text-black/50 font-semibold">
+          <div className="text-[11px] text-black/50 font-semibold">
             Kategorie: {activeCatLabel} · Bediener: {user.displayName}
           </div>
         </div>
 
         <button
           onClick={onExit}
-          className="bg-[#C9AE6A] text-black px-4 py-2 font-black uppercase text-xs rounded-lg shadow-sm active:scale-95 transition"
+          className="bg-[#C9AE6A] text-black px-3 py-2 font-black uppercase text-[11px] rounded-lg shadow-sm active:scale-95 transition"
         >
           Zurück
         </button>
       </div>
 
       {!isOnline && (
-        <div className="px-4 py-3 bg-amber-100 text-amber-900 text-sm font-bold border-b border-amber-300">
+        <div className="px-3 py-2 bg-amber-100 text-amber-900 text-xs font-bold border-b border-amber-300">
           Offline-Modus aktiv. Neue Bons werden lokal gespeichert.
         </div>
       )}
 
       {syncingQueue && (
-        <div className="px-4 py-3 bg-blue-100 text-blue-900 text-sm font-bold border-b border-blue-300">
+        <div className="px-3 py-2 bg-blue-100 text-blue-900 text-xs font-bold border-b border-blue-300">
           Offline-Bons werden synchronisiert...
         </div>
       )}
 
       {error && (
-        <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm font-semibold">
+        <div className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 text-red-800 px-3 py-3 text-sm font-semibold">
           {error}
         </div>
       )}
 
       {info && (
-        <div className="mx-4 mt-4 rounded-xl border border-green-200 bg-green-50 text-green-800 px-4 py-3 text-sm font-semibold">
+        <div className="mx-3 mt-3 rounded-xl border border-green-200 bg-green-50 text-green-800 px-3 py-3 text-sm font-semibold">
           {info}
         </div>
       )}
 
       {!selectedProjectId ? (
-        <div className="p-6">
-          <div className="rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 px-5 py-5 text-sm font-bold">
+        <div className="p-4">
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-4 text-sm font-bold">
             Bitte zuerst ein Projekt im Projektrad auswählen. Das Boniersystem arbeitet projektbezogen.
           </div>
         </div>
       ) : (
         <>
-          <div className="flex gap-2 px-4 py-3 bg-[#FFFFFF] border-b border-black/10">
+          <div className="flex gap-2 px-3 py-3 bg-[#FFFFFF] border-b border-black/10">
             {categories.map((cat) => {
               const isActive = activeCategory === cat;
 
@@ -629,7 +633,7 @@ const PosView: React.FC<PosViewProps> = ({
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={[
-                    'flex-1 py-3 font-black uppercase text-xs rounded-xl transition active:scale-95',
+                    'flex-1 py-2.5 font-black uppercase text-[11px] rounded-xl transition active:scale-95',
                     isActive
                       ? 'bg-[#C9AE6A] text-black shadow-sm'
                       : 'bg-[#F3F3F3] text-black/80'
@@ -641,8 +645,8 @@ const PosView: React.FC<PosViewProps> = ({
             })}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 pb-[430px] space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="flex-1 overflow-y-auto p-3 pb-28 space-y-6">
+            <div className="grid grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2.5">
               {loadingArticles ? (
                 <div className="col-span-full text-center py-10 font-semibold">
                   Lädt Artikel...
@@ -659,22 +663,22 @@ const PosView: React.FC<PosViewProps> = ({
                     <button
                       key={article.id}
                       onClick={() => addToCart(article)}
-                      className="rounded-2xl transition active:scale-95 shadow-md border border-black/10 overflow-hidden"
+                      className="rounded-xl transition active:scale-95 shadow-sm border border-black/10 overflow-hidden min-w-0"
                       style={{ backgroundColor: bg }}
                     >
-                      <div className="p-3 flex flex-col justify-between h-full aspect-square">
-                        <div className="flex-1 flex items-start">
-                          <div className="w-full text-left font-black text-[20px] leading-[1.02] text-black break-words">
+                      <div className="p-2 h-full aspect-square flex flex-col justify-between">
+                        <div className="min-h-0">
+                          <div className="text-left font-black text-[12px] leading-[1.05] text-black break-words">
                             {article.name}
                           </div>
                         </div>
 
-                        <div className="mt-3 flex items-end justify-between gap-3">
-                          <div className="text-left text-[18px] font-black text-black leading-none">
+                        <div className="mt-2 flex items-end justify-between gap-2">
+                          <div className="text-left text-[11px] font-black text-black leading-none">
                             {formatMoney(article.price_cents)}
                           </div>
 
-                          <div className="text-right text-[15px] font-bold text-black/60 leading-none">
+                          <div className="text-right text-[10px] font-bold text-black/60 leading-none">
                             {article.serving_label || ''}
                           </div>
                         </div>
@@ -685,11 +689,11 @@ const PosView: React.FC<PosViewProps> = ({
               )}
             </div>
 
-            <div className="bg-white border border-black/10 rounded-2xl p-5 shadow-sm">
+            <div className="bg-white border border-black/10 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <div className="font-black text-lg">Heutige Bons</div>
-                  <div className="text-xs text-black/50 font-semibold">
+                  <div className="font-black text-base">Heutige Bons</div>
+                  <div className="text-[11px] text-black/50 font-semibold">
                     Bereits bonierte und stornierte Datensätze
                   </div>
                 </div>
@@ -697,7 +701,7 @@ const PosView: React.FC<PosViewProps> = ({
                 <button
                   type="button"
                   onClick={() => selectedProjectId && loadOrders(selectedProjectId)}
-                  className="px-4 py-2 rounded-lg bg-[#F3F3F3] text-black text-xs font-black uppercase"
+                  className="px-3 py-2 rounded-lg bg-[#F3F3F3] text-black text-[11px] font-black uppercase"
                 >
                   Aktualisieren
                 </button>
@@ -833,126 +837,178 @@ const PosView: React.FC<PosViewProps> = ({
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 p-4 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
-            <div className="max-w-5xl mx-auto space-y-4">
-              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
-                {cart.length === 0 ? (
-                  <div className="text-sm text-black/50 font-semibold">
-                    Noch keine Artikel gewählt.
-                  </div>
-                ) : (
-                  cart.map((item) => (
-                    <div
-                      key={item.article.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-black/10 px-3 py-3 bg-[#FAFAFA]"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-black text-sm text-black break-words">
-                          {item.article.name}
-                          {item.article.serving_label ? ` · ${item.article.serving_label}` : ''}
-                        </div>
-                        <div className="text-xs text-black/50 font-semibold">
-                          {formatMoney(item.article.price_cents)} pro Stück
-                        </div>
-                      </div>
+          {isCartOpen && (
+            <>
+              <div
+                className="fixed inset-0 bg-black/30 z-40"
+                onClick={() => setIsCartOpen(false)}
+              />
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => changeCartQty(item.article.id, -1)}
-                          className="w-9 h-9 rounded-lg bg-[#EAEAEA] text-black font-black"
-                        >
-                          -
-                        </button>
-
-                        <div className="min-w-[28px] text-center font-black text-black">
-                          {item.qty}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => changeCartQty(item.article.id, 1)}
-                          className="w-9 h-9 rounded-lg bg-[#C9AE6A] text-black font-black"
-                        >
-                          +
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(item.article.id)}
-                          className="px-3 h-9 rounded-lg bg-red-600 text-white text-xs font-black uppercase"
-                        >
-                          Löschen
-                        </button>
+              <div className="fixed left-0 right-0 bottom-0 z-50 bg-white border-t border-black/10 rounded-t-3xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] p-4 max-h-[78vh] overflow-y-auto">
+                <div className="max-w-5xl mx-auto space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-black text-base">Warenkorb</div>
+                      <div className="text-[11px] text-black/50 font-semibold">
+                        {cartItemsCount} Artikel · {formatMoney(totalCents)}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Notiz zur Bestellung"
-                  className="form-input rounded-xl"
-                />
-
-                <input
-                  value={received}
-                  onChange={(e) => setReceived(e.target.value)}
-                  placeholder="Erhalten €"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="form-input rounded-xl"
-                />
-
-                <div className="grid grid-cols-5 gap-2">
-                  {quickAmounts.map((amount) => (
                     <button
-                      key={amount}
                       type="button"
-                      onClick={() => setReceived(String(amount))}
-                      className="py-3 rounded-xl bg-[#F3F3F3] text-black text-xs font-black"
+                      onClick={() => setIsCartOpen(false)}
+                      className="px-3 py-2 rounded-lg bg-[#F3F3F3] text-black text-[11px] font-black uppercase"
                     >
-                      {amount}
+                      Schließen
                     </button>
-                  ))}
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                    {cart.length === 0 ? (
+                      <div className="text-sm text-black/50 font-semibold">
+                        Noch keine Artikel gewählt.
+                      </div>
+                    ) : (
+                      cart.map((item) => (
+                        <div
+                          key={item.article.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-black/10 px-3 py-3 bg-[#FAFAFA]"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-black text-sm text-black break-words">
+                              {item.article.name}
+                              {item.article.serving_label ? ` · ${item.article.serving_label}` : ''}
+                            </div>
+                            <div className="text-xs text-black/50 font-semibold">
+                              {formatMoney(item.article.price_cents)} pro Stück
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => changeCartQty(item.article.id, -1)}
+                              className="w-8 h-8 rounded-lg bg-[#EAEAEA] text-black text-sm font-black"
+                            >
+                              -
+                            </button>
+
+                            <div className="min-w-[24px] text-center font-black text-black text-sm">
+                              {item.qty}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => changeCartQty(item.article.id, 1)}
+                              className="w-8 h-8 rounded-lg bg-[#C9AE6A] text-black text-sm font-black"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(item.article.id)}
+                              className="px-3 h-8 rounded-lg bg-red-600 text-white text-[11px] font-black uppercase"
+                            >
+                              Löschen
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Notiz zur Bestellung"
+                      className="form-input rounded-xl"
+                    />
+
+                    <input
+                      value={received}
+                      onChange={(e) => setReceived(e.target.value)}
+                      placeholder="Erhalten €"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="form-input rounded-xl"
+                    />
+
+                    <div className="grid grid-cols-5 gap-2">
+                      {quickAmounts.map((amount) => (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => setReceived(String(amount))}
+                          className="py-2.5 rounded-xl bg-[#F3F3F3] text-black text-[11px] font-black"
+                        >
+                          {amount}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between font-black text-base">
+                    <span>Summe</span>
+                    <span>{formatMoney(totalCents)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm font-bold text-black/70">
+                    <span>Retourgeld</span>
+                    <span className={changeCents < 0 ? 'text-red-700' : 'text-green-700'}>
+                      {formatMoney(changeCents)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      disabled={cart.length === 0 || booking}
+                      className="w-full bg-[#EAEAEA] text-black py-3.5 font-black uppercase text-[11px] rounded-2xl shadow-sm disabled:opacity-50"
+                    >
+                      Zurücksetzen
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={bookOrder}
+                      disabled={cart.length === 0 || booking}
+                      className="w-full bg-[#C9AE6A] text-black py-3.5 font-black uppercase text-[11px] rounded-2xl shadow-sm active:scale-[0.99] transition disabled:opacity-50"
+                    >
+                      {booking ? 'Speichert...' : 'Bonieren'}
+                    </button>
+                  </div>
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="flex items-center justify-between font-black text-lg">
-                <span>Summe</span>
-                <span>{formatMoney(totalCents)}</span>
-              </div>
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] z-30">
+            <div className="max-w-5xl mx-auto flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCartOpen(true)}
+                className="flex-1 min-w-0 text-left rounded-2xl bg-[#F3F3F3] px-4 py-3"
+              >
+                <div className="text-[11px] text-black/50 font-black uppercase tracking-wide">
+                  Warenkorb
+                </div>
+                <div className="text-sm font-black text-black truncate">
+                  {cartItemsCount} Artikel · {formatMoney(totalCents)}
+                </div>
+              </button>
 
-              <div className="flex items-center justify-between text-sm font-bold text-black/70">
-                <span>Retourgeld</span>
-                <span className={changeCents < 0 ? 'text-red-700' : 'text-green-700'}>
-                  {formatMoney(changeCents)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={clearCart}
-                  disabled={cart.length === 0 || booking}
-                  className="w-full bg-[#EAEAEA] text-black py-4 font-black uppercase rounded-2xl shadow-sm disabled:opacity-50"
-                >
-                  Zurücksetzen
-                </button>
-
-                <button
-                  type="button"
-                  onClick={bookOrder}
-                  disabled={cart.length === 0 || booking}
-                  className="w-full bg-[#C9AE6A] text-black py-4 font-black uppercase rounded-2xl shadow-sm active:scale-[0.99] transition disabled:opacity-50"
-                >
-                  {booking ? 'Speichert...' : 'Bonieren'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={bookOrder}
+                disabled={cart.length === 0 || booking}
+                className="px-5 py-4 bg-[#C9AE6A] text-black font-black uppercase text-[11px] rounded-2xl shadow-sm active:scale-[0.99] transition disabled:opacity-50"
+              >
+                {booking ? '...' : 'Bonieren'}
+              </button>
             </div>
           </div>
         </>
