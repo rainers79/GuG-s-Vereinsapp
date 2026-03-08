@@ -20,7 +20,8 @@ import {
   ProjectCoreTeamMember,
   ProjectShoppingItem,
   CreateProjectShoppingItemPayload,
-  UpdateProjectShoppingItemPayload
+  UpdateProjectShoppingItemPayload,
+  ProjectInvoiceItem
 } from '../types';
 
 
@@ -290,6 +291,65 @@ export async function createTaskFromProjectShoppingItem(
     `/gug/v1/project-shopping/${itemId}/create-task`,
     {
       method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT INVOICES
+===================================================== */
+
+export async function getProjectInvoices(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectInvoiceItem[]> {
+  return await apiRequest<ProjectInvoiceItem[]>(
+    `/gug/v1/project-invoices?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function uploadProjectInvoice(
+  payload: {
+    project_id: number;
+    file: File;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  id: number;
+  attachment_id: number;
+  file_url: string;
+}> {
+  const formData = new FormData();
+  formData.append('project_id', String(payload.project_id));
+  formData.append('file', payload.file);
+
+  return await apiRequest<{
+    success: boolean;
+    id: number;
+    attachment_id: number;
+    file_url: string;
+  }>(
+    '/gug/v1/project-invoices/upload',
+    {
+      method: 'POST',
+      body: formData
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProjectInvoice(
+  invoiceId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-invoices/${invoiceId}`,
+    {
+      method: 'DELETE'
     },
     onUnauthorized
   );
