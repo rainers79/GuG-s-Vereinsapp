@@ -16,7 +16,8 @@ export type ViewType =
   | 'pos'
   | 'pos-admin'
   | 'project-chat'
-  | 'project-coreteam';
+  | 'project-coreteam'
+  | 'project-shopping';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
@@ -150,6 +151,50 @@ export interface ChatMessage {
   created_at: string;
   profile_image_url?: string;
   receiver_id?: number | null;
+}
+
+/* =====================================================
+   PROJECT SHOPPING TYPES
+===================================================== */
+
+export type ProjectShoppingStatus = 'open' | 'bought';
+
+export interface ProjectShoppingItem {
+  id: number;
+  project_id: number;
+  title: string;
+  description?: string;
+  quantity?: string;
+  unit?: string;
+  status: ProjectShoppingStatus;
+  assigned_user_id?: number | null;
+  assigned_user_name?: string | null;
+  linked_task_id?: number | null;
+  created_by?: number | null;
+  created_at?: string;
+  updated_at?: string | null;
+  completed_at?: string | null;
+  completed_by?: number | null;
+  completed_by_name?: string | null;
+}
+
+export interface CreateProjectShoppingItemPayload {
+  project_id: number;
+  title: string;
+  description?: string;
+  quantity?: string;
+  unit?: string;
+  assigned_user_id?: number | null;
+}
+
+export interface UpdateProjectShoppingItemPayload {
+  project_id?: number;
+  title?: string;
+  description?: string;
+  quantity?: string;
+  unit?: string;
+  status?: ProjectShoppingStatus;
+  assigned_user_id?: number | null;
 }
 
 /* =====================================================
