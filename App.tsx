@@ -239,6 +239,9 @@ const App: React.FC = () => {
 
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
+
+      const storedView = getStoredActiveView();
+      setActiveView(storedView || 'dashboard');
     } catch (err: any) {
       setError(err?.message || 'Fehler beim Laden.');
     } finally {
@@ -247,8 +250,9 @@ const App: React.FC = () => {
   }, [handleUnauthorized]);
 
   useEffect(() => {
-    if (api.getToken()) fetchAppData();
-    else {
+    if (api.getToken()) {
+      fetchAppData();
+    } else {
       setLoading(false);
       setActiveView('dashboard');
       localStorage.removeItem(LS_ACTIVE_VIEW);
@@ -258,10 +262,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    if (activeView === 'pos' || activeView === 'pos-admin') return;
-
     const storedView = getStoredActiveView();
-    if (storedView !== 'dashboard' && storedView !== activeView) {
+
+    if (storedView !== activeView) {
       setActiveView(storedView);
     }
   }, [user, activeView]);
