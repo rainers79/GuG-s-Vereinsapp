@@ -35,6 +35,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       label: 'Umfragen'
     },
     {
+      id: 'project-invoices' as ViewType,
+      label: 'Rechnungen',
+      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
+    },
+    {
       id: 'members' as ViewType,
       label: 'Mitgliederverwaltung',
       roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
