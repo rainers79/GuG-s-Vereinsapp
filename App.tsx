@@ -77,7 +77,7 @@ const defaultNotificationSettings: NotificationSettings = {
    SECTION 04 - HELPERS
 ===================================================== */
 
-  getStoredActiveView = (): ViewType => {
+ const getStoredActiveView = (): ViewType => {
   const raw = localStorage.getItem(LS_ACTIVE_VIEW) as ViewType | null;
 
   const allowedViews: ViewType[] = [
