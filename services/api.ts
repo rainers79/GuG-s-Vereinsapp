@@ -12,6 +12,7 @@ import {
   PosArticle,
   PosOrder,
   PosDailyReport,
+  PosCashOpening,
   Task,
   ProjectChatGroup,
   ProjectChatGroupMember,
@@ -752,17 +753,22 @@ export async function updateTask(
 ===================================================== */
 
 export async function getPosArticles(
-  params: { category?: 'food' | 'drink' | 'gug'; all?: boolean } = {},
+  params: {
+    project_id: number;
+    category?: 'food' | 'drink' | 'gug';
+    all?: boolean;
+  },
   onUnauthorized: () => void
 ): Promise<PosArticle[]> {
-  const q: string[] = [];
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
   if (params.category) q.push(`category=${encodeURIComponent(params.category)}`);
   if (params.all) q.push('all=1');
 
-  const query = q.length ? `?${q.join('&')}` : '';
-
   return await apiRequest<PosArticle[]>(
-    `/gug/v1/pos/articles${query}`,
+    `/gug/v1/pos/articles?${q.join('&')}`,
     {},
     onUnauthorized
   );
@@ -770,8 +776,10 @@ export async function getPosArticles(
 
 export async function createPosArticle(
   payload: {
+    project_id: number;
     name: string;
     category: 'food' | 'drink' | 'gug';
+    serving_label?: string;
     price_cents: number;
     is_active?: boolean;
     sort_order?: number;
@@ -792,8 +800,10 @@ export async function createPosArticle(
 export async function updatePosArticle(
   id: number,
   payload: Partial<{
+    project_id: number;
     name: string;
     category: 'food' | 'drink' | 'gug';
+    serving_label: string;
     price_cents: number;
     is_active: boolean;
     sort_order: number;
@@ -811,31 +821,50 @@ export async function updatePosArticle(
   );
 }
 
+export async function deletePosArticle(
+  id: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/articles/${id}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
 export async function createPosOrder(
   payload: {
+    project_id: number;
     items: { article_id: number; qty: number }[];
     received_cents?: number;
     waiter_user_id?: number;
     note?: string;
+    local_uuid?: string;
   },
   onUnauthorized: () => void
 ): Promise<{
   success: boolean;
+  duplicate?: boolean;
   order_id: number;
   order_number: string;
   waiter_user_id: number;
   total_cents: number;
   received_cents: number;
   change_cents: number;
+  status: 'paid' | 'canceled';
 }> {
   return await apiRequest<{
     success: boolean;
+    duplicate?: boolean;
     order_id: number;
     order_number: string;
     waiter_user_id: number;
     total_cents: number;
     received_cents: number;
     change_cents: number;
+    status: 'paid' | 'canceled';
   }>(
     '/gug/v1/pos/orders',
     {
@@ -847,30 +876,99 @@ export async function createPosOrder(
 }
 
 export async function getPosOrders(
-  params: { date?: string; waiter_user_id?: number } = {},
+  params: {
+    project_id: number;
+    date?: string;
+    waiter_user_id?: number;
+    status?: 'paid' | 'canceled' | 'all';
+  },
   onUnauthorized: () => void
 ): Promise<PosOrder[]> {
-  const q: string[] = [];
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
   if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
   if (params.waiter_user_id) q.push(`waiter_user_id=${encodeURIComponent(String(params.waiter_user_id))}`);
-
-  const query = q.length ? `?${q.join('&')}` : '';
+  if (params.status) q.push(`status=${encodeURIComponent(params.status)}`);
 
   return await apiRequest<PosOrder[]>(
-    `/gug/v1/pos/orders${query}`,
+    `/gug/v1/pos/orders?${q.join('&')}`,
     {},
     onUnauthorized
   );
 }
 
+export async function cancelPosOrder(
+  orderId: number,
+  payload: {
+    cancel_reason?: string;
+  } = {},
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/orders/${orderId}/cancel`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getPosCashOpening(
+  params: {
+    project_id: number;
+    date?: string;
+  },
+  onUnauthorized: () => void
+): Promise<PosCashOpening> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
+
+  return await apiRequest<PosCashOpening>(
+    `/gug/v1/pos/cash-opening?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function savePosCashOpening(
+  payload: {
+    project_id: number;
+    opening_cents: number;
+    date?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/pos/cash-opening',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
 export async function getPosDailyReport(
-  params: { date?: string } = {},
+  params: {
+    project_id: number;
+    date?: string;
+  },
   onUnauthorized: () => void
 ): Promise<PosDailyReport> {
-  const query = params.date ? `?date=${encodeURIComponent(params.date)}` : '';
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
 
   return await apiRequest<PosDailyReport>(
-    `/gug/v1/pos/reports/daily${query}`,
+    `/gug/v1/pos/reports/daily?${q.join('&')}`,
     {},
     onUnauthorized
   );
