@@ -52,6 +52,19 @@ const getMemberDisplayLabel = (member: Member): string => {
   return member.email ? `${base} (${member.email})` : base;
 };
 
+const buildAmountLabel = (item: {
+  quantity?: string | null;
+  unit?: string | null;
+}): string => {
+  const quantity = (item.quantity || '').trim();
+  const unit = (item.unit || '').trim();
+
+  if (quantity && unit) return `${quantity} ${unit}`;
+  if (quantity) return quantity;
+  if (unit) return unit;
+  return '-';
+};
+
 /* =====================================================
    SECTION 04 - COMPONENT
 ===================================================== */
@@ -69,6 +82,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
   const [creatingTaskItemId, setCreatingTaskItemId] = useState<number | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -381,6 +395,9 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
     try {
       await api.deleteProjectShoppingItem(itemId, onUnauthorized);
       setSuccess('Einkaufsposten wurde gelöscht.');
+      if (expandedItemId === itemId) {
+        setExpandedItemId(null);
+      }
       await loadItems();
     } catch (e: any) {
       setError(e?.message || 'Einkaufsposten konnte nicht gelöscht werden.');
@@ -425,10 +442,10 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   }
 
   /* =====================================================
-     SECTION 11 - ITEM CARD
+     SECTION 11 - LIST ROW
   ===================================================== */
 
-  const renderItemCard = (item: ProjectShoppingItem) => {
+  const renderCompactRow = (item: ProjectShoppingItem) => {
     const edit = editingItems[item.id] || {
       title: item.title || '',
       description: item.description || '',
@@ -440,167 +457,188 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
     const isSaving = savingItemId === item.id;
     const isDeleting = deletingItemId === item.id;
     const isCreatingTask = creatingTaskItemId === item.id;
+    const isExpanded = expandedItemId === item.id;
     const canToggle = canToggleItem(item);
+    const amountLabel = buildAmountLabel(item);
 
     return (
       <div
         key={item.id}
-        className={`rounded-xl border p-4 space-y-4 ${
+        className={`rounded-xl border ${
           item.status === 'bought'
             ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10'
-            : 'border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-[#121212]'
+            : 'border-slate-200 bg-white dark:border-white/10 dark:bg-[#121212]'
         }`}
       >
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="font-black text-slate-900 dark:text-white">
-                {item.title}
-              </div>
-
-              <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${
-                  item.status === 'bought'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-amber-500 text-[#1A1A1A]'
-                }`}
-              >
-                {item.status === 'bought' ? 'Gekauft' : 'Offen'}
-              </span>
-
-              {item.linked_task_id ? (
-                <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]">
-                  Task #{item.linked_task_id}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="text-xs text-slate-500 dark:text-white/50 mt-2">
-              Zugewiesen an:{' '}
-              <span className="font-black text-slate-700 dark:text-white/80">
-                {item.assigned_user_name || 'Niemand'}
-              </span>
-            </div>
-
-            {item.status === 'bought' && (item.completed_at || item.completed_by_name) ? (
-              <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
-                Erledigt:{' '}
-                <span className="font-black text-slate-700 dark:text-white/80">
-                  {item.completed_by_name || 'Unbekannt'}
-                </span>
-                {item.completed_at ? ` · ${formatDateTime(item.completed_at)}` : ''}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+        <div className="px-4 py-3">
+          <div className="grid grid-cols-[auto_1fr] md:grid-cols-[auto_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] gap-3 items-center">
             <button
               type="button"
               onClick={() => handleToggleItemStatus(item)}
               disabled={isSaving || !canToggle}
-              className="btn-secondary"
+              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-black text-sm ${
+                item.status === 'bought'
+                  ? 'border-emerald-600 bg-emerald-600 text-white'
+                  : 'border-slate-300 bg-white text-slate-500 dark:border-white/20 dark:bg-[#1A1A1A] dark:text-white/60'
+              } ${!canToggle ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={
+                canToggle
+                  ? item.status === 'bought'
+                    ? 'Wieder öffnen'
+                    : 'Als gekauft markieren'
+                  : 'Keine Berechtigung'
+              }
             >
-              {isSaving
-                ? '...'
-                : item.status === 'bought'
-                  ? 'Wieder öffnen'
-                  : 'Als gekauft markieren'}
+              {item.status === 'bought' ? '✓' : ''}
             </button>
 
-            {isAdmin && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleSaveItem(item)}
-                  disabled={isSaving || isDeleting}
-                  className="btn-primary"
-                >
-                  {isSaving ? '...' : 'Speichern'}
-                </button>
+            <div className="min-w-0">
+              <div
+                className={`font-black truncate ${
+                  item.status === 'bought'
+                    ? 'text-slate-500 line-through dark:text-white/45'
+                    : 'text-slate-900 dark:text-white'
+                }`}
+              >
+                {item.title}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-white/50 md:hidden mt-1">
+                Menge: <span className="font-black">{amountLabel}</span>
+                {' · '}
+                Zuständig: <span className="font-black">{item.assigned_user_name || 'Niemand'}</span>
+              </div>
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleCreateTaskFromItem(item.id)}
-                  disabled={isSaving || isDeleting || isCreatingTask}
-                  className="btn-secondary"
-                >
-                  {isCreatingTask ? '...' : item.linked_task_id ? 'Task vorhanden' : 'Als Aufgabe anlegen'}
-                </button>
+            <div className="hidden md:block text-sm text-slate-700 dark:text-white/80">
+              <span className="font-black">{amountLabel}</span>
+            </div>
 
+            <div className="hidden md:block text-sm text-slate-500 dark:text-white/60 truncate">
+              {item.assigned_user_name || 'Niemand'}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 col-span-2 md:col-span-1">
+              {item.linked_task_id ? (
+                <span className="hidden sm:inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]">
+                  Task #{item.linked_task_id}
+                </span>
+              ) : null}
+
+              {isAdmin && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteItem(item.id)}
-                  disabled={isSaving || isDeleting}
+                  onClick={() => setExpandedItemId((prev) => prev === item.id ? null : item.id)}
                   className="btn-secondary"
+                  disabled={isSaving || isDeleting}
                 >
-                  {isDeleting ? '...' : 'Löschen'}
+                  {isExpanded ? 'Zuklappen' : 'Details'}
                 </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
+
+          {item.status === 'bought' && (item.completed_at || item.completed_by_name) ? (
+            <div className="mt-2 text-xs text-slate-500 dark:text-white/50">
+              Erledigt: <span className="font-black">{item.completed_by_name || 'Unbekannt'}</span>
+              {item.completed_at ? ` · ${formatDateTime(item.completed_at)}` : ''}
+            </div>
+          ) : null}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="form-label">Titel</label>
-            <input
-              className="form-input"
-              value={edit.title}
-              onChange={(e) => updateEditingField(item.id, 'title', e.target.value)}
-              disabled={!isAdmin || isSaving || isDeleting}
-            />
-          </div>
+        {isAdmin && isExpanded && (
+          <div className="border-t border-slate-200 px-4 py-4 space-y-4 dark:border-white/10">
+            <div className="grid lg:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="form-label">Titel</label>
+                <input
+                  className="form-input"
+                  value={edit.title}
+                  onChange={(e) => updateEditingField(item.id, 'title', e.target.value)}
+                  disabled={isSaving || isDeleting}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <label className="form-label">Zugewiesene Person</label>
-            <select
-              className="form-input"
-              value={edit.assigned_user_id}
-              onChange={(e) => updateEditingField(item.id, 'assigned_user_id', e.target.value)}
-              disabled={!isAdmin || isSaving || isDeleting || loadingMembers}
-            >
-              <option value="">Niemand</option>
-              {sortedMembers.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {getMemberDisplayLabel(member)}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="space-y-2">
+                <label className="form-label">Zugewiesene Person</label>
+                <select
+                  className="form-input"
+                  value={edit.assigned_user_id}
+                  onChange={(e) => updateEditingField(item.id, 'assigned_user_id', e.target.value)}
+                  disabled={isSaving || isDeleting || loadingMembers}
+                >
+                  <option value="">Niemand</option>
+                  {sortedMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {getMemberDisplayLabel(member)}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="space-y-2">
-            <label className="form-label">Menge</label>
-            <input
-              className="form-input"
-              value={edit.quantity}
-              onChange={(e) => updateEditingField(item.id, 'quantity', e.target.value)}
-              disabled={!isAdmin || isSaving || isDeleting}
-              placeholder="z.B. 10"
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="form-label">Menge</label>
+                <input
+                  className="form-input"
+                  value={edit.quantity}
+                  onChange={(e) => updateEditingField(item.id, 'quantity', e.target.value)}
+                  disabled={isSaving || isDeleting}
+                  placeholder="z.B. 10"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <label className="form-label">Einheit</label>
-            <input
-              className="form-input"
-              value={edit.unit}
-              onChange={(e) => updateEditingField(item.id, 'unit', e.target.value)}
-              disabled={!isAdmin || isSaving || isDeleting}
-              placeholder="z.B. kg, Stück, Flaschen"
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="form-label">Einheit</label>
+                <input
+                  className="form-input"
+                  value={edit.unit}
+                  onChange={(e) => updateEditingField(item.id, 'unit', e.target.value)}
+                  disabled={isSaving || isDeleting}
+                  placeholder="z.B. kg, Stück, Flaschen"
+                />
+              </div>
 
-          <div className="space-y-2 lg:col-span-2">
-            <label className="form-label">Beschreibung</label>
-            <textarea
-              className="form-input min-h-[88px]"
-              value={edit.description}
-              onChange={(e) => updateEditingField(item.id, 'description', e.target.value)}
-              disabled={!isAdmin || isSaving || isDeleting}
-              placeholder="Zusätzliche Hinweise"
-            />
+              <div className="space-y-2 lg:col-span-2">
+                <label className="form-label">Beschreibung</label>
+                <textarea
+                  className="form-input min-h-[88px]"
+                  value={edit.description}
+                  onChange={(e) => updateEditingField(item.id, 'description', e.target.value)}
+                  disabled={isSaving || isDeleting}
+                  placeholder="Zusätzliche Hinweise"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => handleSaveItem(item)}
+                disabled={isSaving || isDeleting}
+                className="btn-primary"
+              >
+                {isSaving ? '...' : 'Speichern'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCreateTaskFromItem(item.id)}
+                disabled={isSaving || isDeleting || isCreatingTask}
+                className="btn-secondary"
+              >
+                {isCreatingTask ? '...' : item.linked_task_id ? 'Task vorhanden' : 'Als Aufgabe anlegen'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteItem(item.id)}
+                disabled={isSaving || isDeleting}
+                className="btn-secondary"
+              >
+                {isDeleting ? '...' : 'Löschen'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
@@ -625,7 +663,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
 
         <div className="text-xs text-slate-500 dark:text-white/50">
-          Hier siehst du die projektbezogene Gesamtliste aller Einkaufsposten inklusive Zuständigkeit und Status.
+          Kompakte Liste mit Artikel, Menge, Zuständigkeit und Direkt-Haken.
         </div>
       </div>
 
@@ -754,7 +792,14 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
       )}
 
       <div className="app-card space-y-4">
-        <h2 className="text-lg font-black">Offene Posten</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-black">Offene Posten</h2>
+          <div className="hidden md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-3 text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black flex-1 max-w-[560px]">
+            <div>Artikel</div>
+            <div>Menge</div>
+            <div>Zuständig</div>
+          </div>
+        </div>
 
         {loadingItems ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
@@ -765,8 +810,8 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
             Aktuell sind keine offenen Einkaufsposten vorhanden.
           </div>
         ) : (
-          <div className="space-y-4">
-            {openItems.map(renderItemCard)}
+          <div className="space-y-3">
+            {openItems.map(renderCompactRow)}
           </div>
         )}
       </div>
@@ -783,8 +828,8 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
             Noch keine Posten als gekauft markiert.
           </div>
         ) : (
-          <div className="space-y-4">
-            {boughtItems.map(renderItemCard)}
+          <div className="space-y-3">
+            {boughtItems.map(renderCompactRow)}
           </div>
         )}
       </div>
