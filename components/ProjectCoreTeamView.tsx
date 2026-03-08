@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { AppRole, ProjectLite, Task, User } from '../types';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppRole, Member, ProjectLite, Task, User } from '../types';
 import * as api from '../services/api';
 
 /* =====================================================
@@ -14,9 +14,10 @@ interface Props {
 type ProjectTaskSummary = {
   user_id: number;
   display_name: string;
+  email?: string;
+  assigned_tasks_count: number;
   open_tasks_count: number;
   completed_tasks_count: number;
-  assigned_tasks_count: number;
 };
 
 /* =====================================================
@@ -35,7 +36,7 @@ const getStoredProjectId = (): number => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-const getMemberDisplayName = (member: any): string => {
+const getMemberDisplayName = (member: Partial<Member> | null | undefined): string => {
   return (
     member?.display_name ||
     member?.username ||
@@ -51,8 +52,12 @@ const getMemberDisplayName = (member: any): string => {
 const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [project, setProject] = useState<ProjectLite | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+
   const [loadingProject, setLoadingProject] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   const activeProjectId = useMemo(() => getStoredProjectId(), []);
@@ -62,60 +67,95 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
      SECTION 05 - LOAD PROJECT
   ===================================================== */
 
-  useEffect(() => {
+  const loadProject = useCallback(async () => {
     if (!activeProjectId) return;
 
-    const run = async () => {
-      setLoadingProject(true);
+    setLoadingProject(true);
 
-      try {
-        const data = await api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized);
-        const list = Array.isArray(data) ? data : [];
-        const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
-        setProject(found);
-      } catch (e: any) {
-        setError(e?.message || 'Projekt konnte nicht geladen werden.');
-        setProject(null);
-      } finally {
-        setLoadingProject(false);
-      }
-    };
-
-    run();
+    try {
+      const data = await api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
+      setProject(found);
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht geladen werden.');
+      setProject(null);
+    } finally {
+      setLoadingProject(false);
+    }
   }, [activeProjectId, onUnauthorized]);
 
   /* =====================================================
      SECTION 06 - LOAD TASKS
   ===================================================== */
 
-  useEffect(() => {
+  const loadTasks = useCallback(async () => {
     if (!activeProjectId) return;
 
-    const run = async () => {
-      setLoadingTasks(true);
+    setLoadingTasks(true);
 
-      try {
-        const data = await api.getTasks(
-          onUnauthorized,
-          {
-            project_id: activeProjectId
-          }
-        );
+    try {
+      const data = await api.getTasks(
+        onUnauthorized,
+        {
+          project_id: activeProjectId
+        }
+      );
 
-        setTasks(Array.isArray(data) ? data : []);
-      } catch (e: any) {
-        setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
-        setTasks([]);
-      } finally {
-        setLoadingTasks(false);
-      }
-    };
-
-    run();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
+      setTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
   }, [activeProjectId, onUnauthorized]);
 
   /* =====================================================
-     SECTION 07 - TASK SUMMARY
+     SECTION 07 - LOAD MEMBERS
+  ===================================================== */
+
+  const loadMembers = useCallback(async () => {
+    setLoadingMembers(true);
+
+    try {
+      const data = await api.getMembers(onUnauthorized);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch {
+      setMembers([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  }, [onUnauthorized]);
+
+  /* =====================================================
+     SECTION 08 - INITIAL LOAD
+  ===================================================== */
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+    setError(null);
+    loadProject();
+    loadTasks();
+    loadMembers();
+  }, [activeProjectId, loadProject, loadTasks, loadMembers]);
+
+  /* =====================================================
+     SECTION 09 - MEMBER MAP
+  ===================================================== */
+
+  const memberMap = useMemo(() => {
+    const map = new Map<number, Member>();
+
+    for (const member of members) {
+      map.set(Number(member.id), member);
+    }
+
+    return map;
+  }, [members]);
+
+  /* =====================================================
+     SECTION 10 - TASK SUMMARY
   ===================================================== */
 
   const taskSummary = useMemo<ProjectTaskSummary[]>(() => {
@@ -125,13 +165,16 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
       const assignedUserId = Number(task.assigned_user_id || 0);
       if (!assignedUserId) continue;
 
+      const member = memberMap.get(assignedUserId);
+
       if (!map.has(assignedUserId)) {
         map.set(assignedUserId, {
           user_id: assignedUserId,
-          display_name: `Mitglied #${assignedUserId}`,
+          display_name: getMemberDisplayName(member),
+          email: member?.email || '',
+          assigned_tasks_count: 0,
           open_tasks_count: 0,
-          completed_tasks_count: 0,
-          assigned_tasks_count: 0
+          completed_tasks_count: 0
         });
       }
 
@@ -151,10 +194,23 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
       }
       return a.display_name.localeCompare(b.display_name, 'de');
     });
-  }, [tasks]);
+  }, [tasks, memberMap]);
 
   /* =====================================================
-     SECTION 08 - EARLY RETURN
+     SECTION 11 - REFRESH
+  ===================================================== */
+
+  const handleRefresh = async () => {
+    setError(null);
+    await Promise.all([
+      loadProject(),
+      loadTasks(),
+      loadMembers()
+    ]);
+  };
+
+  /* =====================================================
+     SECTION 12 - EARLY RETURN
   ===================================================== */
 
   if (!activeProjectId) {
@@ -168,7 +224,7 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
   }
 
   /* =====================================================
-     SECTION 09 - RENDER
+     SECTION 13 - RENDER
   ===================================================== */
 
   return (
@@ -186,7 +242,7 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
 
         <div className="text-xs text-slate-500 dark:text-white/50">
-          Admin/Vorstand können das Kernteam später direkt hier verwalten. In diesem Stand wird bereits die Aufgabenverteilung des Projekts sichtbar gemacht.
+          Hier siehst du aktuell die Aufgabenverteilung im Projekt. Die echte Kernteam-Verwaltung wird danach direkt mit der Projekt-API verbunden.
         </div>
       </div>
 
@@ -196,11 +252,11 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            disabled={loadingTasks}
+            onClick={handleRefresh}
+            disabled={loadingProject || loadingTasks || loadingMembers}
             className="btn-secondary"
           >
-            {loadingTasks ? '...' : 'Aktualisieren'}
+            {loadingProject || loadingTasks || loadingMembers ? '...' : 'Aktualisieren'}
           </button>
         </div>
 
@@ -224,8 +280,9 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
                     <div className="font-black text-slate-900 dark:text-white">
                       {item.display_name}
                     </div>
+
                     <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
-                      Mitglied-ID: {item.user_id}
+                      {item.email ? item.email : `Mitglied-ID: ${item.user_id}`}
                     </div>
                   </div>
 
@@ -252,7 +309,7 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
           <h2 className="text-lg font-black">Kernteam Verwaltung</h2>
 
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Die echte Kernteam-Verwaltung mit Mitglieder hinzufügen und entfernen wird im nächsten Schritt über die Projekt-API angebunden.
+            Die Anzeige ist vorbereitet. Das Hinzufügen und Entfernen von Kernteam-Mitgliedern braucht jetzt noch die Backend-Routen und die Projekttabelle dafür.
           </div>
         </div>
       )}
