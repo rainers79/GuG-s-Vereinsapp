@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppRole, Member, ProjectLite, Task, User } from '../types';
+import {
+  AppRole,
+  Member,
+  ProjectCoreTeamMember,
+  ProjectLite,
+  User
+} from '../types';
 import * as api from '../services/api';
 
 /* =====================================================
@@ -11,13 +17,16 @@ interface Props {
   onUnauthorized: () => void;
 }
 
-type ProjectTaskSummary = {
+type CoreTeamDisplayItem = {
   user_id: number;
   display_name: string;
   email?: string;
+  username?: string;
+  profile_image_url?: string;
   assigned_tasks_count: number;
   open_tasks_count: number;
   completed_tasks_count: number;
+  created_at: string;
 };
 
 /* =====================================================
@@ -51,14 +60,17 @@ const getMemberDisplayName = (member: Partial<Member> | null | undefined): strin
 
 const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [project, setProject] = useState<ProjectLite | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [coreTeamMembers, setCoreTeamMembers] = useState<ProjectCoreTeamMember[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
   const [loadingProject, setLoadingProject] = useState(false);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingCoreTeam, setLoadingCoreTeam] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [savingCoreTeam, setSavingCoreTeam] = useState(false);
 
+  const [selectedAddUserId, setSelectedAddUserId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const activeProjectId = useMemo(() => getStoredProjectId(), []);
   const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
@@ -78,36 +90,30 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
       const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
       setProject(found);
     } catch (e: any) {
-      setError(e?.message || 'Projekt konnte nicht geladen werden.');
       setProject(null);
+      setError(e?.message || 'Projekt konnte nicht geladen werden.');
     } finally {
       setLoadingProject(false);
     }
   }, [activeProjectId, onUnauthorized]);
 
   /* =====================================================
-     SECTION 06 - LOAD TASKS
+     SECTION 06 - LOAD CORETEAM
   ===================================================== */
 
-  const loadTasks = useCallback(async () => {
+  const loadCoreTeam = useCallback(async () => {
     if (!activeProjectId) return;
 
-    setLoadingTasks(true);
+    setLoadingCoreTeam(true);
 
     try {
-      const data = await api.getTasks(
-        onUnauthorized,
-        {
-          project_id: activeProjectId
-        }
-      );
-
-      setTasks(Array.isArray(data) ? data : []);
+      const data = await api.getProjectCoreTeamMembers(activeProjectId, onUnauthorized);
+      setCoreTeamMembers(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
-      setTasks([]);
+      setCoreTeamMembers([]);
+      setError(e?.message || 'Kernteam konnte nicht geladen werden.');
     } finally {
-      setLoadingTasks(false);
+      setLoadingCoreTeam(false);
     }
   }, [activeProjectId, onUnauthorized]);
 
@@ -116,6 +122,8 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
   ===================================================== */
 
   const loadMembers = useCallback(async () => {
+    if (!isAdmin) return;
+
     setLoadingMembers(true);
 
     try {
@@ -126,7 +134,7 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
     } finally {
       setLoadingMembers(false);
     }
-  }, [onUnauthorized]);
+  }, [isAdmin, onUnauthorized]);
 
   /* =====================================================
      SECTION 08 - INITIAL LOAD
@@ -134,14 +142,17 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
   useEffect(() => {
     if (!activeProjectId) return;
+
     setError(null);
+    setSuccess(null);
+
     loadProject();
-    loadTasks();
+    loadCoreTeam();
     loadMembers();
-  }, [activeProjectId, loadProject, loadTasks, loadMembers]);
+  }, [activeProjectId, loadProject, loadCoreTeam, loadMembers]);
 
   /* =====================================================
-     SECTION 09 - MEMBER MAP
+     SECTION 09 - MEMBER MAPS
   ===================================================== */
 
   const memberMap = useMemo(() => {
@@ -154,59 +165,143 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
     return map;
   }, [members]);
 
+  const assignedCoreTeamIds = useMemo(() => {
+    return new Set(coreTeamMembers.map((item) => Number(item.user_id)));
+  }, [coreTeamMembers]);
+
   /* =====================================================
-     SECTION 10 - TASK SUMMARY
+     SECTION 10 - DISPLAY DATA
   ===================================================== */
 
-  const taskSummary = useMemo<ProjectTaskSummary[]>(() => {
-    const map = new Map<number, ProjectTaskSummary>();
+  const displayCoreTeamMembers = useMemo<CoreTeamDisplayItem[]>(() => {
+    return coreTeamMembers
+      .map((item) => {
+        const member = memberMap.get(Number(item.user_id));
 
-    for (const task of tasks) {
-      const assignedUserId = Number(task.assigned_user_id || 0);
-      if (!assignedUserId) continue;
+        return {
+          user_id: Number(item.user_id),
+          display_name: item.display_name || getMemberDisplayName(member),
+          email: item.email || member?.email || '',
+          username: item.username || member?.username || '',
+          profile_image_url: item.profile_image_url || undefined,
+          assigned_tasks_count: Number(item.assigned_tasks_count || 0),
+          open_tasks_count: Number(item.open_tasks_count || 0),
+          completed_tasks_count: Number(item.completed_tasks_count || 0),
+          created_at: item.created_at || ''
+        };
+      })
+      .sort((a, b) => {
+        if (b.assigned_tasks_count !== a.assigned_tasks_count) {
+          return b.assigned_tasks_count - a.assigned_tasks_count;
+        }
+        return a.display_name.localeCompare(b.display_name, 'de');
+      });
+  }, [coreTeamMembers, memberMap]);
 
-      const member = memberMap.get(assignedUserId);
-
-      if (!map.has(assignedUserId)) {
-        map.set(assignedUserId, {
-          user_id: assignedUserId,
-          display_name: getMemberDisplayName(member),
-          email: member?.email || '',
-          assigned_tasks_count: 0,
-          open_tasks_count: 0,
-          completed_tasks_count: 0
-        });
-      }
-
-      const current = map.get(assignedUserId)!;
-      current.assigned_tasks_count += 1;
-
-      if (task.completed) {
-        current.completed_tasks_count += 1;
-      } else {
-        current.open_tasks_count += 1;
-      }
-    }
-
-    return Array.from(map.values()).sort((a, b) => {
-      if (b.assigned_tasks_count !== a.assigned_tasks_count) {
-        return b.assigned_tasks_count - a.assigned_tasks_count;
-      }
-      return a.display_name.localeCompare(b.display_name, 'de');
-    });
-  }, [tasks, memberMap]);
+  const availableMembers = useMemo(() => {
+    return members
+      .filter((member) => !assignedCoreTeamIds.has(Number(member.id)))
+      .sort((a, b) =>
+        getMemberDisplayName(a).localeCompare(getMemberDisplayName(b), 'de')
+      );
+  }, [members, assignedCoreTeamIds]);
 
   /* =====================================================
-     SECTION 11 - REFRESH
+     SECTION 11 - ACTIONS
   ===================================================== */
 
   const handleRefresh = async () => {
     setError(null);
+    setSuccess(null);
+
     await Promise.all([
       loadProject(),
-      loadTasks(),
+      loadCoreTeam(),
       loadMembers()
     ]);
+  };
+
+  const handleAddMember = async () => {
+    const nextUserId = Number(selectedAddUserId);
+
+    if (!isAdmin) {
+      setError('Keine Berechtigung für die Kernteam-Verwaltung.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    if (!Number.isFinite(nextUserId) || nextUserId <= 0) {
+      setError('Bitte ein Mitglied auswählen.');
+      return;
+    }
+
+    const nextIds = Array.from(new Set([
+      ...coreTeamMembers.map((item) => Number(item.user_id)),
+      nextUserId
+    ]));
+
+    setSavingCoreTeam(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectCoreTeamMembers(
+        {
+          project_id: activeProjectId,
+          members: nextIds
+        },
+        onUnauthorized
+      );
+
+      setSelectedAddUserId('');
+      setSuccess('Mitglied wurde ins Kernteam aufgenommen.');
+      await loadCoreTeam();
+    } catch (e: any) {
+      setError(e?.message || 'Mitglied konnte nicht hinzugefügt werden.');
+    } finally {
+      setSavingCoreTeam(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: number) => {
+    if (!isAdmin) {
+      setError('Keine Berechtigung für die Kernteam-Verwaltung.');
+      return;
+    }
+
+    if (!activeProjectId) {
+      setError('Kein aktives Projekt gewählt.');
+      return;
+    }
+
+    const nextIds = coreTeamMembers
+      .map((item) => Number(item.user_id))
+      .filter((id) => id !== Number(userId));
+
+    setSavingCoreTeam(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await api.saveProjectCoreTeamMembers(
+        {
+          project_id: activeProjectId,
+          members: nextIds
+        },
+        onUnauthorized
+      );
+
+      setSuccess('Mitglied wurde aus dem Kernteam entfernt.');
+      await loadCoreTeam();
+    } catch (e: any) {
+      setError(e?.message || 'Mitglied konnte nicht entfernt werden.');
+    } finally {
+      setSavingCoreTeam(false);
+    }
   };
 
   /* =====================================================
@@ -230,6 +325,7 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
   return (
     <div className="space-y-6">
       {error && <div className="alert-error">{error}</div>}
+      {success && <div className="alert-success">{success}</div>}
 
       <div className="app-card space-y-3">
         <h1 className="text-2xl font-black">Projekt Kernteam</h1>
@@ -242,60 +338,85 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
 
         <div className="text-xs text-slate-500 dark:text-white/50">
-          Hier siehst du aktuell die Aufgabenverteilung im Projekt. Die echte Kernteam-Verwaltung wird danach direkt mit der Projekt-API verbunden.
+          Hier siehst du, wer im Kernteam ist und wie viele Aufgaben den jeweiligen Personen im Projekt zugewiesen sind.
         </div>
       </div>
 
       <div className="app-card space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-black">Aufgabenübersicht im Projekt</h2>
+          <h2 className="text-lg font-black">Kernteam Übersicht</h2>
 
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={loadingProject || loadingTasks || loadingMembers}
+            disabled={loadingProject || loadingCoreTeam || loadingMembers || savingCoreTeam}
             className="btn-secondary"
           >
-            {loadingProject || loadingTasks || loadingMembers ? '...' : 'Aktualisieren'}
+            {loadingProject || loadingCoreTeam || loadingMembers || savingCoreTeam ? '...' : 'Aktualisieren'}
           </button>
         </div>
 
-        {loadingTasks ? (
+        {loadingCoreTeam ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Aufgaben werden geladen...
+            Kernteam wird geladen...
           </div>
-        ) : taskSummary.length === 0 ? (
+        ) : displayCoreTeamMembers.length === 0 ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Aktuell sind in diesem Projekt noch keine zugewiesenen Aufgaben vorhanden.
+            Aktuell sind in diesem Projekt noch keine Mitglieder im Kernteam eingetragen.
           </div>
         ) : (
           <div className="space-y-3">
-            {taskSummary.map((item) => (
+            {displayCoreTeamMembers.map((item) => (
               <div
                 key={item.user_id}
                 className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#121212]"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="font-black text-slate-900 dark:text-white">
-                      {item.display_name}
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                      {item.profile_image_url ? (
+                        <img
+                          src={item.profile_image_url}
+                          alt={item.display_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
                     </div>
 
-                    <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
-                      {item.email ? item.email : `Mitglied-ID: ${item.user_id}`}
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-900 dark:text-white">
+                        {item.display_name}
+                      </div>
+
+                      <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
+                        {item.email || item.username || `Mitglied-ID: ${item.user_id}`}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="text-right text-xs">
-                    <div className="font-black text-slate-900 dark:text-white">
-                      Gesamt: {item.assigned_tasks_count}
+                  <div className="flex flex-col items-end gap-3">
+                    <div className="text-right text-xs">
+                      <div className="font-black text-slate-900 dark:text-white">
+                        Gesamt: {item.assigned_tasks_count}
+                      </div>
+                      <div className="text-slate-500 dark:text-white/50">
+                        Offen: {item.open_tasks_count}
+                      </div>
+                      <div className="text-slate-500 dark:text-white/50">
+                        Erledigt: {item.completed_tasks_count}
+                      </div>
                     </div>
-                    <div className="text-slate-500 dark:text-white/50">
-                      Offen: {item.open_tasks_count}
-                    </div>
-                    <div className="text-slate-500 dark:text-white/50">
-                      Erledigt: {item.completed_tasks_count}
-                    </div>
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(item.user_id)}
+                        disabled={savingCoreTeam}
+                        className="btn-secondary"
+                      >
+                        Entfernen
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -305,12 +426,49 @@ const ProjectCoreTeamView: React.FC<Props> = ({ user, onUnauthorized }) => {
       </div>
 
       {isAdmin && (
-        <div className="app-card space-y-3">
+        <div className="app-card space-y-4">
           <h2 className="text-lg font-black">Kernteam Verwaltung</h2>
 
-          <div className="text-sm text-slate-500 dark:text-white/60">
-            Die Anzeige ist vorbereitet. Das Hinzufügen und Entfernen von Kernteam-Mitgliedern braucht jetzt noch die Backend-Routen und die Projekttabelle dafür.
-          </div>
+          {loadingMembers ? (
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Mitglieder werden geladen...
+            </div>
+          ) : availableMembers.length === 0 ? (
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Es sind aktuell keine weiteren Mitglieder verfügbar, die ins Kernteam aufgenommen werden können.
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-[1fr_auto] gap-3">
+                <select
+                  className="form-input"
+                  value={selectedAddUserId}
+                  onChange={(e) => setSelectedAddUserId(e.target.value)}
+                  disabled={savingCoreTeam}
+                >
+                  <option value="">Mitglied auswählen</option>
+                  {availableMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {getMemberDisplayName(member)}{member.email ? ` (${member.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleAddMember}
+                  disabled={savingCoreTeam || !selectedAddUserId}
+                  className="btn-primary"
+                >
+                  {savingCoreTeam ? '...' : 'Zum Kernteam hinzufügen'}
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-500 dark:text-white/50">
+                Superadmin und Vorstand können Mitglieder hier direkt aufnehmen oder aus dem Kernteam entfernen.
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
