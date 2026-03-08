@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Cropper from 'react-easy-crop';
-import { User, Poll, ViewType, Task } from '../types';
+import { User, Poll, ViewType, Task, ProjectLite, ProjectShoppingItem, AppRole } from '../types';
 import { getCroppedImg } from '../utils/cropImage';
 import * as api from '../services/api';
 
@@ -10,6 +10,8 @@ interface Props {
   onNavigate: (view: ViewType) => void;
   onUnauthorized: () => void;
 }
+
+const LS_ACTIVE_PROJECT = 'gug_active_project';
 
 const DashboardView: React.FC<Props> = ({
   user,
@@ -34,10 +36,24 @@ const DashboardView: React.FC<Props> = ({
   const [dashboardTasks, setDashboardTasks] = useState<Task[]>([]);
   const [loadingDashboardTasks, setLoadingDashboardTasks] = useState(false);
 
+  const [activeProject, setActiveProject] = useState<ProjectLite | null>(null);
+  const [dashboardShoppingItems, setDashboardShoppingItems] = useState<ProjectShoppingItem[]>([]);
+  const [loadingDashboardShopping, setLoadingDashboardShopping] = useState(false);
+  const [shoppingError, setShoppingError] = useState<string | null>(null);
+  const [savingShoppingItemId, setSavingShoppingItemId] = useState<number | null>(null);
+
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const firstChatLoad = useRef(true);
   const loadingOlderMessages = useRef(false);
   const [privateReceiver, setPrivateReceiver] = useState<{ id:number,name:string } | null>(null);
+
+  const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+
+  const activeProjectId = useMemo(() => {
+    const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, []);
 
   /* =====================================================
      DATE FORMAT HELPER
@@ -62,6 +78,21 @@ const DashboardView: React.FC<Props> = ({
       year: 'numeric'
     });
 
+  };
+
+  const buildAmountLabel = (item: ProjectShoppingItem): string => {
+    const quantity = (item.quantity || '').trim();
+    const unit = (item.unit || '').trim();
+
+    if (quantity && unit) return `${quantity} ${unit}`;
+    if (quantity) return quantity;
+    if (unit) return unit;
+    return '-';
+  };
+
+  const canToggleShoppingItem = (item: ProjectShoppingItem): boolean => {
+    if (isAdmin) return true;
+    return Number(item.assigned_user_id || 0) === Number(user.id);
   };
 
   /* =====================================================
@@ -95,6 +126,70 @@ const DashboardView: React.FC<Props> = ({
       setDashboardTasks([]);
     } finally {
       setLoadingDashboardTasks(false);
+    }
+  };
+
+  /* =====================================================
+     DASHBOARD SHOPPING
+  ===================================================== */
+
+  const loadActiveProject = useCallback(async () => {
+    if (!activeProjectId) {
+      setActiveProject(null);
+      return;
+    }
+
+    try {
+      const data = await api.apiRequest<ProjectLite[]>('/gug/v1/projects', {}, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      const found = list.find((item) => Number(item.id) === Number(activeProjectId)) || null;
+      setActiveProject(found);
+    } catch {
+      setActiveProject(null);
+    }
+  }, [activeProjectId, onUnauthorized]);
+
+  const loadDashboardShopping = useCallback(async () => {
+    if (!activeProjectId) {
+      setDashboardShoppingItems([]);
+      setShoppingError(null);
+      return;
+    }
+
+    setLoadingDashboardShopping(true);
+    setShoppingError(null);
+
+    try {
+      const data = await api.getProjectShoppingItems(activeProjectId, onUnauthorized);
+      setDashboardShoppingItems(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setDashboardShoppingItems([]);
+      setShoppingError(e?.message || 'Einkaufsliste konnte nicht geladen werden.');
+    } finally {
+      setLoadingDashboardShopping(false);
+    }
+  }, [activeProjectId, onUnauthorized]);
+
+  const handleToggleShoppingItem = async (item: ProjectShoppingItem) => {
+    if (!canToggleShoppingItem(item)) return;
+
+    const nextStatus = item.status === 'bought' ? 'open' : 'bought';
+
+    setSavingShoppingItemId(item.id);
+    setShoppingError(null);
+
+    try {
+      await api.updateProjectShoppingItem(
+        item.id,
+        { status: nextStatus },
+        onUnauthorized
+      );
+
+      await loadDashboardShopping();
+    } catch (e: any) {
+      setShoppingError(e?.message || 'Status konnte nicht geändert werden.');
+    } finally {
+      setSavingShoppingItemId(null);
     }
   };
 
@@ -158,6 +253,22 @@ const DashboardView: React.FC<Props> = ({
 
     return () => clearInterval(interval);
   }, []);
+
+  /* =====================================================
+     DASHBOARD SHOPPING INITIAL LOAD
+  ===================================================== */
+
+  useEffect(() => {
+    loadActiveProject();
+    loadDashboardShopping();
+
+    const interval = setInterval(() => {
+      loadActiveProject();
+      loadDashboardShopping();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadActiveProject, loadDashboardShopping]);
 
   /* =====================================================
      CHAT SCROLL
@@ -367,6 +478,11 @@ const DashboardView: React.FC<Props> = ({
     [polls]
   );
 
+  const shoppingOpenItems = useMemo(
+    () => dashboardShoppingItems.filter(item => item.status === 'open'),
+    [dashboardShoppingItems]
+  );
+
   /* =====================================================
      UI
   ===================================================== */
@@ -484,6 +600,96 @@ const DashboardView: React.FC<Props> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* DASHBOARD SHOPPING */}
+
+      <div className="app-card space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black">Einkaufsliste</h2>
+            <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+              {activeProject
+                ? `Projekt: ${activeProject.title || `Projekt #${activeProject.id}`}`
+                : activeProjectId
+                  ? `Projekt #${activeProjectId}`
+                  : 'Kein aktives Projekt gewählt'}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('project-shopping')}
+            className="btn-secondary"
+          >
+            Öffnen
+          </button>
+        </div>
+
+        {shoppingError && (
+          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
+            {shoppingError}
+          </div>
+        )}
+
+        {!activeProjectId ? (
+          <div className="text-sm text-slate-500 dark:text-white/60">
+            Wähle zuerst ein aktives Projekt im Projektrad.
+          </div>
+        ) : loadingDashboardShopping ? (
+          <div className="text-sm text-slate-500 dark:text-white/60">
+            Einkaufsliste wird geladen...
+          </div>
+        ) : shoppingOpenItems.length === 0 ? (
+          <div className="text-sm text-slate-500 dark:text-white/60">
+            Keine offenen Einkaufsposten im aktiven Projekt.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {shoppingOpenItems.map((item) => {
+              const canToggle = canToggleShoppingItem(item);
+              const isSaving = savingShoppingItemId === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3"
+                >
+                  <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleShoppingItem(item)}
+                      disabled={!canToggle || isSaving}
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-sm ${
+                        item.status === 'bought'
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : 'border-slate-300 bg-white text-slate-500 dark:border-white/20 dark:bg-[#1A1A1A] dark:text-white/60'
+                      } ${!canToggle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={canToggle ? 'Als gekauft markieren' : 'Keine Berechtigung'}
+                    >
+                      {isSaving ? '...' : ''}
+                    </button>
+
+                    <div className="min-w-0">
+                      <div className="font-black text-sm text-slate-900 dark:text-white truncate">
+                        {item.title}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+                        Menge: <span className="font-black">{buildAmountLabel(item)}</span>
+                        {' · '}
+                        Zuständig: <span className="font-black">{item.assigned_user_name || 'Niemand'}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A] whitespace-nowrap">
+                      offen
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* CHAT */}
