@@ -333,7 +333,7 @@ export async function uploadProjectInvoice(
     attachment_id: number;
     file_url: string;
   }>(
-    '/gug/v1/project-invoices/upload',
+    '/gug/v1/project-invoices',
     {
       method: 'POST',
       body: formData
