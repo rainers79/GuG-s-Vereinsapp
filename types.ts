@@ -135,10 +135,10 @@ export interface Task {
 }
 
 export interface NotificationSettings {
-  chatEnabled: true;
-  pollEnabled: true;
-  chatPreview: true;
-  pollPreview: true;
+  chatEnabled: boolean;
+  pollEnabled: boolean;
+  chatPreview: boolean;
+  pollPreview: boolean;
 }
 
 export interface ChatMessage {
