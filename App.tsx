@@ -43,6 +43,7 @@ const LS_LAST_CHAT_ID = 'gug_last_chat_id';
 const LS_LAST_POLL_ID = 'gug_last_poll_id';
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
+const LS_ACTIVE_VIEW = 'gug_active_view';
 
 /* =====================================================
    SECTION 03 - DEFAULT SETTINGS
@@ -56,12 +57,42 @@ const defaultNotificationSettings: NotificationSettings = {
 };
 
 /* =====================================================
-   SECTION 04 - COMPONENT
+   SECTION 04 - HELPERS
+===================================================== */
+
+const getStoredActiveView = (): ViewType => {
+  const raw = localStorage.getItem(LS_ACTIVE_VIEW) as ViewType | null;
+
+  const allowedViews: ViewType[] = [
+    'dashboard',
+    'projects',
+    'polls',
+    'calendar',
+    'members',
+    'tasks',
+    'settings',
+    'pos',
+    'pos-admin',
+    'project-chat',
+    'project-coreteam',
+    'project-shopping',
+    'project-invoices'
+  ];
+
+  if (raw && allowedViews.includes(raw)) {
+    return raw;
+  }
+
+  return 'dashboard';
+};
+
+/* =====================================================
+   SECTION 05 - COMPONENT
 ===================================================== */
 
 const App: React.FC = () => {
   /* =====================================================
-     SECTION 05 - STATE
+     SECTION 06 - STATE
   ===================================================== */
 
   const [user, setUser] = useState<User | null>(api.getStoredUser());
@@ -81,7 +112,7 @@ const App: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [activeView, setActiveView] = useState<ViewType>('dashboard');
+  const [activeView, setActiveView] = useState<ViewType>(() => getStoredActiveView());
   const [viewHistory, setViewHistory] = useState<ViewType[]>([]);
   const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(
@@ -91,7 +122,7 @@ const App: React.FC = () => {
   const userRef = useRef<User | null>(user);
 
   /* =====================================================
-     SECTION 06 - BASIC EFFECTS
+     SECTION 07 - BASIC EFFECTS
   ===================================================== */
 
   useEffect(() => {
@@ -113,13 +144,17 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
+    localStorage.setItem(LS_ACTIVE_VIEW, activeView);
+  }, [activeView]);
+
+  useEffect(() => {
     if (activeView === 'pos') {
       setIsSidebarOpen(false);
     }
   }, [activeView]);
 
   /* =====================================================
-     SECTION 07 - NAVIGATION HELPERS
+     SECTION 08 - NAVIGATION HELPERS
   ===================================================== */
 
   const enforceProjectsActionState = useCallback(() => {
@@ -169,7 +204,7 @@ const App: React.FC = () => {
   const canGoBack = viewHistory.length > 0;
 
   /* =====================================================
-     SECTION 08 - TOAST HELPERS
+     SECTION 09 - TOAST HELPERS
   ===================================================== */
 
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
@@ -182,7 +217,7 @@ const App: React.FC = () => {
   }, []);
 
   /* =====================================================
-     SECTION 09 - AUTH / LOADING
+     SECTION 10 - AUTH / LOADING
   ===================================================== */
 
   const handleUnauthorized = useCallback(() => {
@@ -194,6 +229,7 @@ const App: React.FC = () => {
     setViewHistory([]);
     setActiveView('dashboard');
     localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+    localStorage.removeItem(LS_ACTIVE_VIEW);
   }, []);
 
   const fetchAppData = useCallback(async () => {
@@ -212,11 +248,26 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (api.getToken()) fetchAppData();
-    else setLoading(false);
+    else {
+      setLoading(false);
+      setActiveView('dashboard');
+      localStorage.removeItem(LS_ACTIVE_VIEW);
+    }
   }, [fetchAppData]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    if (activeView === 'pos' || activeView === 'pos-admin') return;
+
+    const storedView = getStoredActiveView();
+    if (storedView !== 'dashboard' && storedView !== activeView) {
+      setActiveView(storedView);
+    }
+  }, [user, activeView]);
+
   /* =====================================================
-     SECTION 10 - STORAGE HELPERS
+     SECTION 11 - STORAGE HELPERS
   ===================================================== */
 
   const getStoredNumber = (key: string): number => {
@@ -230,7 +281,7 @@ const App: React.FC = () => {
   };
 
   /* =====================================================
-     SECTION 11 - GLOBAL UPDATE CHECKS
+     SECTION 12 - GLOBAL UPDATE CHECKS
   ===================================================== */
 
   const checkGlobalUpdates = useCallback(async () => {
@@ -321,7 +372,7 @@ const App: React.FC = () => {
   }, [user, checkGlobalUpdates]);
 
   /* =====================================================
-     SECTION 12 - VIEW RENDERING
+     SECTION 13 - VIEW RENDERING
   ===================================================== */
 
   const renderContent = () => {
@@ -451,7 +502,7 @@ const App: React.FC = () => {
   };
 
   /* =====================================================
-     SECTION 13 - EARLY RETURN LOADING
+     SECTION 14 - EARLY RETURN LOADING
   ===================================================== */
 
   if (loading && !user) {
@@ -463,7 +514,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 14 - POS MODE
+     SECTION 15 - POS MODE
   ===================================================== */
 
   const isPosMode = !!user && activeView === 'pos';
@@ -496,7 +547,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 15 - DEFAULT LAYOUT
+     SECTION 16 - DEFAULT LAYOUT
   ===================================================== */
 
   return (
@@ -538,7 +589,9 @@ const App: React.FC = () => {
               api.clearToken();
               setUser(null);
               setViewHistory([]);
+              setActiveView('dashboard');
               localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+              localStorage.removeItem(LS_ACTIVE_VIEW);
             }}
             onOpenMenu={() => setIsSidebarOpen(true)}
             onGoHome={() => navigateToRoot('dashboard')}
