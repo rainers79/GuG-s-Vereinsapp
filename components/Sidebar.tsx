@@ -51,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'pos' as ViewType,
       label: 'Boniersystem',
-      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND]
+      roles: [AppRole.SUPERADMIN, AppRole.VORSTAND, AppRole.USER]
     },
     {
       id: 'pos-admin' as ViewType,
