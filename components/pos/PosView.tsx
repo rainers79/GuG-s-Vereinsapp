@@ -15,13 +15,7 @@ interface CartItem {
   qty: number;
 }
 
-interface PosArticleRow extends PosArticle {
-  project_id?: number;
-  serving_label?: string;
-  created_by?: number;
-  created_at?: string;
-  updated_at?: string;
-}
+type PosArticleRow = PosArticle;
 
 interface PosOrderRowItem {
   id?: number;
