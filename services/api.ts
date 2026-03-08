@@ -17,7 +17,10 @@ import {
   ProjectChatGroupMember,
   ProjectChatPermission,
   ProjectChatMessage,
-  ProjectCoreTeamMember
+  ProjectCoreTeamMember,
+  ProjectShoppingItem,
+  CreateProjectShoppingItemPayload,
+  UpdateProjectShoppingItemPayload
 } from '../types';
 
 
@@ -217,6 +220,76 @@ export async function sendChatMessage(
     {
       method: 'POST',
       body: JSON.stringify({ message })
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT SHOPPING
+===================================================== */
+
+export async function getProjectShoppingItems(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectShoppingItem[]> {
+  return await apiRequest<ProjectShoppingItem[]>(
+    `/gug/v1/project-shopping?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProjectShoppingItem(
+  payload: CreateProjectShoppingItemPayload,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-shopping',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updateProjectShoppingItem(
+  itemId: number,
+  payload: UpdateProjectShoppingItemPayload,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-shopping/${itemId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProjectShoppingItem(
+  itemId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-shopping/${itemId}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
+export async function createTaskFromProjectShoppingItem(
+  itemId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; task_id: number; message: string }> {
+  return await apiRequest<{ success: boolean; task_id: number; message: string }>(
+    `/gug/v1/project-shopping/${itemId}/create-task`,
+    {
+      method: 'POST'
     },
     onUnauthorized
   );
