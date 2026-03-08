@@ -668,32 +668,20 @@ const PosView: React.FC<PosViewProps> = ({
                       className="rounded-xl transition active:scale-95 shadow-sm border border-black/10 overflow-hidden"
                       style={{ backgroundColor: bg }}
                     >
-                      <div className="p-2.5 flex flex-col justify-between h-full aspect-square">
-                        <div className="w-full min-h-0">
-                          <div className="text-[9px] font-black uppercase tracking-wide text-black/55 truncate">
-                            {getCategoryLabel(article.category)}
-                          </div>
-
-                          <div className="mt-1 text-left font-black text-[12px] leading-[1.1] text-black line-clamp-2 min-h-[28px]">
+                      <div className="p-2.5 h-full aspect-square flex flex-col">
+                        <div className="flex-1 min-h-0">
+                          <div className="text-left font-black text-[14px] leading-[1.02] text-black break-words whitespace-normal">
                             {article.name}
                           </div>
-
-                          {article.serving_label && (
-                            <div className="mt-1 text-[10px] font-bold text-black/60 truncate">
-                              {article.serving_label}
-                            </div>
-                          )}
                         </div>
 
-                        <div className="w-full mt-2">
-                          <div className="text-left text-[13px] font-black text-black">
+                        <div className="mt-2 flex items-end justify-between gap-2">
+                          <div className="text-left text-[13px] font-black text-black whitespace-nowrap">
                             {formatMoney(article.price_cents)}
                           </div>
 
-                          <div className="mt-1 flex items-center justify-end">
-                            <div className="px-2 py-0.5 rounded-full bg-white/75 text-[10px] font-black text-black border border-black/10">
-                              +1
-                            </div>
+                          <div className="text-[11px] font-bold text-black/65 whitespace-nowrap text-right">
+                            {article.serving_label || ''}
                           </div>
                         </div>
                       </div>
