@@ -34,6 +34,11 @@ interface ToastItem {
   type: ToastType;
 }
 
+interface DeferredInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
 /* =====================================================
    SECTION 02 - STORAGE KEYS
 ===================================================== */
@@ -44,6 +49,7 @@ const LS_LAST_POLL_ID = 'gug_last_poll_id';
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_ACTIVE_VIEW = 'gug_active_view';
+const LS_PRELOGIN_LANDING_DISMISSED = 'gug_prelogin_landing_dismissed';
 
 /* =====================================================
    SECTION 03 - DEFAULT SETTINGS
@@ -86,6 +92,15 @@ const getStoredActiveView = (): ViewType => {
   return 'dashboard';
 };
 
+const isStandaloneDisplay = () => {
+  if (typeof window === 'undefined') return false;
+
+  const byMatchMedia = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  const byNavigator = 'standalone' in window.navigator && (window.navigator as any).standalone === true;
+
+  return byMatchMedia || byNavigator;
+};
+
 /* =====================================================
    SECTION 05 - COMPONENT
 ===================================================== */
@@ -118,6 +133,15 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => isStandaloneDisplay());
+  const [showPreLoginLanding, setShowPreLoginLanding] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (isStandaloneDisplay()) return false;
+    return localStorage.getItem(LS_PRELOGIN_LANDING_DISMISSED) !== '1';
+  });
+  const [installingApp, setInstallingApp] = useState(false);
 
   const userRef = useRef<User | null>(user);
 
@@ -152,6 +176,42 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
     }
   }, [activeView]);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as DeferredInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setIsInstallable(false);
+      setDeferredInstallPrompt(null);
+      setShowPreLoginLanding(false);
+      localStorage.setItem(LS_PRELOGIN_LANDING_DISMISSED, '1');
+      setSuccess('App wurde installiert.');
+    };
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayModeChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setIsInstalled(true);
+        setShowPreLoginLanding(false);
+        localStorage.setItem(LS_PRELOGIN_LANDING_DISMISSED, '1');
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    mediaQuery.addEventListener('change', handleDisplayModeChange);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      mediaQuery.removeEventListener('change', handleDisplayModeChange);
+    };
+  }, []);
 
   /* =====================================================
      SECTION 08 - NAVIGATION HELPERS
@@ -202,6 +262,38 @@ const App: React.FC = () => {
   }, [enforceProjectsActionState]);
 
   const canGoBack = viewHistory.length > 0;
+
+  const handleInstallApp = useCallback(async () => {
+    if (!deferredInstallPrompt) {
+      setError('Installation wird auf diesem Gerät oder in diesem Browser aktuell nicht angeboten.');
+      return;
+    }
+
+    try {
+      setInstallingApp(true);
+      setError(null);
+
+      await deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+
+      if (choice.outcome === 'accepted') {
+        setShowPreLoginLanding(false);
+        localStorage.setItem(LS_PRELOGIN_LANDING_DISMISSED, '1');
+      }
+
+      setDeferredInstallPrompt(null);
+      setIsInstallable(false);
+    } catch (err: any) {
+      setError(err?.message || 'Installation konnte nicht gestartet werden.');
+    } finally {
+      setInstallingApp(false);
+    }
+  }, [deferredInstallPrompt]);
+
+  const handleContinueInBrowser = useCallback(() => {
+    setShowPreLoginLanding(false);
+    localStorage.setItem(LS_PRELOGIN_LANDING_DISMISSED, '1');
+  }, []);
 
   /* =====================================================
      SECTION 09 - TOAST HELPERS
@@ -517,7 +609,80 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 15 - POS MODE
+     SECTION 15 - PRE LOGIN LANDING
+  ===================================================== */
+
+  if (!user && showPreLoginLanding && !isInstalled) {
+    return (
+      <div className="min-h-screen bg-[#F6F1E4] text-black flex flex-col">
+        {error && (
+          <Notification message={error} type="error" onClose={() => setError(null)} />
+        )}
+
+        {success && (
+          <Notification message={success} type="success" onClose={() => setSuccess(null)} />
+        )}
+
+        <div className="flex-1 flex items-center justify-center px-5 py-10">
+          <div className="w-full max-w-md bg-white border border-black/10 rounded-3xl shadow-xl p-6">
+            <div className="flex justify-center">
+              <img
+                src="/logo.png"
+                alt="CoreV Logo"
+                className="h-20 w-auto object-contain"
+              />
+            </div>
+
+            <div className="mt-6 text-center">
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-[#C9AE6A]">
+                CoreV
+              </div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">
+                Vereinsplattform
+              </h1>
+              <p className="mt-4 text-sm leading-6 text-black/70 font-medium">
+                Installiere die App direkt auf deinem Handy für schnelleren Zugriff,
+                einen appähnlichen Start und eine sauberere Nutzung im Alltag.
+              </p>
+            </div>
+
+            <div className="mt-8 space-y-3">
+              <button
+                type="button"
+                onClick={handleInstallApp}
+                disabled={!isInstallable || installingApp}
+                className="w-full rounded-2xl bg-[#C9AE6A] px-4 py-4 text-[12px] font-black uppercase tracking-wide text-black shadow-sm disabled:opacity-50"
+              >
+                {installingApp
+                  ? 'Installation startet...'
+                  : isInstallable
+                    ? 'App installieren'
+                    : 'Installation aktuell nicht verfügbar'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleContinueInBrowser}
+                className="w-full rounded-2xl bg-[#F3F3F3] px-4 py-4 text-[12px] font-black uppercase tracking-wide text-black"
+              >
+                Im Browser fortfahren
+              </button>
+
+              {!isInstallable && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
+                  Falls die Installation nicht angeboten wird, öffne die App in Chrome oder Safari
+                  und nutze dort „App installieren“ oder „Zum Home-Bildschirm“.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =====================================================
+     SECTION 16 - POS MODE
   ===================================================== */
 
   const isPosMode = !!user && activeView === 'pos';
@@ -550,7 +715,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 16 - DEFAULT LAYOUT
+     SECTION 17 - DEFAULT LAYOUT
   ===================================================== */
 
   return (
