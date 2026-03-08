@@ -135,10 +135,10 @@ export interface Task {
 }
 
 export interface NotificationSettings {
-  chatEnabled: boolean;
-  pollEnabled: boolean;
-  chatPreview: boolean;
-  pollPreview: boolean;
+  chatEnabled: true;
+  pollEnabled: true;
+  chatPreview: true;
+  pollPreview: true;
 }
 
 export interface ChatMessage {
@@ -199,6 +199,23 @@ export interface ProjectChatMessage {
   attachment_url?: string | null;
   created_at: string;
   profile_image_url?: string;
+}
+
+/* =====================================================
+   CORETEAM TYPES
+===================================================== */
+
+export interface ProjectCoreTeamMember {
+  project_id: number;
+  user_id: number;
+  display_name: string;
+  email: string;
+  username: string;
+  profile_image_url?: string;
+  assigned_tasks_count: number;
+  open_tasks_count: number;
+  completed_tasks_count: number;
+  created_at: string;
 }
 
 /* =====================================================
