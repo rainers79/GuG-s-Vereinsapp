@@ -17,7 +17,8 @@ export type ViewType =
   | 'pos-admin'
   | 'project-chat'
   | 'project-coreteam'
-  | 'project-shopping';
+  | 'project-shopping'
+  | 'project-invoices';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
@@ -138,7 +139,7 @@ export interface Task {
 
 export interface NotificationSettings {
   chatEnabled: boolean;
-  pollEnabled: boolean;
+  pollEnabled: true;
   chatPreview: boolean;
   pollPreview: boolean;
 }
@@ -195,6 +196,23 @@ export interface UpdateProjectShoppingItemPayload {
   unit?: string;
   status?: ProjectShoppingStatus;
   assigned_user_id?: number | null;
+}
+
+/* =====================================================
+   PROJECT INVOICE TYPES
+===================================================== */
+
+export interface ProjectInvoiceItem {
+  id: number;
+  project_id: number;
+  uploaded_by: number;
+  uploaded_by_name?: string | null;
+  attachment_id: number;
+  file_url: string;
+  file_type: string;
+  original_filename: string;
+  created_at: string;
+  updated_at?: string | null;
 }
 
 /* =====================================================
