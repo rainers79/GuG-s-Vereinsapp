@@ -247,6 +247,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [loadingChatGroups, setLoadingChatGroups] = useState(false);
   const [loadingInlineChat, setLoadingInlineChat] = useState(false);
   const [sendingInlineChat, setSendingInlineChat] = useState(false);
+  const [uploadingInlineChatImage, setUploadingInlineChatImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1001,6 +1002,32 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
+  const handleUploadInlineChatImage = async (file: File) => {
+    if (!selectedProjectId || !openChatGroupId) return;
+
+    setUploadingInlineChatImage(true);
+    setError(null);
+
+    try {
+      await api.uploadProjectChatImage(
+        {
+          project_id: selectedProjectId,
+          group_id: openChatGroupId,
+          file,
+          message: inlineChatMessage.trim()
+        },
+        undefined as any
+      );
+
+      setInlineChatMessage('');
+      await loadInlineChatMessages(openChatGroupId);
+    } catch (e: any) {
+      setError(e?.message || 'Bild konnte nicht hochgeladen werden.');
+    } finally {
+      setUploadingInlineChatImage(false);
+    }
+  };
+
   return (
     <div className="space-y-10">
       {error && (
@@ -1105,29 +1132,70 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
             )}
           </div>
 
-          <div className="flex gap-2">
-            <input
-              className="form-input flex-1"
-              value={inlineChatMessage}
-              onChange={(e) => setInlineChatMessage(e.target.value)}
-              placeholder="Nachricht schreiben..."
-              disabled={sendingInlineChat}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSendInlineChatMessage();
-                }
-              }}
-            />
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <input
+                className="form-input flex-1"
+                value={inlineChatMessage}
+                onChange={(e) => setInlineChatMessage(e.target.value)}
+                placeholder="Nachricht schreiben oder Bildtext ergänzen..."
+                disabled={sendingInlineChat || uploadingInlineChatImage}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendInlineChatMessage();
+                  }
+                }}
+              />
 
-            <button
-              type="button"
-              onClick={handleSendInlineChatMessage}
-              disabled={sendingInlineChat || !inlineChatMessage.trim()}
-              className="btn-primary"
-            >
-              {sendingInlineChat ? '...' : 'Senden'}
-            </button>
+              <button
+                type="button"
+                onClick={handleSendInlineChatMessage}
+                disabled={sendingInlineChat || uploadingInlineChatImage || !inlineChatMessage.trim()}
+                className="btn-primary"
+              >
+                {sendingInlineChat ? '...' : 'Senden'}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="btn-secondary cursor-pointer">
+                {uploadingInlineChatImage ? 'Upload läuft...' : 'Bild auswählen'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingInlineChatImage || sendingInlineChat}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    handleUploadInlineChatImage(file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+
+              <label className="btn-secondary cursor-pointer">
+                Kamera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  disabled={uploadingInlineChatImage || sendingInlineChat}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    handleUploadInlineChatImage(file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+
+              <div className="text-xs text-slate-500 dark:text-white/60">
+                Bild aus Galerie oder direkt mit Handy-Kamera hochladen.
+              </div>
+            </div>
           </div>
         </div>
       )}
