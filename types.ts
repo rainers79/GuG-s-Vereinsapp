@@ -283,25 +283,34 @@ export interface ProjectCoreTeamMember {
 }
 
 /* =====================================================
-   POS TYPES (PHASE 1)
+   POS TYPES
 ===================================================== */
 
 export type PosCategory = 'food' | 'drink' | 'gug';
+export type PosOrderStatus = 'paid' | 'canceled';
 
 export interface PosArticle {
   id: number;
+  project_id: number;
   name: string;
   category: PosCategory;
+  serving_label?: string;
   price_cents: number;
   is_active: number;
   sort_order: number;
   bg_color?: string;
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PosOrderItem {
+  id?: number;
+  order_id?: number;
   article_id: number;
   article_name_snapshot: string;
   category_snapshot: PosCategory;
+  serving_label_snapshot?: string;
   price_cents_snapshot: number;
   qty: number;
   line_total_cents: number;
@@ -309,27 +318,59 @@ export interface PosOrderItem {
 
 export interface PosOrder {
   id: number;
+  project_id: number;
+  local_uuid?: string;
   order_number: string;
   waiter_user_id: number;
-  status: 'open' | 'paid' | 'canceled';
+  waiter_user_name?: string | null;
+  status: PosOrderStatus;
   total_cents: number;
   received_cents: number;
   change_cents: number;
+  note: string;
   created_at: string;
   paid_at: string | null;
-  note: string;
+  canceled_at?: string | null;
+  canceled_by?: number | null;
+  canceled_by_name?: string | null;
+  cancel_reason?: string;
   items: PosOrderItem[];
+}
+
+export interface PosCashOpening {
+  success: boolean;
+  project_id: number;
+  cash_date: string;
+  opening_cents: number;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface PosDailyReportWaiterRow {
+  waiter_user_id: number;
+  waiter_user_name?: string | null;
+  paid_total_cents: number;
+  canceled_total_cents: number;
+  net_total_cents: number;
+  orders_count: number;
+  canceled_orders_count: number;
 }
 
 export interface PosDailyReport {
   success: boolean;
+  project_id: number;
+  cash_date: string;
   date_from: string;
   date_to: string;
+  opening_cents: number;
+  paid_total_cents: number;
+  canceled_total_cents: number;
+  net_total_cents: number;
+  cash_expected_cents: number;
   total_cents: number;
   orders_count: number;
-  breakdown_by_waiter: {
-    waiter_user_id: number;
-    total_cents: number;
-    orders_count: number;
-  }[];
+  canceled_orders_count: number;
+  breakdown_by_waiter: PosDailyReportWaiterRow[];
 }
