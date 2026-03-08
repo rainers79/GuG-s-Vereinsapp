@@ -102,7 +102,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const activeProjectId = useMemo(() => getStoredProjectId(), []);
-  const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+  const isAdminOrVorstand = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
 
   /* =====================================================
      SECTION 05 - LOADERS
@@ -198,13 +198,23 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
      SECTION 07 - MEMOS
   ===================================================== */
 
+  const visibleItems = useMemo(() => {
+    if (isAdminOrVorstand) {
+      return items;
+    }
+
+    return items.filter(
+      (item) => Number(item.assigned_user_id || 0) === Number(user.id)
+    );
+  }, [items, isAdminOrVorstand, user.id]);
+
   const openItems = useMemo(() => {
-    return items.filter((item) => item.status === 'open');
-  }, [items]);
+    return visibleItems.filter((item) => item.status === 'open');
+  }, [visibleItems]);
 
   const boughtItems = useMemo(() => {
-    return items.filter((item) => item.status === 'bought');
-  }, [items]);
+    return visibleItems.filter((item) => item.status === 'bought');
+  }, [visibleItems]);
 
   const sortedMembers = useMemo(() => {
     return [...members].sort((a, b) =>
@@ -235,7 +245,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   };
 
   const canToggleItem = (item: ProjectShoppingItem): boolean => {
-    if (isAdmin) return true;
+    if (isAdminOrVorstand) return true;
     return Number(item.assigned_user_id || 0) === Number(user.id);
   };
 
@@ -257,7 +267,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   const handleCreateItem = async () => {
     const title = newTitle.trim();
 
-    if (!isAdmin) {
+    if (!isAdminOrVorstand) {
       setError('Keine Berechtigung zum Anlegen von Einkaufsposten.');
       return;
     }
@@ -305,7 +315,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   };
 
   const handleSaveItem = async (item: ProjectShoppingItem) => {
-    if (!isAdmin) {
+    if (!isAdminOrVorstand) {
       setError('Keine Berechtigung zum Bearbeiten.');
       return;
     }
@@ -383,7 +393,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   };
 
   const handleDeleteItem = async (itemId: number) => {
-    if (!isAdmin) {
+    if (!isAdminOrVorstand) {
       setError('Keine Berechtigung zum Löschen.');
       return;
     }
@@ -407,7 +417,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
   };
 
   const handleCreateTaskFromItem = async (itemId: number) => {
-    if (!isAdmin) {
+    if (!isAdminOrVorstand) {
       setError('Keine Berechtigung zum Erzeugen einer Aufgabe.');
       return;
     }
@@ -524,7 +534,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
                 </span>
               ) : null}
 
-              {isAdmin && (
+              {isAdminOrVorstand && (
                 <button
                   type="button"
                   onClick={() => setExpandedItemId((prev) => prev === item.id ? null : item.id)}
@@ -545,7 +555,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
           ) : null}
         </div>
 
-        {isAdmin && isExpanded && (
+        {isAdminOrVorstand && isExpanded && (
           <div className="border-t border-slate-200 px-4 py-4 space-y-4 dark:border-white/10">
             <div className="grid lg:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -687,7 +697,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
               Gesamt
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-              {items.length}
+              {visibleItems.length}
             </div>
           </div>
 
@@ -711,7 +721,7 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
       </div>
 
-      {isAdmin && (
+      {isAdminOrVorstand && (
         <div className="app-card space-y-4">
           <h2 className="text-lg font-black">Neuen Einkaufsposten anlegen</h2>
 
@@ -807,7 +817,9 @@ const ProjectShoppingView: React.FC<Props> = ({ user, onUnauthorized }) => {
           </div>
         ) : openItems.length === 0 ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Aktuell sind keine offenen Einkaufsposten vorhanden.
+            {isAdminOrVorstand
+              ? 'Aktuell sind keine offenen Einkaufsposten vorhanden.'
+              : 'Du hast aktuell keine offenen Einkaufsposten.'}
           </div>
         ) : (
           <div className="space-y-3">
