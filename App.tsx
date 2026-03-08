@@ -77,7 +77,7 @@ const defaultNotificationSettings: NotificationSettings = {
    SECTION 04 - HELPERS
 ===================================================== */
 
- getStoredActiveView = (): ViewType => {
+  getStoredActiveView = (): ViewType => {
   const raw = localStorage.getItem(LS_ACTIVE_VIEW) as ViewType | null;
 
   const allowedViews: ViewType[] = [
@@ -266,6 +266,13 @@ const getPrimaryInstallButtonLabel = (
 
   return 'Installationshilfe anzeigen';
 };
+
+/* =====================================================
+   SECTION 05 - COMPONENT
+===================================================== */
+
+const App: React.FC = () => {
+
   /* =====================================================
      SECTION 06 - STATE
   ===================================================== */
