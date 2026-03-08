@@ -17,6 +17,7 @@ import DashboardView from './components/DashboardView';
 import ProjectsView from './components/ProjectsView';
 import ProjectChatView from './components/ProjectChatView';
 import ProjectCoreTeamView from './components/ProjectCoreTeamView';
+import ProjectShoppingView from './components/ProjectShoppingView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -322,115 +323,124 @@ const App: React.FC = () => {
      SECTION 12 - VIEW RENDERING
   ===================================================== */
 
-const renderContent = () => {
-  switch (activeView) {
-    case 'dashboard':
-      return (
-        <DashboardView
-          user={user!}
-          polls={polls}
-          onNavigate={navigateTo}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+  const renderContent = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return (
+          <DashboardView
+            user={user!}
+            polls={polls}
+            onNavigate={navigateTo}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'projects':
-      return (
-        <ProjectsView
-          onNavigate={navigateTo}
-        />
-      );
+      case 'projects':
+        return (
+          <ProjectsView
+            onNavigate={navigateTo}
+          />
+        );
 
-    case 'project-chat':
-      return (
-        <ProjectChatView
-          user={user!}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'project-chat':
+        return (
+          <ProjectChatView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'project-coreteam':
-      return (
-        <ProjectCoreTeamView
-          user={user!}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'project-coreteam':
+        return (
+          <ProjectCoreTeamView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'calendar':
-      return (
-        <CalendarView
-          polls={polls}
-          user={user!}
-          onRefresh={fetchAppData}
-          onOpenPoll={(pollId) => {
-            setSelectedPollId(pollId);
-            navigateTo('polls');
-          }}
-        />
-      );
+      case 'project-shopping':
+        return (
+          <ProjectShoppingView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'polls':
-      return (
-        <PollList
-          polls={polls}
-          user={user!}
-          selectedPollId={selectedPollId}
-          onRefresh={fetchAppData}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'calendar':
+        return (
+          <CalendarView
+            polls={polls}
+            user={user!}
+            onRefresh={fetchAppData}
+            onOpenPoll={(pollId) => {
+              setSelectedPollId(pollId);
+              navigateTo('polls');
+            }}
+          />
+        );
 
-    case 'settings':
-      return (
-        <SettingsView
-          theme={theme}
-          onThemeChange={setTheme}
-          notificationSettings={notificationSettings}
-          setNotificationSettings={setNotificationSettings}
-        />
-      );
+      case 'polls':
+        return (
+          <PollList
+            polls={polls}
+            user={user!}
+            selectedPollId={selectedPollId}
+            onRefresh={fetchAppData}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'members':
-      return (
-        <MembersView
-          currentUserRole={user!.role}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'settings':
+        return (
+          <SettingsView
+            theme={theme}
+            onThemeChange={setTheme}
+            notificationSettings={notificationSettings}
+            setNotificationSettings={setNotificationSettings}
+          />
+        );
 
-    case 'tasks':
-      return (
-        <TasksView
-          userId={user!.id}
-          userRole={user!.role}
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'members':
+        return (
+          <MembersView
+            currentUserRole={user!.role}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'pos-admin':
-      return (
-        <PosAdminView
-          onUnauthorized={handleUnauthorized}
-        />
-      );
+      case 'tasks':
+        return (
+          <TasksView
+            userId={user!.id}
+            userRole={user!.role}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    case 'pos':
-      return (
-        <PosView
-          user={user!}
-          onUnauthorized={handleUnauthorized}
-          onExit={() => {
-            navigateToRoot('dashboard');
-            setIsSidebarOpen(false);
-          }}
-        />
-      );
+      case 'pos-admin':
+        return (
+          <PosAdminView
+            onUnauthorized={handleUnauthorized}
+          />
+        );
 
-    default:
-      return null;
-  }
-};
+      case 'pos':
+        return (
+          <PosView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+            onExit={() => {
+              navigateToRoot('dashboard');
+              setIsSidebarOpen(false);
+            }}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
   /* =====================================================
      SECTION 13 - EARLY RETURN LOADING
   ===================================================== */
