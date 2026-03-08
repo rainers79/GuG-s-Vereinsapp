@@ -15,7 +15,8 @@ export type ViewType =
   | 'settings'
   | 'pos'
   | 'pos-admin'
-  | 'project-chat';
+  | 'project-chat'
+  | 'project-coreteam';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 
