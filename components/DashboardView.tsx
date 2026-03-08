@@ -47,7 +47,9 @@ const DashboardView: React.FC<Props> = ({
   const loadingOlderMessages = useRef(false);
   const [privateReceiver, setPrivateReceiver] = useState<{ id:number,name:string } | null>(null);
 
-  const isAdmin = user.role === AppRole.SUPERADMIN || user.role === AppRole.VORSTAND;
+  const isSuperAdmin = user.role === AppRole.SUPERADMIN;
+  const isVorstand = user.role === AppRole.VORSTAND;
+  const isAdminOrVorstand = isSuperAdmin || isVorstand;
 
   const activeProjectId = useMemo(() => {
     const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
@@ -91,7 +93,7 @@ const DashboardView: React.FC<Props> = ({
   };
 
   const canToggleShoppingItem = (item: ProjectShoppingItem): boolean => {
-    if (isAdmin) return true;
+    if (isAdminOrVorstand) return true;
     return Number(item.assigned_user_id || 0) === Number(user.id);
   };
 
@@ -483,6 +485,99 @@ const DashboardView: React.FC<Props> = ({
     [dashboardShoppingItems]
   );
 
+  const dashboardVisibleShoppingItems = useMemo(() => {
+    if (isSuperAdmin || isVorstand) {
+      return shoppingOpenItems;
+    }
+
+    return shoppingOpenItems.filter(
+      (item) => Number(item.assigned_user_id || 0) === Number(user.id)
+    );
+  }, [shoppingOpenItems, isSuperAdmin, isVorstand, user.id]);
+
+  const shoppingGroupsForVorstand = useMemo(() => {
+    if (!isVorstand) return [];
+
+    const groupsMap = new Map<string, {
+      key: string;
+      label: string;
+      items: ProjectShoppingItem[];
+    }>();
+
+    for (const item of shoppingOpenItems) {
+      const userId = Number(item.assigned_user_id || 0);
+      const key = userId > 0 ? `user_${userId}` : 'unassigned';
+      const label = userId > 0
+        ? (item.assigned_user_name || `Mitglied #${userId}`)
+        : 'Nicht zugewiesen';
+
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          key,
+          label,
+          items: []
+        });
+      }
+
+      groupsMap.get(key)!.items.push(item);
+    }
+
+    return Array.from(groupsMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'de')
+    );
+  }, [shoppingOpenItems, isVorstand]);
+
+  /* =====================================================
+     SHOPPING RENDER HELPERS
+  ===================================================== */
+
+  const renderShoppingRow = (item: ProjectShoppingItem, showAssignedName: boolean) => {
+    const canToggle = canToggleShoppingItem(item);
+    const isSaving = savingShoppingItemId === item.id;
+
+    return (
+      <div
+        key={item.id}
+        className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3"
+      >
+        <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
+          <button
+            type="button"
+            onClick={() => handleToggleShoppingItem(item)}
+            disabled={!canToggle || isSaving}
+            className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-sm ${
+              item.status === 'bought'
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-slate-300 bg-white text-slate-500 dark:border-white/20 dark:bg-[#1A1A1A] dark:text-white/60'
+            } ${!canToggle ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={canToggle ? 'Als gekauft markieren' : 'Keine Berechtigung'}
+          >
+            {isSaving ? '...' : ''}
+          </button>
+
+          <div className="min-w-0">
+            <div className="font-black text-sm text-slate-900 dark:text-white truncate">
+              {item.title}
+            </div>
+            <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+              Menge: <span className="font-black">{buildAmountLabel(item)}</span>
+              {showAssignedName ? (
+                <>
+                  {' · '}
+                  Zuständig: <span className="font-black">{item.assigned_user_name || 'Niemand'}</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A] whitespace-nowrap">
+            offen
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* =====================================================
      UI
   ===================================================== */
@@ -640,54 +735,30 @@ const DashboardView: React.FC<Props> = ({
           <div className="text-sm text-slate-500 dark:text-white/60">
             Einkaufsliste wird geladen...
           </div>
-        ) : shoppingOpenItems.length === 0 ? (
+        ) : dashboardVisibleShoppingItems.length === 0 ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Keine offenen Einkaufsposten im aktiven Projekt.
+            {isAdminOrVorstand
+              ? 'Keine offenen Einkaufsposten im aktiven Projekt.'
+              : 'Du hast aktuell keine offenen Einkaufsposten.'}
+          </div>
+        ) : isVorstand ? (
+          <div className="space-y-4">
+            {shoppingGroupsForVorstand.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <div className="text-sm font-black text-slate-900 dark:text-white">
+                  {group.label}
+                </div>
+                <div className="space-y-2">
+                  {group.items.map((item) => renderShoppingRow(item, false))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {shoppingOpenItems.map((item) => {
-              const canToggle = canToggleShoppingItem(item);
-              const isSaving = savingShoppingItemId === item.id;
-
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-lg bg-slate-50 dark:bg-[#121212] p-3"
-                >
-                  <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleShoppingItem(item)}
-                      disabled={!canToggle || isSaving}
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-sm ${
-                        item.status === 'bought'
-                          ? 'border-emerald-600 bg-emerald-600 text-white'
-                          : 'border-slate-300 bg-white text-slate-500 dark:border-white/20 dark:bg-[#1A1A1A] dark:text-white/60'
-                      } ${!canToggle ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      title={canToggle ? 'Als gekauft markieren' : 'Keine Berechtigung'}
-                    >
-                      {isSaving ? '...' : ''}
-                    </button>
-
-                    <div className="min-w-0">
-                      <div className="font-black text-sm text-slate-900 dark:text-white truncate">
-                        {item.title}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                        Menge: <span className="font-black">{buildAmountLabel(item)}</span>
-                        {' · '}
-                        Zuständig: <span className="font-black">{item.assigned_user_name || 'Niemand'}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[#B5A47A] whitespace-nowrap">
-                      offen
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {dashboardVisibleShoppingItems.map((item) =>
+              renderShoppingRow(item, isSuperAdmin)
+            )}
           </div>
         )}
       </div>
