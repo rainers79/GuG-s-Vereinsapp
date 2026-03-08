@@ -1,4 +1,4 @@
-// services/api.ts b
+// services/api.ts 
 
 import {
   AppRole,
@@ -423,34 +423,9 @@ export async function uploadProjectChatImage(
 /* =====================================================
    PROJECT CORETEAM
 ===================================================== */
-
 export async function getProjectCoreTeamMembers(
   projectId: number,
-  onUnauthorized: () => void
-): Promise<ProjectCoreTeamMember[]> {
-  return await apiRequest<ProjectCoreTeamMember[]>(
-    `/gug/v1/project-coreteam?project_id=${encodeURIComponent(String(projectId))}`,
-    {},
-    onUnauthorized
-  );
-}
-
-export async function saveProjectCoreTeamMembers(
-  payload: {
-    project_id: number;
-    members: number[];
-  },
-  onUnauthorized: () => void
-): Promise<{ success: boolean; message: string }> {
-  return await apiRequest<{ success: boolean; message: string }>(
-    '/gug/v1/project-coreteam',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    },
-    onUnauthorized
-  );
-}
+  onU
 
 /* =====================================================
    POLLS
