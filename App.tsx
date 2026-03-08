@@ -16,6 +16,7 @@ import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 import ProjectsView from './components/ProjectsView';
 import ProjectChatView from './components/ProjectChatView';
+import ProjectCoreTeamView from './components/ProjectCoreTeamView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -348,6 +349,14 @@ const App: React.FC = () => {
           />
         );
 
+      case 'project-coreteam':
+        return (
+          <ProjectCoreTeamView
+            user={user!}
+            onUnauthorized={handleUnauthorized}
+          />
+        );
+
       case 'calendar':
         return (
           <CalendarView
@@ -417,9 +426,6 @@ const App: React.FC = () => {
             }}
           />
         );
-
-      case 'project-coreteam':
-        return null;
 
       default:
         return null;
