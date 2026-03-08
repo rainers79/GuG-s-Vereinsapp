@@ -95,7 +95,7 @@ const actionWheelItems: WheelItem[] = [
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
   { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
-  { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
+  { label: 'Einkaufsliste', view: 'project-shopping', actionKey: 'shopping' },
   { label: 'Kernteam', view: 'project-coreteam' as ViewType, actionKey: 'coreteam' },
   { label: 'Projekt Chat', actionKey: 'chatlog' },
   { label: 'comming soon', comingSoon: true, actionKey: 'more' }
