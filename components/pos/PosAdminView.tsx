@@ -38,6 +38,56 @@ const hslToHex = (h: number, s: number, l: number) => {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`.toUpperCase();
 };
 
+const hexToRgb = (hex: string) => {
+  const c = hex.replace('#', '').trim();
+  if (c.length !== 6) return null;
+
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+
+  if ([r, g, b].some((v) => Number.isNaN(v))) return null;
+  return { r, g, b };
+};
+
+const rgbToHsl = (r: number, g: number, b: number) => {
+  const rr = r / 255;
+  const gg = g / 255;
+  const bb = b / 255;
+
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const delta = max - min;
+
+  let h = 0;
+  const l = (max + min) / 2;
+  let s = 0;
+
+  if (delta !== 0) {
+    s = delta / (1 - Math.abs(2 * l - 1));
+
+    switch (max) {
+      case rr:
+        h = 60 * (((gg - bb) / delta) % 6);
+        break;
+      case gg:
+        h = 60 * ((bb - rr) / delta + 2);
+        break;
+      default:
+        h = 60 * ((rr - gg) / delta + 4);
+        break;
+    }
+  }
+
+  if (h < 0) h += 360;
+
+  return {
+    h: Math.round(h),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100)
+  };
+};
+
 const getActiveProjectId = (): number | null => {
   const raw = localStorage.getItem(LS_ACTIVE_PROJECT);
   if (!raw) return null;
@@ -59,6 +109,8 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => getActiveProjectId());
 
   const [articles, setArticles] = useState<PosArticle[]>([]);
+  const [editingArticleId, setEditingArticleId] = useState<number | null>(null);
+
   const [name, setName] = useState('');
   const [category, setCategory] = useState<PosCategory>('food');
   const [servingLabel, setServingLabel] = useState('');
@@ -77,7 +129,9 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
     return hslToHex(hue, safeSaturation, safeLightness);
   }, [hue, saturation, lightness]);
 
-  const canCreate = useMemo(() => {
+  const isEditMode = editingArticleId !== null;
+
+  const canSave = useMemo(() => {
     const p = parseFloat(price);
 
     if (!selectedProjectId) return false;
@@ -142,14 +196,46 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
     }
   }, [category]);
 
+  const resetColorPickerToDefault = () => {
+    setHue(40);
+    setSaturation(70);
+    setLightness(75);
+  };
+
   const resetForm = () => {
+    setEditingArticleId(null);
     setName('');
+    setCategory('food');
     setPrice('');
     setServingLabel('');
+    resetColorPickerToDefault();
+  };
+
+  const startEditArticle = (article: PosArticle) => {
+    setError(null);
+    setEditingArticleId(article.id);
+    setName(article.name || '');
+    setCategory(article.category);
+    setServingLabel(article.serving_label || '');
+    setPrice((article.price_cents / 100).toFixed(2));
+
+    const color = article.bg_color || '#C9AE6A';
+    const rgb = hexToRgb(color);
+
+    if (rgb) {
+      const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+      setHue(clamp(hsl.h, 0, 360));
+      setSaturation(clamp(hsl.s, 50, 95));
+      setLightness(clamp(hsl.l, 60, 92));
+    } else {
+      resetColorPickerToDefault();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const createArticle = async () => {
-    if (!canCreate || !selectedProjectId) return;
+    if (!canSave || !selectedProjectId) return;
 
     try {
       setSaving(true);
@@ -178,6 +264,46 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveEditedArticle = async () => {
+    if (!canSave || !selectedProjectId || !editingArticleId) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const parsedPrice = parseFloat(price);
+
+      await api.updatePosArticle(
+        editingArticleId,
+        {
+          project_id: selectedProjectId,
+          name: name.trim(),
+          category,
+          serving_label: category === 'drink' ? servingLabel.trim() : '',
+          price_cents: Math.round(parsedPrice * 100),
+          bg_color: bgHex
+        },
+        onUnauthorized
+      );
+
+      resetForm();
+      await loadArticles();
+    } catch (e: any) {
+      setError(e?.message || 'Artikel konnte nicht gespeichert werden.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (isEditMode) {
+      await saveEditedArticle();
+      return;
+    }
+
+    await createArticle();
   };
 
   const toggleActive = async (article: PosArticle) => {
@@ -222,6 +348,11 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
       setError(null);
 
       await api.deletePosArticle(articleId, onUnauthorized);
+
+      if (editingArticleId === articleId) {
+        resetForm();
+      }
+
       await loadArticles();
     } catch (e: any) {
       setError(e?.message || 'Artikel konnte nicht gelöscht werden.');
@@ -240,6 +371,11 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
               ? `Aktives Projekt: ID ${selectedProjectId}`
               : 'Kein aktives Projekt ausgewählt.'}
           </div>
+          {isEditMode && (
+            <div className="text-sm text-[#8E7340] mt-1 font-bold">
+              Bearbeitungsmodus aktiv · Artikel ID {editingArticleId}
+            </div>
+          )}
         </div>
 
         <button
@@ -366,15 +502,28 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
           </div>
         </div>
 
-        <button
-          onClick={createArticle}
-          disabled={!canCreate || saving}
-          className={`font-black rounded-lg px-4 py-3 ${
-            !canCreate || saving ? 'bg-[#C9AE6A]/50 text-black/60' : 'bg-[#C9AE6A] text-black'
-          }`}
-        >
-          {saving ? 'Speichert...' : 'Anlegen'}
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleSubmit}
+            disabled={!canSave || saving}
+            className={`font-black rounded-lg px-4 py-3 ${
+              !canSave || saving ? 'bg-[#C9AE6A]/50 text-black/60' : 'bg-[#C9AE6A] text-black'
+            }`}
+          >
+            {saving ? 'Speichert...' : isEditMode ? 'Speichern' : 'Anlegen'}
+          </button>
+
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={saving}
+              className="font-black rounded-lg px-4 py-3 bg-[#F3F3F3] text-black"
+            >
+              Abbrechen
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -414,6 +563,13 @@ const PosAdminView: React.FC<Props> = ({ onUnauthorized }) => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => startEditArticle(article)}
+                  className="px-4 py-2 text-xs font-black rounded-lg bg-[#DDEAFE] text-black"
+                >
+                  Bearbeiten
+                </button>
+
                 <button
                   onClick={() => updateColor(article.id)}
                   className="px-3 py-2 text-xs font-black bg-[#F3F3F3] rounded-lg"
