@@ -39,6 +39,17 @@ interface DeferredInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+interface InstallEnvironment {
+  isIOS: boolean;
+  isAndroid: boolean;
+  isSafari: boolean;
+  isChrome: boolean;
+  isEdge: boolean;
+  isSamsung: boolean;
+  isFirefox: boolean;
+  browserLabel: string;
+}
+
 /* =====================================================
    SECTION 02 - STORAGE KEYS
 ===================================================== */
@@ -66,7 +77,7 @@ const defaultNotificationSettings: NotificationSettings = {
    SECTION 04 - HELPERS
 ===================================================== */
 
-const getStoredActiveView = (): ViewType => {
+ getStoredActiveView = (): ViewType => {
   const raw = localStorage.getItem(LS_ACTIVE_VIEW) as ViewType | null;
 
   const allowedViews: ViewType[] = [
@@ -101,11 +112,160 @@ const isStandaloneDisplay = () => {
   return byMatchMedia || byNavigator;
 };
 
-/* =====================================================
-   SECTION 05 - COMPONENT
-===================================================== */
+const getInstallEnvironment = (): InstallEnvironment => {
+  if (typeof window === 'undefined') {
+    return {
+      isIOS: false,
+      isAndroid: false,
+      isSafari: false,
+      isChrome: false,
+      isEdge: false,
+      isSamsung: false,
+      isFirefox: false,
+      browserLabel: 'Browser'
+    };
+  }
 
-const App: React.FC = () => {
+  const ua = window.navigator.userAgent || '';
+  const lower = ua.toLowerCase();
+
+  const isIOS =
+    /iphone|ipad|ipod/.test(lower) ||
+    (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+
+  const isAndroid = /android/.test(lower);
+  const isEdge = /edg\//.test(lower);
+  const isSamsung = /samsungbrowser/.test(lower);
+  const isFirefox = /firefox|fxios/.test(lower);
+  const isChrome =
+    (/chrome|crios/.test(lower) || isEdge || isSamsung) &&
+    !isFirefox;
+  const isSafari =
+    /safari/.test(lower) &&
+    !isChrome &&
+    !isEdge &&
+    !isSamsung &&
+    !isFirefox;
+
+  let browserLabel = 'Browser';
+
+  if (isEdge) browserLabel = 'Edge';
+  else if (isSamsung) browserLabel = 'Samsung Internet';
+  else if (isChrome) browserLabel = 'Chrome';
+  else if (isSafari) browserLabel = 'Safari';
+  else if (isFirefox) browserLabel = 'Firefox';
+
+  return {
+    isIOS,
+    isAndroid,
+    isSafari,
+    isChrome,
+    isEdge,
+    isSamsung,
+    isFirefox,
+    browserLabel
+  };
+};
+
+const getManualInstallTitle = (env: InstallEnvironment) => {
+  if (env.isIOS && env.isSafari) {
+    return 'Installation in Safari';
+  }
+
+  if (env.isIOS) {
+    return 'Für iPhone bitte Safari verwenden';
+  }
+
+  if (env.isAndroid && (env.isChrome || env.isEdge || env.isSamsung)) {
+    return `Installation in ${env.browserLabel}`;
+  }
+
+  if (env.isAndroid && env.isFirefox) {
+    return 'Installation in Firefox';
+  }
+
+  if (env.isAndroid) {
+    return 'Installation auf Android';
+  }
+
+  return 'Installation im Browser';
+};
+
+const getManualInstallSteps = (env: InstallEnvironment): string[] => {
+  if (env.isIOS && env.isSafari) {
+    return [
+      'Unten oder oben auf Teilen tippen.',
+      '„Zum Home-Bildschirm“ auswählen.',
+      'Mit „Hinzufügen“ bestätigen.'
+    ];
+  }
+
+  if (env.isIOS) {
+    return [
+      'Die Seite in Safari öffnen.',
+      'Dort auf Teilen tippen.',
+      'Dann „Zum Home-Bildschirm“ auswählen.'
+    ];
+  }
+
+  if (env.isAndroid && (env.isChrome || env.isEdge || env.isSamsung)) {
+    return [
+      `Oben rechts das Menü in ${env.browserLabel} öffnen.`,
+      '„App installieren“ oder „Zum Startbildschirm hinzufügen“ auswählen.',
+      'Die Installation bestätigen.'
+    ];
+  }
+
+  if (env.isAndroid && env.isFirefox) {
+    return [
+      'Oben rechts das Browser-Menü öffnen.',
+      '„Zum Startbildschirm hinzufügen“ auswählen.',
+      'Den Vorgang bestätigen.'
+    ];
+  }
+
+  if (env.isAndroid) {
+    return [
+      'Das Browser-Menü öffnen.',
+      'Nach „App installieren“ oder „Zum Startbildschirm hinzufügen“ suchen.',
+      'Die Installation bestätigen.'
+    ];
+  }
+
+  return [
+    'Im Browser nach „Installieren“ oder „Als App installieren“ suchen.',
+    'Alternativ das Browser-Menü öffnen.',
+    'Die Installation bestätigen.'
+  ];
+};
+
+const getPrimaryInstallButtonLabel = (
+  isInstallable: boolean,
+  installingApp: boolean,
+  env: InstallEnvironment
+) => {
+  if (installingApp) {
+    return 'Installation startet...';
+  }
+
+  if (isInstallable) {
+    return 'App installieren';
+  }
+
+  if (env.isIOS && env.isSafari) {
+    return 'Safari-Schritte anzeigen';
+  }
+
+  if (env.isIOS) {
+    return 'In Safari öffnen';
+  }
+
+  if (env.isAndroid) {
+    return 'Installationshilfe anzeigen';
+  }
+
+  return 'Installationshilfe anzeigen';
+};
   /* =====================================================
      SECTION 06 - STATE
   ===================================================== */
@@ -144,6 +304,15 @@ const App: React.FC = () => {
   const [installingApp, setInstallingApp] = useState(false);
 
   const userRef = useRef<User | null>(user);
+
+  const installEnvironment = getInstallEnvironment();
+  const manualInstallTitle = getManualInstallTitle(installEnvironment);
+  const manualInstallSteps = getManualInstallSteps(installEnvironment);
+  const primaryInstallButtonLabel = getPrimaryInstallButtonLabel(
+    isInstallable,
+    installingApp,
+    installEnvironment
+  );
 
   /* =====================================================
      SECTION 07 - BASIC EFFECTS
@@ -265,7 +434,22 @@ const App: React.FC = () => {
 
   const handleInstallApp = useCallback(async () => {
     if (!deferredInstallPrompt) {
-      setError('Installation wird auf diesem Gerät oder in diesem Browser aktuell nicht angeboten.');
+      if (installEnvironment.isIOS && !installEnvironment.isSafari) {
+        setError('Bitte öffne die App auf iPhone oder iPad in Safari und wähle dort „Zum Home-Bildschirm“.');
+        return;
+      }
+
+      if (installEnvironment.isIOS && installEnvironment.isSafari) {
+        setError('Öffne in Safari das Teilen-Menü und wähle „Zum Home-Bildschirm“.');
+        return;
+      }
+
+      if (installEnvironment.isAndroid) {
+        setError(`Öffne das Menü in ${installEnvironment.browserLabel} und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.`);
+        return;
+      }
+
+      setError('Nutze im Browser das Menü oder das Installieren-Symbol, um die App zu installieren.');
       return;
     }
 
@@ -288,7 +472,7 @@ const App: React.FC = () => {
     } finally {
       setInstallingApp(false);
     }
-  }, [deferredInstallPrompt]);
+  }, [deferredInstallPrompt, installEnvironment]);
 
   const handleContinueInBrowser = useCallback(() => {
     setShowPreLoginLanding(false);
@@ -611,8 +795,7 @@ const App: React.FC = () => {
   /* =====================================================
      SECTION 15 - PRE LOGIN LANDING
   ===================================================== */
-
-  if (!user && showPreLoginLanding && !isInstalled) {
+ if (!user && showPreLoginLanding && !isInstalled) {
     return (
       <div className="min-h-screen bg-[#F6F1E4] text-black flex flex-col">
         {error && (
@@ -650,14 +833,10 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={handleInstallApp}
-                disabled={!isInstallable || installingApp}
+                disabled={installingApp}
                 className="w-full rounded-2xl bg-[#C9AE6A] px-4 py-4 text-[12px] font-black uppercase tracking-wide text-black shadow-sm disabled:opacity-50"
               >
-                {installingApp
-                  ? 'Installation startet...'
-                  : isInstallable
-                    ? 'App installieren'
-                    : 'Installation aktuell nicht verfügbar'}
+                {primaryInstallButtonLabel}
               </button>
 
               <button
@@ -668,12 +847,23 @@ const App: React.FC = () => {
                 Im Browser fortfahren
               </button>
 
-              {!isInstallable && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
-                  Falls die Installation nicht angeboten wird, öffne die App in Chrome oder Safari
-                  und nutze dort „App installieren“ oder „Zum Home-Bildschirm“.
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-left">
+                <div className="text-xs font-black uppercase tracking-wide text-amber-900">
+                  {manualInstallTitle}
                 </div>
-              )}
+
+                <ol className="mt-3 space-y-2 pl-4 text-xs font-semibold text-amber-900 list-decimal">
+                  {manualInstallSteps.map((step, index) => (
+                    <li key={`install_step_${index}`}>{step}</li>
+                  ))}
+                </ol>
+
+                {isInstallable && (
+                  <div className="mt-3 text-xs font-semibold text-amber-900">
+                    In diesem Browser ist zusätzlich ein direkter Installationsdialog verfügbar.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
