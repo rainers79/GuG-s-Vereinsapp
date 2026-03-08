@@ -3,6 +3,10 @@ import { ViewType } from '../types';
 import * as api from '../services/api';
 import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 
+/* =====================================================
+   SECTION 01 - TYPES
+===================================================== */
+
 interface Props {
   onNavigate: (view: ViewType) => void;
 }
@@ -83,13 +87,17 @@ export interface WheelItem {
 
 type WheelMode = 'project-select' | 'actions' | 'chat-groups';
 
+/* =====================================================
+   SECTION 02 - STATIC CONFIG
+===================================================== */
+
 const actionWheelItems: WheelItem[] = [
   { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
   { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
   { label: 'Einkaufsliste', comingSoon: true, actionKey: 'shopping' },
-  { label: 'Kernteam', comingSoon: true, actionKey: 'coreteam' },
+  { label: 'Kernteam', view: 'project-coreteam' as ViewType, actionKey: 'coreteam' },
   { label: 'Projekt Chat', actionKey: 'chatlog' },
   { label: 'comming soon', comingSoon: true, actionKey: 'more' }
 ];
@@ -114,12 +122,20 @@ const PROJECT_PAGE_SIZE = 6;
 const CHAT_GROUP_PAGE_SIZE = 6;
 const WHEEL_SLOT_COUNT = 8;
 
+/* =====================================================
+   SECTION 03 - STORAGE KEYS
+===================================================== */
+
 const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
 const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
+
+/* =====================================================
+   SECTION 04 - HELPERS
+===================================================== */
 
 const safeDate = (raw?: string | null): Date | null => {
   if (!raw) return null;
@@ -240,6 +256,10 @@ const getStoredOpenChatGroupId = (): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+/* =====================================================
+   SECTION 05 - COMPONENT
+===================================================== */
+
 const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -280,6 +300,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
+  /* =====================================================
+     SECTION 06 - MEMOS
+  ===================================================== */
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find((p) => Number(p.id) === Number(selectedProjectId)) || null;
@@ -300,42 +324,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     if (!openChatGroupId) return null;
     return sortedChatGroups.find((group) => Number(group.id) === Number(openChatGroupId)) || null;
   }, [sortedChatGroups, openChatGroupId]);
-
-  useEffect(() => {
-    if (selectedProjectId) {
-      localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
-    } else {
-      localStorage.removeItem(LS_ACTIVE_PROJECT);
-    }
-  }, [selectedProjectId]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, wheelMode);
-  }, [wheelMode]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECTS_PAGE, String(projectPage));
-  }, [projectPage]);
-
-  useEffect(() => {
-    localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(chatGroupPage));
-  }, [chatGroupPage]);
-
-  useEffect(() => {
-    if (selectedChatGroupId) {
-      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedChatGroupId));
-    } else {
-      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-    }
-  }, [selectedChatGroupId]);
-
-  useEffect(() => {
-    if (openChatGroupId) {
-      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(openChatGroupId));
-    } else {
-      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-    }
-  }, [openChatGroupId]);
 
   const sortedProjects = useMemo(() => {
     const now = new Date();
@@ -370,42 +358,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const chatGroupPageCount = useMemo(() => {
     return Math.max(1, Math.ceil(sortedChatGroups.length / CHAT_GROUP_PAGE_SIZE));
   }, [sortedChatGroups]);
-
-  useEffect(() => {
-    if (projectPage > projectPageCount - 1) {
-      setProjectPage(Math.max(0, projectPageCount - 1));
-    }
-  }, [projectPage, projectPageCount]);
-
-  useEffect(() => {
-    if (chatGroupPage > chatGroupPageCount - 1) {
-      setChatGroupPage(Math.max(0, chatGroupPageCount - 1));
-    }
-  }, [chatGroupPage, chatGroupPageCount]);
-
-  useEffect(() => {
-    if (!selectedProjectId || sortedProjects.length === 0) return;
-
-    const selectedIndex = sortedProjects.findIndex((p) => Number(p.id) === Number(selectedProjectId));
-    if (selectedIndex < 0) return;
-
-    const targetPage = Math.floor(selectedIndex / PROJECT_PAGE_SIZE);
-    if (targetPage !== projectPage) {
-      setProjectPage(targetPage);
-    }
-  }, [selectedProjectId, sortedProjects, projectPage]);
-
-  useEffect(() => {
-    if (!selectedChatGroupId || sortedChatGroups.length === 0) return;
-
-    const selectedIndex = sortedChatGroups.findIndex((g) => Number(g.id) === Number(selectedChatGroupId));
-    if (selectedIndex < 0) return;
-
-    const targetPage = Math.floor(selectedIndex / CHAT_GROUP_PAGE_SIZE);
-    if (targetPage !== chatGroupPage) {
-      setChatGroupPage(targetPage);
-    }
-  }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
 
   const currentProjectPageItems = useMemo(() => {
     const start = projectPage * PROJECT_PAGE_SIZE;
@@ -532,6 +484,90 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     return '';
   }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
+
+  /* =====================================================
+     SECTION 07 - STORAGE EFFECTS
+  ===================================================== */
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
+    } else {
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+    }
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, wheelMode);
+  }, [wheelMode]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_PROJECTS_PAGE, String(projectPage));
+  }, [projectPage]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(chatGroupPage));
+  }, [chatGroupPage]);
+
+  useEffect(() => {
+    if (selectedChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(selectedChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+    }
+  }, [selectedChatGroupId]);
+
+  useEffect(() => {
+    if (openChatGroupId) {
+      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(openChatGroupId));
+    } else {
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    }
+  }, [openChatGroupId]);
+
+  /* =====================================================
+     SECTION 08 - PAGING EFFECTS
+  ===================================================== */
+
+  useEffect(() => {
+    if (projectPage > projectPageCount - 1) {
+      setProjectPage(Math.max(0, projectPageCount - 1));
+    }
+  }, [projectPage, projectPageCount]);
+
+  useEffect(() => {
+    if (chatGroupPage > chatGroupPageCount - 1) {
+      setChatGroupPage(Math.max(0, chatGroupPageCount - 1));
+    }
+  }, [chatGroupPage, chatGroupPageCount]);
+
+  useEffect(() => {
+    if (!selectedProjectId || sortedProjects.length === 0) return;
+
+    const selectedIndex = sortedProjects.findIndex((p) => Number(p.id) === Number(selectedProjectId));
+    if (selectedIndex < 0) return;
+
+    const targetPage = Math.floor(selectedIndex / PROJECT_PAGE_SIZE);
+    if (targetPage !== projectPage) {
+      setProjectPage(targetPage);
+    }
+  }, [selectedProjectId, sortedProjects, projectPage]);
+
+  useEffect(() => {
+    if (!selectedChatGroupId || sortedChatGroups.length === 0) return;
+
+    const selectedIndex = sortedChatGroups.findIndex((g) => Number(g.id) === Number(selectedChatGroupId));
+    if (selectedIndex < 0) return;
+
+    const targetPage = Math.floor(selectedIndex / CHAT_GROUP_PAGE_SIZE);
+    if (targetPage !== chatGroupPage) {
+      setChatGroupPage(targetPage);
+    }
+  }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
+
+  /* =====================================================
+     SECTION 09 - LOADERS
+  ===================================================== */
 
   const triggerWheelAnimation = () => {
     setWheelAnimationTick((prev) => prev + 1);
@@ -687,6 +723,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
+  /* =====================================================
+     SECTION 10 - LOAD EFFECTS
+  ===================================================== */
+
   useEffect(() => {
     if (loadedOnce.current) return;
     loadedOnce.current = true;
@@ -725,6 +765,15 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     return () => clearInterval(interval);
   }, [wheelMode, openChatGroupId, selectedProjectId]);
+
+  useEffect(() => {
+    setAssignId('');
+    setAssignResult(null);
+  }, [assignType, selectedProjectId]);
+
+  /* =====================================================
+     SECTION 11 - WHEEL ACTIONS
+  ===================================================== */
 
   const handleCenterClick = () => {
     if (wheelMode === 'project-select') {
@@ -833,8 +882,17 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       return;
     }
 
+    if (item.actionKey === 'coreteam') {
+      onNavigate('project-coreteam' as ViewType);
+      return;
+    }
+
     if (item.view) onNavigate(item.view);
   };
+
+  /* =====================================================
+     SECTION 12 - PROJECT ACTIONS
+  ===================================================== */
 
   const handleCreateProject = async () => {
     const title = newTitle.trim();
@@ -930,11 +988,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }));
   }, [assignType, events, tasks, polls]);
 
-  useEffect(() => {
-    setAssignId('');
-    setAssignResult(null);
-  }, [assignType, selectedProjectId]);
-
   const handleAssignToProject = async () => {
     if (!selectedProjectId) {
       setAssignResult('Kein Projekt ausgewählt.');
@@ -973,6 +1026,10 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setAssigning(false);
     }
   };
+
+  /* =====================================================
+     SECTION 13 - INLINE CHAT ACTIONS
+  ===================================================== */
 
   const handleSendInlineChatMessage = async () => {
     const message = inlineChatMessage.trim();
@@ -1028,6 +1085,456 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
+  /* =====================================================
+     SECTION 14 - RENDER CHAT WINDOW
+  ===================================================== */
+
+  const renderInlineChatWindow = () => {
+    if (wheelMode !== 'chat-groups' || !openChatGroup) return null;
+
+    return (
+      <div className="app-card space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
+            <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
+              Projekt: {selectedProject?.title || `Projekt #${selectedProjectId}`} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openChatGroupId && loadInlineChatMessages(openChatGroupId)}
+            disabled={loadingInlineChat}
+            className="btn-secondary"
+          >
+            {loadingInlineChat ? '...' : 'Chat laden'}
+          </button>
+        </div>
+
+        <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
+          {inlineChatMessages.length === 0 ? (
+            <div className="text-sm text-slate-500 dark:text-white/60">
+              Noch keine Nachrichten vorhanden.
+            </div>
+          ) : (
+            inlineChatMessages.map((message) => (
+              <div
+                key={message.id}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1E1E1E]"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
+                    {message.profile_image_url ? (
+                      <img
+                        src={message.profile_image_url}
+                        alt={message.display_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-black text-slate-900 dark:text-white">
+                      {message.display_name}
+                    </div>
+                    <div className="text-[10px] text-slate-400 dark:text-white/40">
+                      {new Date(message.created_at).toLocaleString('de-AT', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {message.message_type === 'image' && message.attachment_url && (
+                  <div className="mb-2">
+                    <img
+                      src={message.attachment_url}
+                      alt="Chat Bild"
+                      className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
+                    />
+                  </div>
+                )}
+
+                {message.message && (
+                  <div className="text-sm whitespace-pre-wrap break-words text-slate-900 dark:text-white">
+                    {message.message}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input
+              className="form-input flex-1"
+              value={inlineChatMessage}
+              onChange={(e) => setInlineChatMessage(e.target.value)}
+              placeholder="Nachricht schreiben oder Bildtext ergänzen..."
+              disabled={sendingInlineChat || uploadingInlineChatImage}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSendInlineChatMessage();
+                }
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={handleSendInlineChatMessage}
+              disabled={sendingInlineChat || uploadingInlineChatImage || !inlineChatMessage.trim()}
+              className="btn-primary"
+            >
+              {sendingInlineChat ? '...' : 'Senden'}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="btn-secondary cursor-pointer">
+              {uploadingInlineChatImage ? 'Upload läuft...' : 'Bild auswählen'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingInlineChatImage || sendingInlineChat}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  handleUploadInlineChatImage(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+
+            <label className="btn-secondary cursor-pointer">
+              Kamera
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                disabled={uploadingInlineChatImage || sendingInlineChat}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  handleUploadInlineChatImage(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+
+            <div className="text-xs text-slate-500 dark:text-white/60">
+              Bild aus Galerie oder direkt mit Handy-Kamera hochladen.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* =====================================================
+     SECTION 15 - RENDER CHAT GROUP LIST
+  ===================================================== */
+
+  const renderChatGroups = () => {
+    if (wheelMode !== 'chat-groups') return null;
+
+    return (
+      <div className="app-card space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
+            <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
+              {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => selectedProjectId && loadChatGroups(selectedProjectId)}
+            disabled={loadingChatGroups || !selectedProjectId}
+            className="btn-secondary"
+          >
+            {loadingChatGroups ? '...' : 'Aktualisieren'}
+          </button>
+        </div>
+
+        {sortedChatGroups.length === 0 ? (
+          <div className="text-sm text-slate-500 dark:text-white/50">
+            Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sortedChatGroups.map((group) => {
+              const isSelected = group.id === selectedChatGroupId;
+              const isOpen = group.id === openChatGroupId;
+
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedChatGroupId(group.id);
+                    localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
+                    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+                    setOpenChatGroupId(null);
+                    setInlineChatMessages([]);
+                    onNavigate('project-chat');
+                  }}
+                  className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
+                    isSelected
+                      ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                      : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div
+                        className={`font-black ${
+                          isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
+                        }`}
+                      >
+                        {group.name}
+                      </div>
+                      <div
+                        className={`text-xs mt-1 ${
+                          isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
+                        }`}
+                      >
+                        Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                        isOpen
+                          ? isSelected
+                            ? 'text-[#1A1A1A]/70'
+                            : 'text-[#B5A47A]'
+                          : isSelected
+                            ? 'text-[#1A1A1A]/70'
+                            : 'text-slate-600 dark:text-white/40'
+                      }`}
+                    >
+                      Verwalten
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* =====================================================
+     SECTION 16 - RENDER DEFAULT PROJECT BLOCKS
+  ===================================================== */
+
+  const renderDefaultProjectBlocks = () => {
+    if (wheelMode === 'chat-groups') return null;
+
+    return (
+      <>
+        <div className="app-card space-y-4">
+          <h2 className="text-lg font-black">Projekt erstellen</h2>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                Projektname
+              </label>
+              <input
+                className="form-input w-full"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="z.B. Ostermarkt 2026"
+                disabled={creating}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                Beschreibung
+              </label>
+              <input
+                className="form-input w-full"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Kurzbeschreibung"
+                disabled={creating}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCreateProject}
+              disabled={creating || !newTitle.trim()}
+            >
+              {creating ? '...' : 'Projekt anlegen'}
+            </button>
+          </div>
+        </div>
+
+        <div className="app-card space-y-4">
+          <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
+
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                Typ
+              </label>
+              <select
+                className="form-input w-full"
+                value={assignType}
+                onChange={(e) => setAssignType(e.target.value as LinkType)}
+                disabled={!selectedProjectId || assigning}
+              >
+                <option value="event">Kalender</option>
+                <option value="task">Aufgaben</option>
+                <option value="poll">Umfragen</option>
+              </select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                Eintrag
+              </label>
+              <select
+                className="form-input w-full"
+                value={assignId}
+                onChange={(e) => setAssignId(e.target.value)}
+                disabled={!selectedProjectId || assigning}
+              >
+                <option value="">Bitte auswählen</option>
+                {optionsForAssign.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-white/40">
+              {selectedProject ? (
+                <>
+                  Ziel:{' '}
+                  <span className="text-white/70 font-bold">
+                    {selectedProject.title || `Projekt #${selectedProject.id}`}
+                  </span>
+                </>
+              ) : (
+                <>Kein Projekt ausgewählt.</>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleAssignToProject}
+              disabled={!selectedProjectId || assigning || !assignId}
+            >
+              {assigning ? '...' : 'Zuordnen'}
+            </button>
+          </div>
+
+          {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
+        </div>
+
+        <div className="app-card space-y-4">
+          <h2 className="text-lg font-black">Projektliste</h2>
+
+          {sortedProjects.length === 0 ? (
+            <div className="text-sm text-white/50">
+              Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sortedProjects.map((p) => {
+                const d = pickProjectDate(p);
+                const dateLabel = d
+                  ? d.toLocaleDateString('de-AT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })
+                  : '';
+                const isActive = p.id === selectedProjectId;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      const nextId = Number(p.id);
+                      localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+                      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+                      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+                      setSelectedProjectId(nextId);
+                      setSelectedChatGroupId(null);
+                      setOpenChatGroupId(null);
+                      setInlineChatMessages([]);
+                      setWheelMode('actions');
+                      triggerWheelAnimation();
+                    }}
+                    className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                        : 'bg-white/5 hover:bg-white/10 text-white/80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                          {p.title || `Projekt #${p.id}`}
+                        </div>
+                        {p.description && (
+                          <div
+                            className={`text-xs mt-1 ${
+                              isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                            }`}
+                          >
+                            {p.description}
+                          </div>
+                        )}
+                      </div>
+
+                      <div
+                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                          isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                        }`}
+                      >
+                        {dateLabel || 'ohne Datum'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  /* =====================================================
+     SECTION 17 - RENDER
+  ===================================================== */
+
   return (
     <div className="space-y-10">
       {error && (
@@ -1054,427 +1561,9 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
         animationKey={wheelAnimationTick}
       />
 
-      {wheelMode === 'chat-groups' && openChatGroup && (
-        <div className="app-card space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-black">Chat: {openChatGroup.name}</h2>
-              <div className="text-xs text-slate-500 dark:text-white/60 mt-1">
-                Projekt: {selectedProject?.title || `Projekt #${selectedProjectId}`} · Schreiben: {openChatGroup.can_write ? 'ja' : 'nein'} · Bilder: {openChatGroup.can_upload_images ? 'ja' : 'nein'}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => openChatGroupId && loadInlineChatMessages(openChatGroupId)}
-              disabled={loadingInlineChat}
-              className="btn-secondary"
-            >
-              {loadingInlineChat ? '...' : 'Chat laden'}
-            </button>
-          </div>
-
-          <div className="h-[420px] overflow-y-auto rounded-xl bg-slate-50 dark:bg-[#121212] p-4 space-y-3">
-            {inlineChatMessages.length === 0 ? (
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Noch keine Nachrichten vorhanden.
-              </div>
-            ) : (
-              inlineChatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#1E1E1E]"
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 rounded-full overflow-hidden bg-[#B5A47A] flex-shrink-0">
-                      {message.profile_image_url ? (
-                        <img
-                          src={message.profile_image_url}
-                          alt={message.display_name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <div className="text-sm font-black text-slate-900 dark:text-white">
-                        {message.display_name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 dark:text-white/40">
-                        {new Date(message.created_at).toLocaleString('de-AT', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {message.message_type === 'image' && message.attachment_url && (
-                    <div className="mb-2">
-                      <img
-                        src={message.attachment_url}
-                        alt="Chat Bild"
-                        className="max-w-full rounded-xl border border-black/10 dark:border-white/10"
-                      />
-                    </div>
-                  )}
-
-                  {message.message && (
-                    <div className="text-sm whitespace-pre-wrap break-words text-slate-900 dark:text-white">
-                      {message.message}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <input
-                className="form-input flex-1"
-                value={inlineChatMessage}
-                onChange={(e) => setInlineChatMessage(e.target.value)}
-                placeholder="Nachricht schreiben oder Bildtext ergänzen..."
-                disabled={sendingInlineChat || uploadingInlineChatImage}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendInlineChatMessage();
-                  }
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={handleSendInlineChatMessage}
-                disabled={sendingInlineChat || uploadingInlineChatImage || !inlineChatMessage.trim()}
-                className="btn-primary"
-              >
-                {sendingInlineChat ? '...' : 'Senden'}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="btn-secondary cursor-pointer">
-                {uploadingInlineChatImage ? 'Upload läuft...' : 'Bild auswählen'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingInlineChatImage || sendingInlineChat}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    handleUploadInlineChatImage(file);
-                    e.currentTarget.value = '';
-                  }}
-                />
-              </label>
-
-              <label className="btn-secondary cursor-pointer">
-                Kamera
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  disabled={uploadingInlineChatImage || sendingInlineChat}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    handleUploadInlineChatImage(file);
-                    e.currentTarget.value = '';
-                  }}
-                />
-              </label>
-
-              <div className="text-xs text-slate-500 dark:text-white/60">
-                Bild aus Galerie oder direkt mit Handy-Kamera hochladen.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {wheelMode === 'chat-groups' && (
-        <div className="app-card space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-black">Projekt Chat Gruppen</h2>
-              <div className="text-xs text-slate-500 dark:text-white/50 mt-1">
-                {selectedProject ? selectedProject.title || `Projekt #${selectedProject.id}` : 'Kein Projekt gewählt'}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => selectedProjectId && loadChatGroups(selectedProjectId)}
-              disabled={loadingChatGroups || !selectedProjectId}
-              className="btn-secondary"
-            >
-              {loadingChatGroups ? '...' : 'Aktualisieren'}
-            </button>
-          </div>
-
-          {sortedChatGroups.length === 0 ? (
-            <div className="text-sm text-slate-500 dark:text-white/50">
-              Keine Chat-Gruppen vorhanden. Lege zuerst im Projekt-Chat eine Gruppe an.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedChatGroups.map((group) => {
-                const isSelected = group.id === selectedChatGroupId;
-                const isOpen = group.id === openChatGroupId;
-
-                return (
-                  <button
-                    key={group.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChatGroupId(group.id);
-                      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
-                      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                      setOpenChatGroupId(null);
-                      setInlineChatMessages([]);
-                      onNavigate('project-chat');
-                    }}
-                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
-                      isSelected
-                        ? 'bg-[#B5A47A] border-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                        : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50 dark:bg-[#121212] dark:border-white/10 dark:text-white dark:hover:bg-[#181818]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div
-                          className={`font-black ${
-                            isSelected ? 'text-[#1A1A1A]' : 'text-slate-900 dark:text-white'
-                          }`}
-                        >
-                          {group.name}
-                        </div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            isSelected ? 'text-[#1A1A1A]/70' : 'text-slate-500 dark:text-white/50'
-                          }`}
-                        >
-                          Schreiben: {group.can_write ? 'ja' : 'nein'} · Bilder: {group.can_upload_images ? 'ja' : 'nein'}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isOpen
-                            ? isSelected
-                              ? 'text-[#1A1A1A]/70'
-                              : 'text-[#B5A47A]'
-                            : isSelected
-                              ? 'text-[#1A1A1A]/70'
-                              : 'text-slate-600 dark:text-white/40'
-                        }`}
-                      >
-                        Verwalten
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {wheelMode !== 'chat-groups' && (
-        <>
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Projekt erstellen</h2>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Projektname
-                </label>
-                <input
-                  className="form-input w-full"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="z.B. Ostermarkt 2026"
-                  disabled={creating}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Beschreibung
-                </label>
-                <input
-                  className="form-input w-full"
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Kurzbeschreibung"
-                  disabled={creating}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleCreateProject}
-                disabled={creating || !newTitle.trim()}
-              >
-                {creating ? '...' : 'Projekt anlegen'}
-              </button>
-            </div>
-          </div>
-
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
-
-            <div className="grid md:grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Typ
-                </label>
-                <select
-                  className="form-input w-full"
-                  value={assignType}
-                  onChange={(e) => setAssignType(e.target.value as LinkType)}
-                  disabled={!selectedProjectId || assigning}
-                >
-                  <option value="event">Kalender</option>
-                  <option value="task">Aufgaben</option>
-                  <option value="poll">Umfragen</option>
-                </select>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                  Eintrag
-                </label>
-                <select
-                  className="form-input w-full"
-                  value={assignId}
-                  onChange={(e) => setAssignId(e.target.value)}
-                  disabled={!selectedProjectId || assigning}
-                >
-                  <option value="">Bitte auswählen</option>
-                  {optionsForAssign.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-white/40">
-                {selectedProject ? (
-                  <>
-                    Ziel:{' '}
-                    <span className="text-white/70 font-bold">
-                      {selectedProject.title || `Projekt #${selectedProject.id}`}
-                    </span>
-                  </>
-                ) : (
-                  <>Kein Projekt ausgewählt.</>
-                )}
-              </div>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleAssignToProject}
-                disabled={!selectedProjectId || assigning || !assignId}
-              >
-                {assigning ? '...' : 'Zuordnen'}
-              </button>
-            </div>
-
-            {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
-          </div>
-
-          <div className="app-card space-y-4">
-            <h2 className="text-lg font-black">Projektliste</h2>
-
-            {sortedProjects.length === 0 ? (
-              <div className="text-sm text-white/50">
-                Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sortedProjects.map((p) => {
-                  const d = pickProjectDate(p);
-                  const dateLabel = d
-                    ? d.toLocaleDateString('de-AT', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })
-                    : '';
-                  const isActive = p.id === selectedProjectId;
-
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        const nextId = Number(p.id);
-                        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-                        localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-                        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                        setSelectedProjectId(nextId);
-                        setSelectedChatGroupId(null);
-                        setOpenChatGroupId(null);
-                        setInlineChatMessages([]);
-                        setWheelMode('actions');
-                        triggerWheelAnimation();
-                      }}
-                      className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
-                        isActive
-                          ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                          : 'bg-white/5 hover:bg-white/10 text-white/80'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                            {p.title || `Projekt #${p.id}`}
-                          </div>
-                          {p.description && (
-                            <div
-                              className={`text-xs mt-1 ${
-                                isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
-                              }`}
-                            >
-                              {p.description}
-                            </div>
-                          )}
-                        </div>
-
-                        <div
-                          className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
-                          }`}
-                        >
-                          {dateLabel || 'ohne Datum'}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      {renderInlineChatWindow()}
+      {renderChatGroups()}
+      {renderDefaultProjectBlocks()}
     </div>
   );
 };
