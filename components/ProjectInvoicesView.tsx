@@ -40,7 +40,7 @@ const formatDateTime = (raw?: string | null): string => {
   });
 };
 
-const getFileBadgeLabel = (fileType?: string | null, filename?: string | null): string => {
+const getFileTypeLabel = (fileType?: string | null, filename?: string | null): string => {
   const type = (fileType || '').toLowerCase();
   const name = (filename || '').toLowerCase();
 
@@ -48,9 +48,12 @@ const getFileBadgeLabel = (fileType?: string | null, filename?: string | null): 
   if (type.includes('jpeg') || type.includes('jpg') || name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'JPG';
   if (type.includes('png') || name.endsWith('.png')) return 'PNG';
   if (type.includes('webp') || name.endsWith('.webp')) return 'WEBP';
-  if (type.includes('heic') || type.includes('heif') || name.endsWith('.heic') || name.endsWith('.heif')) return 'HEIC';
+  if (type.includes('heic') || name.endsWith('.heic')) return 'HEIC';
+  if (type.includes('heif') || name.endsWith('.heif')) return 'HEIF';
   if (type.includes('gif') || name.endsWith('.gif')) return 'GIF';
-  return 'DATEI';
+  if (type.includes('bmp') || name.endsWith('.bmp')) return 'BMP';
+  if (type.includes('tiff') || name.endsWith('.tif') || name.endsWith('.tiff')) return 'TIFF';
+  return 'Datei';
 };
 
 const isImageFile = (fileType?: string | null, filename?: string | null): boolean => {
@@ -64,9 +67,19 @@ const isImageFile = (fileType?: string | null, filename?: string | null): boolea
     name.endsWith('.png') ||
     name.endsWith('.webp') ||
     name.endsWith('.gif') ||
+    name.endsWith('.bmp') ||
     name.endsWith('.heic') ||
-    name.endsWith('.heif')
+    name.endsWith('.heif') ||
+    name.endsWith('.tif') ||
+    name.endsWith('.tiff')
   );
+};
+
+const isPdfFile = (fileType?: string | null, filename?: string | null): boolean => {
+  const type = (fileType || '').toLowerCase();
+  const name = (filename || '').toLowerCase();
+
+  return type.includes('pdf') || name.endsWith('.pdf');
 };
 
 /* =====================================================
@@ -79,7 +92,6 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
 
   const [loadingProject, setLoadingProject] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
-
   const [uploading, setUploading] = useState(false);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
@@ -111,19 +123,15 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
     }
   }, [activeProjectId, onUnauthorized]);
 
-  const loadItems = useCallback(async () => {
+  const loadInvoices = useCallback(async () => {
     if (!activeProjectId) return;
 
     setLoadingItems(true);
 
     try {
-      const data = await api.apiRequest<ProjectInvoiceItem[]>(
-        `/gug/v1/project-invoices?project_id=${encodeURIComponent(String(activeProjectId))}`,
-        {},
-        onUnauthorized
-      );
-
-      setItems(Array.isArray(data) ? data : []);
+      const data = await api.getProjectInvoices(activeProjectId, onUnauthorized);
+      const list = Array.isArray(data) ? data : [];
+      setItems(list);
     } catch (e: any) {
       setItems([]);
       setError(e?.message || 'Rechnungen konnten nicht geladen werden.');
@@ -143,29 +151,21 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
     setSuccess(null);
 
     loadProject();
-    loadItems();
-  }, [activeProjectId, loadProject, loadItems]);
+    loadInvoices();
+  }, [activeProjectId, loadProject, loadInvoices]);
 
   /* =====================================================
-     SECTION 07 - MEMOS
-  ===================================================== */
-
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const da = new Date(a.created_at || 0).getTime();
-      const db = new Date(b.created_at || 0).getTime();
-      return db - da;
-    });
-  }, [items]);
-
-  /* =====================================================
-     SECTION 08 - ACTIONS
+     SECTION 07 - ACTIONS
   ===================================================== */
 
   const handleRefresh = async () => {
     setError(null);
     setSuccess(null);
-    await Promise.all([loadProject(), loadItems()]);
+
+    await Promise.all([
+      loadProject(),
+      loadInvoices()
+    ]);
   };
 
   const handleUploadFile = async (file: File | null) => {
@@ -176,26 +176,26 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
       return;
     }
 
+    if (!isAdmin) {
+      setError('Keine Berechtigung zum Hochladen von Rechnungen.');
+      return;
+    }
+
     setUploading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const formData = new FormData();
-      formData.append('project_id', String(activeProjectId));
-      formData.append('file', file);
-
-      await api.apiRequest<{ success: boolean; id: number; message?: string }>(
-        '/gug/v1/project-invoices',
+      await api.uploadProjectInvoice(
         {
-          method: 'POST',
-          body: formData
+          project_id: activeProjectId,
+          file
         },
         onUnauthorized
       );
 
       setSuccess('Rechnung wurde hochgeladen.');
-      await loadItems();
+      await loadInvoices();
     } catch (e: any) {
       setError(e?.message || 'Rechnung konnte nicht hochgeladen werden.');
     } finally {
@@ -214,16 +214,9 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
     setSuccess(null);
 
     try {
-      await api.apiRequest<{ success: boolean; message?: string }>(
-        `/gug/v1/project-invoices/${invoiceId}`,
-        {
-          method: 'DELETE'
-        },
-        onUnauthorized
-      );
-
+      await api.deleteProjectInvoice(invoiceId, onUnauthorized);
       setSuccess('Rechnung wurde gelöscht.');
-      await loadItems();
+      await loadInvoices();
     } catch (e: any) {
       setError(e?.message || 'Rechnung konnte nicht gelöscht werden.');
     } finally {
@@ -232,7 +225,7 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
   };
 
   /* =====================================================
-     SECTION 09 - EARLY RETURN
+     SECTION 08 - EARLY RETURN
   ===================================================== */
 
   if (!activeProjectId) {
@@ -246,7 +239,7 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
   }
 
   /* =====================================================
-     SECTION 10 - RENDER
+     SECTION 09 - RENDER
   ===================================================== */
 
   return (
@@ -265,13 +258,13 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
         </div>
 
         <div className="text-xs text-slate-500 dark:text-white/50">
-          Hier werden projektbezogene Rechnungen zentral abgelegt und dokumentiert.
+          Hier werden alle projektbezogenen Rechnungen zentral abgelegt und mit Datum gespeichert.
         </div>
       </div>
 
       <div className="app-card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-black">Upload</h2>
+          <h2 className="text-lg font-black">Übersicht</h2>
 
           <button
             type="button"
@@ -283,7 +276,7 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
           </button>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-2 gap-3">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#121212]">
             <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
               Gesamt
@@ -293,80 +286,77 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
             </div>
           </div>
 
-          <label className={`rounded-xl border border-slate-200 bg-slate-50 p-4 cursor-pointer dark:border-white/10 dark:bg-[#121212] ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#121212]">
             <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
-              Bibliothek
+              Letzter Upload
             </div>
             <div className="mt-2 text-sm font-black text-slate-900 dark:text-white">
-              Datei auswählen
+              {items.length > 0 ? formatDateTime(items[0]?.created_at) : '-'}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-white/60">
-              PDF, Bild und übliche Formate
-            </div>
-
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,image/*,application/pdf"
-              className="hidden"
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                handleUploadFile(file);
-                e.currentTarget.value = '';
-              }}
-            />
-          </label>
-
-          <label className={`rounded-xl border border-slate-200 bg-slate-50 p-4 cursor-pointer dark:border-white/10 dark:bg-[#121212] ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-            <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-white/50 font-black">
-              Kamera
-            </div>
-            <div className="mt-2 text-sm font-black text-slate-900 dark:text-white">
-              Foto aufnehmen
-            </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-white/60">
-              Direkt mit Kamera erfassen
-            </div>
-
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                handleUploadFile(file);
-                e.currentTarget.value = '';
-              }}
-            />
-          </label>
-        </div>
-
-        {uploading && (
-          <div className="text-sm text-slate-500 dark:text-white/60">
-            Datei wird hochgeladen...
           </div>
-        )}
+        </div>
       </div>
 
+      {isAdmin && (
+        <div className="app-card space-y-4">
+          <h2 className="text-lg font-black">Neue Rechnung hochladen</h2>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <label className="btn-secondary cursor-pointer justify-center">
+              {uploading ? 'Upload läuft...' : 'Datei aus Bibliothek wählen'}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif,.bmp,.tif,.tiff,application/pdf,image/*"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  handleUploadFile(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+
+            <label className="btn-secondary cursor-pointer justify-center">
+              {uploading ? 'Upload läuft...' : 'Kamera öffnen'}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*,.pdf"
+                capture="environment"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  handleUploadFile(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="text-xs text-slate-500 dark:text-white/50">
+            Erlaubt sind die üblichen Formate wie PDF sowie Bilddateien aus Galerie oder Kamera.
+          </div>
+        </div>
+      )}
+
       <div className="app-card space-y-4">
-        <h2 className="text-lg font-black">Rechnungsliste</h2>
+        <h2 className="text-lg font-black">Hochgeladene Rechnungen</h2>
 
         {loadingItems ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
             Rechnungen werden geladen...
           </div>
-        ) : sortedItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="text-sm text-slate-500 dark:text-white/60">
-            Aktuell sind keine Rechnungen für dieses Projekt vorhanden.
+            Für dieses Projekt sind noch keine Rechnungen vorhanden.
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedItems.map((item) => {
+            {items.map((item) => {
               const deleting = deletingInvoiceId === item.id;
-              const fileBadge = getFileBadgeLabel(item.file_type, item.original_filename);
-              const imagePreview = isImageFile(item.file_type, item.original_filename);
+              const imageFile = isImageFile(item.file_type, item.original_filename);
+              const pdfFile = isPdfFile(item.file_type, item.original_filename);
 
               return (
                 <div
@@ -374,21 +364,21 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#121212]"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div className="min-w-0 space-y-3 flex-1">
+                    <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]">
-                          {fileBadge}
-                        </span>
-
                         <div className="font-black text-slate-900 dark:text-white break-all">
-                          {item.original_filename}
+                          {item.original_filename || `Rechnung #${item.id}`}
                         </div>
+
+                        <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest bg-[#B5A47A] text-[#1A1A1A]">
+                          {getFileTypeLabel(item.file_type, item.original_filename)}
+                        </span>
                       </div>
 
                       <div className="text-xs text-slate-500 dark:text-white/50">
                         Hochgeladen von:{' '}
                         <span className="font-black text-slate-700 dark:text-white/80">
-                          {item.uploaded_by_name || `Mitglied #${item.uploaded_by}`}
+                          {item.uploaded_by_name || `User #${item.uploaded_by}`}
                         </span>
                         {' · '}
                         <span className="font-black text-slate-700 dark:text-white/80">
@@ -396,53 +386,60 @@ const ProjectInvoicesView: React.FC<Props> = ({ user, onUnauthorized }) => {
                         </span>
                       </div>
 
-                      <div className="text-xs text-slate-500 dark:text-white/50 break-all">
-                        Dateityp:{' '}
-                        <span className="font-black text-slate-700 dark:text-white/80">
-                          {item.file_type || '-'}
-                        </span>
-                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <a
+                          href={item.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-primary"
+                        >
+                          Öffnen
+                        </a>
 
-                      {imagePreview ? (
-                        <div className="pt-1">
-                          <img
-                            src={item.file_url}
-                            alt={item.original_filename}
-                            className="max-h-64 rounded-xl border border-slate-200 object-contain bg-white dark:border-white/10 dark:bg-[#1A1A1A]"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={item.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-secondary"
-                      >
-                        Öffnen
-                      </a>
-
-                      <a
-                        href={item.file_url}
-                        download={item.original_filename}
-                        className="btn-secondary"
-                      >
-                        Download
-                      </a>
-
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteInvoice(item.id)}
-                          disabled={deleting}
+                        <a
+                          href={item.file_url}
+                          target="_blank"
+                          rel="noreferrer"
                           className="btn-secondary"
                         >
-                          {deleting ? '...' : 'Löschen'}
-                        </button>
-                      )}
+                          Download
+                        </a>
+
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteInvoice(item.id)}
+                            disabled={deleting}
+                            className="btn-secondary"
+                          >
+                            {deleting ? '...' : 'Löschen'}
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {(imageFile || pdfFile) && (
+                      <div className="w-full lg:w-56 shrink-0">
+                        {imageFile ? (
+                          <a href={item.file_url} target="_blank" rel="noreferrer">
+                            <img
+                              src={item.file_url}
+                              alt={item.original_filename}
+                              className="w-full h-40 object-cover rounded-xl border border-slate-200 dark:border-white/10"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={item.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-700 dark:border-white/10 dark:bg-[#1A1A1A] dark:text-white"
+                          >
+                            PDF Vorschau öffnen
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
