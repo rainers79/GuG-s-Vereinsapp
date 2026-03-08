@@ -19,6 +19,10 @@ import ProjectChatView from './components/ProjectChatView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
+/* =====================================================
+   SECTION 01 - TYPES
+===================================================== */
+
 type ToastType = 'error' | 'success';
 
 interface ToastItem {
@@ -28,7 +32,7 @@ interface ToastItem {
 }
 
 /* =====================================================
-   STORAGE KEYS
+   SECTION 02 - STORAGE KEYS
 ===================================================== */
 
 const LS_NOTIFICATION_SETTINGS = 'gug_notification_settings';
@@ -38,7 +42,7 @@ const LS_ACTIVE_PROJECT = 'gug_active_project';
 const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 
 /* =====================================================
-   DEFAULT SETTINGS
+   SECTION 03 - DEFAULT SETTINGS
 ===================================================== */
 
 const defaultNotificationSettings: NotificationSettings = {
@@ -48,7 +52,14 @@ const defaultNotificationSettings: NotificationSettings = {
   pollPreview: true
 };
 
+/* =====================================================
+   SECTION 04 - COMPONENT
+===================================================== */
+
 const App: React.FC = () => {
+  /* =====================================================
+     SECTION 05 - STATE
+  ===================================================== */
 
   const [user, setUser] = useState<User | null>(api.getStoredUser());
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -76,6 +87,10 @@ const App: React.FC = () => {
 
   const userRef = useRef<User | null>(user);
 
+  /* =====================================================
+     SECTION 06 - BASIC EFFECTS
+  ===================================================== */
+
   useEffect(() => {
     userRef.current = user;
   }, [user]);
@@ -99,6 +114,10 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
     }
   }, [activeView]);
+
+  /* =====================================================
+     SECTION 07 - NAVIGATION HELPERS
+  ===================================================== */
 
   const enforceProjectsActionState = useCallback(() => {
     const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
@@ -146,6 +165,10 @@ const App: React.FC = () => {
 
   const canGoBack = viewHistory.length > 0;
 
+  /* =====================================================
+     SECTION 08 - TOAST HELPERS
+  ===================================================== */
+
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
     setToasts(prev => [...prev, { id, message, type }]);
@@ -154,6 +177,10 @@ const App: React.FC = () => {
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  /* =====================================================
+     SECTION 09 - AUTH / LOADING
+  ===================================================== */
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
@@ -183,7 +210,11 @@ const App: React.FC = () => {
   useEffect(() => {
     if (api.getToken()) fetchAppData();
     else setLoading(false);
-  }, []);
+  }, [fetchAppData]);
+
+  /* =====================================================
+     SECTION 10 - STORAGE HELPERS
+  ===================================================== */
 
   const getStoredNumber = (key: string): number => {
     const raw = localStorage.getItem(key);
@@ -195,36 +226,33 @@ const App: React.FC = () => {
     localStorage.setItem(key, String(value));
   };
 
-  const checkGlobalUpdates = useCallback(async () => {
+  /* =====================================================
+     SECTION 11 - GLOBAL UPDATE CHECKS
+  ===================================================== */
 
+  const checkGlobalUpdates = useCallback(async () => {
     const u = userRef.current;
     if (!u) return;
 
     if (notificationSettings.chatEnabled) {
       try {
-
         const msgs = await api.getChatMessages(handleUnauthorized);
 
         if (msgs.length > 0) {
-
           const maxId = Math.max(...msgs.map(m => m.id || 0));
           const lastSeen = getStoredNumber(LS_LAST_CHAT_ID);
 
           if (lastSeen === 0) {
             setStoredNumber(LS_LAST_CHAT_ID, maxId);
-          }
-          else if (maxId > lastSeen) {
-
+          } else if (maxId > lastSeen) {
             const newMsgs = msgs.filter(
               m => m.id > lastSeen && m.user_id !== u.id
             );
 
             if (newMsgs.length > 0) {
-
               const latest = newMsgs[newMsgs.length - 1];
 
               if (notificationSettings.chatPreview) {
-
                 const preview =
                   latest.message.slice(0, 80) +
                   (latest.message.length > 80 ? '…' : '');
@@ -232,81 +260,54 @@ const App: React.FC = () => {
                 pushToast(
                   `Neue Nachricht von ${latest.display_name}: ${preview}`
                 );
-
               } else {
-
                 pushToast(
                   `Neue Nachricht von ${latest.display_name}`
                 );
-
               }
-
             }
 
             setStoredNumber(LS_LAST_CHAT_ID, maxId);
-
           }
-
         }
-
       } catch {}
-
     }
 
     if (notificationSettings.pollEnabled) {
-
       try {
-
         const p = await api.getPolls(handleUnauthorized);
 
         if (p.length > 0) {
-
           const maxPollId = Math.max(...p.map(x => x.id || 0));
           const lastPoll = getStoredNumber(LS_LAST_POLL_ID);
 
           if (lastPoll === 0) {
-
             setStoredNumber(LS_LAST_POLL_ID, maxPollId);
-
-          }
-          else if (maxPollId > lastPoll) {
-
+          } else if (maxPollId > lastPoll) {
             const newest = p.find(x => x.id === maxPollId);
 
             if (newest) {
-
               if (notificationSettings.pollPreview) {
-
                 const preview =
                   newest.question.slice(0, 90) +
                   (newest.question.length > 90 ? '…' : '');
 
                 pushToast(`Neue Umfrage: ${preview}`);
-
               } else {
-
                 pushToast(`Eine neue Umfrage wurde erstellt`);
-
               }
-
             }
 
             setStoredNumber(LS_LAST_POLL_ID, maxPollId);
-
           }
 
           setPolls(p);
-
         }
-
       } catch {}
-
     }
-
   }, [notificationSettings, handleUnauthorized, pushToast]);
 
   useEffect(() => {
-
     if (!user) return;
 
     checkGlobalUpdates();
@@ -314,13 +315,14 @@ const App: React.FC = () => {
     const interval = setInterval(checkGlobalUpdates, 5000);
 
     return () => clearInterval(interval);
-
   }, [user, checkGlobalUpdates]);
 
+  /* =====================================================
+     SECTION 12 - VIEW RENDERING
+  ===================================================== */
+
   const renderContent = () => {
-
     switch (activeView) {
-
       case 'dashboard':
         return (
           <DashboardView
@@ -416,12 +418,17 @@ const App: React.FC = () => {
           />
         );
 
-      default:
+      case 'project-coreteam':
         return null;
 
+      default:
+        return null;
     }
-
   };
+
+  /* =====================================================
+     SECTION 13 - EARLY RETURN LOADING
+  ===================================================== */
 
   if (loading && !user) {
     return (
@@ -431,13 +438,15 @@ const App: React.FC = () => {
     );
   }
 
+  /* =====================================================
+     SECTION 14 - POS MODE
+  ===================================================== */
+
   const isPosMode = !!user && activeView === 'pos';
 
   if (isPosMode) {
-
     return (
       <div className="min-h-screen w-full bg-[#F5E9D0]">
-
         {error && (
           <Notification message={error} type="error" onClose={() => setError(null)} />
         )}
@@ -458,16 +467,16 @@ const App: React.FC = () => {
         <div className="min-h-screen w-full">
           {renderContent()}
         </div>
-
       </div>
     );
-
   }
 
+  /* =====================================================
+     SECTION 15 - DEFAULT LAYOUT
+  ===================================================== */
+
   return (
-
     <div className="min-h-screen flex flex-col">
-
       {error && (
         <Notification message={error} type="error" onClose={() => setError(null)} />
       )}
@@ -526,14 +535,10 @@ const App: React.FC = () => {
 
             {renderContent()}
           </main>
-
         </>
       )}
-
     </div>
-
   );
-
 };
 
 export default App;
