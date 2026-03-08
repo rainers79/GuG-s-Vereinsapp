@@ -82,7 +82,7 @@ export interface WheelItem {
     | 'shopping'
     | 'coreteam'
     | 'chatlog'
-    | 'more';
+    | 'pos';
 }
 
 type WheelMode = 'project-select' | 'actions' | 'chat-groups';
@@ -98,7 +98,7 @@ const actionWheelItems: WheelItem[] = [
   { label: 'Einkaufsliste', view: 'project-shopping', actionKey: 'shopping' },
   { label: 'Kernteam', view: 'project-coreteam' as ViewType, actionKey: 'coreteam' },
   { label: 'Projekt Chat', actionKey: 'chatlog' },
-  { label: 'comming soon', comingSoon: true, actionKey: 'more' }
+  { label: 'Boniersystem', view: 'pos', actionKey: 'pos' }
 ];
 
 const center = 200;
