@@ -94,7 +94,7 @@ const actionWheelItems: WheelItem[] = [
   { label: 'Kalender', view: 'calendar', actionKey: 'calendar' },
   { label: 'Aufgaben', view: 'tasks', actionKey: 'tasks' },
   { label: 'Umfragen', view: 'polls', actionKey: 'polls' },
-  { label: 'Rechnungen', comingSoon: true, actionKey: 'invoices' },
+  { label: 'Rechnungen', view: 'project-invoices', actionKey: 'invoices' },
   { label: 'Einkaufsliste', view: 'project-shopping', actionKey: 'shopping' },
   { label: 'Kernteam', view: 'project-coreteam' as ViewType, actionKey: 'coreteam' },
   { label: 'Projekt Chat', actionKey: 'chatlog' },
@@ -774,40 +774,17 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
      SECTION 11 - WHEEL ACTIONS
   ===================================================== */
 
-const handleCenterClick = () => {
-  if (wheelMode === 'project-select') {
-    if (selectedProjectId) {
-      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-      setWheelMode('actions');
+  const handleCenterClick = () => {
+    if (wheelMode === 'project-select') {
+      if (selectedProjectId) {
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+        setWheelMode('actions');
+      }
+      return;
     }
-    return;
-  }
 
-  if (wheelMode === 'chat-groups') {
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-    setWheelMode('actions');
-    setOpenChatGroupId(null);
-    setInlineChatMessages([]);
-    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-    triggerWheelAnimation();
-    return;
-  }
-
-  localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-  setWheelMode('project-select');
-  setOpenChatGroupId(null);
-  setInlineChatMessages([]);
-  localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-  triggerWheelAnimation();
-};
-
-const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
-  if (wheelMode === 'project-select') {
-    if (item.slotType === 'project' && item.projectId) {
-      const nextId = Number(item.projectId);
-      localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+    if (wheelMode === 'chat-groups') {
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-      setSelectedProjectId(nextId);
       setWheelMode('actions');
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
@@ -816,78 +793,101 @@ const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
       return;
     }
 
-    if (item.slotType === 'next') {
-      const nextPage = Math.min(projectPage + 1, projectPageCount - 1);
-      localStorage.setItem(LS_PROJECTS_PAGE, String(nextPage));
-      setProjectPage(nextPage);
-      triggerWheelAnimation();
-      return;
-    }
-
-    if (item.slotType === 'prev') {
-      const prevPage = Math.max(projectPage - 1, 0);
-      localStorage.setItem(LS_PROJECTS_PAGE, String(prevPage));
-      setProjectPage(prevPage);
-      triggerWheelAnimation();
-    }
-
-    return;
-  }
-
-  if (wheelMode === 'chat-groups') {
-    if (item.slotType === 'project' && item.projectId) {
-      const nextGroupId = Number(item.projectId);
-      localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
-      localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
-      setSelectedChatGroupId(nextGroupId);
-      setOpenChatGroupId(nextGroupId);
-      setInlineChatMessage('');
-      loadInlineChatMessages(nextGroupId);
-      return;
-    }
-
-    if (item.slotType === 'next') {
-      const nextPage = Math.min(chatGroupPage + 1, chatGroupPageCount - 1);
-      localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(nextPage));
-      setChatGroupPage(nextPage);
-      triggerWheelAnimation();
-      return;
-    }
-
-    if (item.slotType === 'prev') {
-      const prevPage = Math.max(chatGroupPage - 1, 0);
-      localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(prevPage));
-      setChatGroupPage(prevPage);
-      triggerWheelAnimation();
-      return;
-    }
-
-    return;
-  }
-
-  if (item.slotType !== 'action') return;
-  if (!selectedProjectId) return;
-
-  localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
-  localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-
-  if (item.actionKey === 'chatlog') {
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
-    setWheelMode('chat-groups');
+    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+    setWheelMode('project-select');
     setOpenChatGroupId(null);
     setInlineChatMessages([]);
     localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     triggerWheelAnimation();
-    return;
-  }
+  };
 
-  if (item.actionKey === 'coreteam') {
-    onNavigate('project-coreteam' as ViewType);
-    return;
-  }
+  const handleWheelClick = (item: ProjectsWheelDisplayItem) => {
+    if (wheelMode === 'project-select') {
+      if (item.slotType === 'project' && item.projectId) {
+        const nextId = Number(item.projectId);
+        localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
+        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+        setSelectedProjectId(nextId);
+        setWheelMode('actions');
+        setOpenChatGroupId(null);
+        setInlineChatMessages([]);
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+        triggerWheelAnimation();
+        return;
+      }
 
-  if (item.view) onNavigate(item.view);
-};
+      if (item.slotType === 'next') {
+        const nextPage = Math.min(projectPage + 1, projectPageCount - 1);
+        localStorage.setItem(LS_PROJECTS_PAGE, String(nextPage));
+        setProjectPage(nextPage);
+        triggerWheelAnimation();
+        return;
+      }
+
+      if (item.slotType === 'prev') {
+        const prevPage = Math.max(projectPage - 1, 0);
+        localStorage.setItem(LS_PROJECTS_PAGE, String(prevPage));
+        setProjectPage(prevPage);
+        triggerWheelAnimation();
+      }
+
+      return;
+    }
+
+    if (wheelMode === 'chat-groups') {
+      if (item.slotType === 'project' && item.projectId) {
+        const nextGroupId = Number(item.projectId);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(nextGroupId));
+        localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(nextGroupId));
+        setSelectedChatGroupId(nextGroupId);
+        setOpenChatGroupId(nextGroupId);
+        setInlineChatMessage('');
+        loadInlineChatMessages(nextGroupId);
+        return;
+      }
+
+      if (item.slotType === 'next') {
+        const nextPage = Math.min(chatGroupPage + 1, chatGroupPageCount - 1);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(nextPage));
+        setChatGroupPage(nextPage);
+        triggerWheelAnimation();
+        return;
+      }
+
+      if (item.slotType === 'prev') {
+        const prevPage = Math.max(chatGroupPage - 1, 0);
+        localStorage.setItem(LS_PROJECT_CHAT_GROUP_PAGE, String(prevPage));
+        setChatGroupPage(prevPage);
+        triggerWheelAnimation();
+        return;
+      }
+
+      return;
+    }
+
+    if (item.slotType !== 'action') return;
+    if (!selectedProjectId) return;
+
+    localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
+    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+
+    if (item.actionKey === 'chatlog') {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
+      setWheelMode('chat-groups');
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      triggerWheelAnimation();
+      return;
+    }
+
+    if (item.actionKey === 'coreteam') {
+      onNavigate('project-coreteam' as ViewType);
+      return;
+    }
+
+    if (item.view) onNavigate(item.view);
+  };
 
   /* =====================================================
      SECTION 12 - PROJECT ACTIONS
