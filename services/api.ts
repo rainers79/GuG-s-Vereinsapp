@@ -22,7 +22,9 @@ import {
   ProjectShoppingItem,
   CreateProjectShoppingItemPayload,
   UpdateProjectShoppingItemPayload,
-  ProjectInvoiceItem
+  ProjectInvoiceItem,
+  ProjectLite,
+  ProjectStatus
 } from '../types';
 
 
@@ -169,6 +171,81 @@ export async function getCurrentUser(onUnauthorized: () => void): Promise<User> 
 
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
+}
+
+/* =====================================================
+   PROJECTS
+===================================================== */
+
+export async function getProjects(
+  onUnauthorized: () => void,
+  status: ProjectStatus | 'all' = 'active'
+): Promise<ProjectLite[]> {
+  const query = `?status=${encodeURIComponent(status)}`;
+
+  return await apiRequest<ProjectLite[]>(
+    `/gug/v1/projects${query}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProject(
+  payload: {
+    title: string;
+    description?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  },
+  onUnauthorized: () => void
+): Promise<{ success?: boolean; id?: number | string; project_id?: number | string }> {
+  return await apiRequest<{ success?: boolean; id?: number | string; project_id?: number | string }>(
+    '/gug/v1/projects',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function archiveProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/archive`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+export async function restoreProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/restore`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/delete`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
 }
 
 /* =====================================================
