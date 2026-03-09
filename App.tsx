@@ -677,6 +677,7 @@ const App: React.FC = () => {
         return (
           <ProjectsView
             onNavigate={navigateTo}
+            userRole={user!.role}
           />
         );
 
