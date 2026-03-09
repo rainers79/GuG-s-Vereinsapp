@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ViewType } from '../types';
+import { AppRole, ViewType } from '../types';
 import * as api from '../services/api';
 import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 
@@ -9,7 +9,10 @@ import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu
 
 interface Props {
   onNavigate: (view: ViewType) => void;
+  userRole: AppRole;
 }
+
+type ProjectStatus = 'active' | 'archived' | 'deleted';
 
 type Project = {
   id: number;
@@ -21,6 +24,9 @@ type Project = {
   end_date?: string | null;
   next_date?: string | null;
   target_date?: string | null;
+  status?: ProjectStatus;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 };
 
 type LinkType = 'event' | 'task' | 'poll';
@@ -259,7 +265,7 @@ const getStoredOpenChatGroupId = (): number | null => {
    SECTION 05 - COMPONENT
 ===================================================== */
 
-const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
+const ProjectsView: React.FC<Props> = ({ onNavigate, userRole }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -267,9 +273,15 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const [loadingInlineChat, setLoadingInlineChat] = useState(false);
   const [sendingInlineChat, setSendingInlineChat] = useState(false);
   const [uploadingInlineChatImage, setUploadingInlineChatImage] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [changingProjectStatus, setChangingProjectStatus] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectStatusFilter, setProjectStatusFilter] = useState<ProjectStatus>('active');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => getStoredProjectId());
 
   const [chatGroups, setChatGroups] = useState<ProjectChatGroupLite[]>([]);
@@ -280,7 +292,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [creating, setCreating] = useState(false);
 
   const [events, setEvents] = useState<CalendarEventLite[]>([]);
   const [tasks, setTasks] = useState<TaskLite[]>([]);
@@ -288,8 +299,6 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const [assignType, setAssignType] = useState<LinkType>('event');
   const [assignId, setAssignId] = useState<string>('');
-  const [assigning, setAssigning] = useState(false);
-  const [assignResult, setAssignResult] = useState<string | null>(null);
 
   const [wheelMode, setWheelMode] = useState<WheelMode>(() => getStoredWheelMode());
   const [projectPage, setProjectPage] = useState<number>(() => getStoredProjectPage());
@@ -298,6 +307,8 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
+
+  const isSuperAdmin = userRole === AppRole.SUPERADMIN;
 
   /* =====================================================
      SECTION 06 - MEMOS
@@ -458,14 +469,18 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   ]);
 
   const centerTitle = useMemo(() => {
-    if (wheelMode === 'project-select') return 'Projektauswahl';
+    if (wheelMode === 'project-select') {
+      if (projectStatusFilter === 'archived') return 'Archiv';
+      if (projectStatusFilter === 'deleted') return 'Gelöschte Projekte';
+      return 'Projektauswahl';
+    }
     if (wheelMode === 'chat-groups') {
       const title = selectedProject?.title?.trim();
       return title ? `${title} Chat` : 'Projekt Chat';
     }
     const title = selectedProject?.title?.trim();
     return title ? title : 'Projekt';
-  }, [wheelMode, selectedProject]);
+  }, [wheelMode, selectedProject, projectStatusFilter]);
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
@@ -572,12 +587,12 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     setWheelAnimationTick((prev) => prev + 1);
   };
 
-  const loadProjects = async () => {
+  const loadProjects = async (status: ProjectStatus = projectStatusFilter) => {
     setError(null);
     setLoading(true);
 
     try {
-      const data = await api.apiRequest<Project[]>('/gug/v1/projects', {}, undefined);
+      const data = await api.getProjects(() => {}, status);
       const list = Array.isArray(data)
         ? data.map((p) => ({
             ...p,
@@ -729,9 +744,13 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
   useEffect(() => {
     if (loadedOnce.current) return;
     loadedOnce.current = true;
-    loadProjects();
+    loadProjects(projectStatusFilter);
     loadAssignableData();
   }, []);
+
+  useEffect(() => {
+    loadProjects(projectStatusFilter);
+  }, [projectStatusFilter]);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -742,8 +761,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       return;
     }
 
+    if (projectStatusFilter !== 'active') {
+      setChatGroups([]);
+      setSelectedChatGroupId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      return;
+    }
+
     loadChatGroups(selectedProjectId);
-  }, [selectedProjectId]);
+  }, [selectedProjectId, projectStatusFilter]);
 
   useEffect(() => {
     if (wheelMode !== 'chat-groups') return;
@@ -776,7 +803,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
   const handleCenterClick = () => {
     if (wheelMode === 'project-select') {
-      if (selectedProjectId) {
+      if (selectedProjectId && projectStatusFilter === 'active') {
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setWheelMode('actions');
       }
@@ -806,9 +833,16 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       if (item.slotType === 'project' && item.projectId) {
         const nextId = Number(item.projectId);
         localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setSelectedProjectId(nextId);
-        setWheelMode('actions');
+
+        if (projectStatusFilter === 'active') {
+          localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+          setWheelMode('actions');
+        } else {
+          localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+          setWheelMode('project-select');
+        }
+
         setOpenChatGroupId(null);
         setInlineChatMessages([]);
         localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
@@ -867,6 +901,7 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
 
     if (item.slotType !== 'action') return;
     if (!selectedProjectId) return;
+    if (projectStatusFilter !== 'active') return;
 
     localStorage.setItem(LS_ACTIVE_PROJECT, String(selectedProjectId));
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
@@ -906,13 +941,12 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
     setError(null);
 
     try {
-      const res = await api.apiRequest<{ success?: boolean; id?: number | string; project_id?: number | string }>(
-        '/gug/v1/projects',
+      const res = await api.createProject(
         {
-          method: 'POST',
-          body: JSON.stringify({ title, description })
+          title,
+          description
         },
-        undefined
+        undefined as any
       );
 
       const rawNewId = res?.id ?? res?.project_id;
@@ -921,12 +955,11 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setNewTitle('');
       setNewDescription('');
 
-      await loadProjects();
+      await loadProjects('active');
+      setProjectStatusFilter('active');
 
       if (newId && Number.isFinite(newId)) {
-        const refreshedProjects = await api
-          .apiRequest<Project[]>('/gug/v1/projects', {}, undefined)
-          .catch(() => []);
+        const refreshedProjects = await api.getProjects(() => {}, 'active').catch(() => []);
 
         const normalizedProjects = Array.isArray(refreshedProjects)
           ? refreshedProjects.map((p) => ({
@@ -963,6 +996,75 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
       setError(e?.message || 'Projekt konnte nicht erstellt werden.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleArchiveProject = async () => {
+    if (!selectedProjectId || !isSuperAdmin) return;
+
+    setChangingProjectStatus(true);
+    setError(null);
+
+    try {
+      await api.archiveProject(selectedProjectId, undefined as any);
+      setWheelMode('project-select');
+      setSelectedProjectId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      await loadProjects(projectStatusFilter);
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht archiviert werden.');
+    } finally {
+      setChangingProjectStatus(false);
+    }
+  };
+
+  const handleRestoreProject = async () => {
+    if (!selectedProjectId || !isSuperAdmin) return;
+
+    setChangingProjectStatus(true);
+    setError(null);
+
+    try {
+      await api.restoreProject(selectedProjectId, undefined as any);
+      setWheelMode('project-select');
+      setSelectedProjectId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      await loadProjects(projectStatusFilter);
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht dearchiviert werden.');
+    } finally {
+      setChangingProjectStatus(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!selectedProjectId || !isSuperAdmin) return;
+
+    const confirmed = window.confirm('Projekt wirklich löschen? Das Projekt wird in den Status "deleted" gesetzt.');
+    if (!confirmed) return;
+
+    setChangingProjectStatus(true);
+    setError(null);
+
+    try {
+      await api.deleteProject(selectedProjectId, undefined as any);
+      setWheelMode('project-select');
+      setSelectedProjectId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      await loadProjects(projectStatusFilter);
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht gelöscht werden.');
+    } finally {
+      setChangingProjectStatus(false);
     }
   };
 
@@ -1338,11 +1440,91 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
      SECTION 16 - RENDER DEFAULT PROJECT BLOCKS
   ===================================================== */
 
+  const renderProjectAdminActions = () => {
+    if (!isSuperAdmin || !selectedProject) return null;
+
+    return (
+      <div className="app-card space-y-4">
+        <h2 className="text-lg font-black">Projektstatus</h2>
+
+        <div className="text-sm text-white/70">
+          Aktueller Status:{' '}
+          <span className="font-black uppercase">
+            {selectedProject.status || 'active'}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {selectedProject.status === 'active' && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleArchiveProject}
+              disabled={changingProjectStatus}
+            >
+              {changingProjectStatus ? '...' : 'Archivieren'}
+            </button>
+          )}
+
+          {selectedProject.status === 'archived' && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleRestoreProject}
+              disabled={changingProjectStatus}
+            >
+              {changingProjectStatus ? '...' : 'Dearchivieren'}
+            </button>
+          )}
+
+          {selectedProject.status !== 'deleted' && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleDeleteProject}
+              disabled={changingProjectStatus}
+            >
+              {changingProjectStatus ? '...' : 'Löschen'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderDefaultProjectBlocks = () => {
     if (wheelMode === 'chat-groups') return null;
 
     return (
       <>
+        <div className="app-card space-y-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h2 className="text-lg font-black">Projektfilter</h2>
+
+            <select
+              className="form-input w-full sm:w-auto"
+              value={projectStatusFilter}
+              onChange={(e) => {
+                const next = e.target.value as ProjectStatus;
+                setProjectStatusFilter(next);
+                setWheelMode('project-select');
+                setSelectedProjectId(null);
+                setOpenChatGroupId(null);
+                setInlineChatMessages([]);
+                localStorage.removeItem(LS_ACTIVE_PROJECT);
+                localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+                localStorage.setItem(LS_PROJECTS_PAGE, '0');
+                setProjectPage(0);
+                triggerWheelAnimation();
+              }}
+            >
+              <option value="active">Aktive Projekte</option>
+              <option value="archived">Archivierte Projekte</option>
+              {isSuperAdmin && <option value="deleted">Gelöschte Projekte</option>}
+            </select>
+          </div>
+        </div>
+
         <div className="app-card space-y-4">
           <h2 className="text-lg font-black">Projekt erstellen</h2>
 
@@ -1386,79 +1568,87 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div className="app-card space-y-4">
-          <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
+        {projectStatusFilter === 'active' && (
+          <div className="app-card space-y-4">
+            <h2 className="text-lg font-black">Einträge ins Projekt ziehen</h2>
 
-          <div className="grid md:grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                Typ
-              </label>
-              <select
-                className="form-input w-full"
-                value={assignType}
-                onChange={(e) => setAssignType(e.target.value as LinkType)}
-                disabled={!selectedProjectId || assigning}
+            <div className="grid md:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Typ
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={assignType}
+                  onChange={(e) => setAssignType(e.target.value as LinkType)}
+                  disabled={!selectedProjectId || assigning}
+                >
+                  <option value="event">Kalender</option>
+                  <option value="task">Aufgaben</option>
+                  <option value="poll">Umfragen</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Eintrag
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={assignId}
+                  onChange={(e) => setAssignId(e.target.value)}
+                  disabled={!selectedProjectId || assigning}
+                >
+                  <option value="">Bitte auswählen</option>
+                  {optionsForAssign.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-white/40">
+                {selectedProject ? (
+                  <>
+                    Ziel:{' '}
+                    <span className="text-white/70 font-bold">
+                      {selectedProject.title || `Projekt #${selectedProject.id}`}
+                    </span>
+                  </>
+                ) : (
+                  <>Kein Projekt ausgewählt.</>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleAssignToProject}
+                disabled={!selectedProjectId || assigning || !assignId}
               >
-                <option value="event">Kalender</option>
-                <option value="task">Aufgaben</option>
-                <option value="poll">Umfragen</option>
-              </select>
+                {assigning ? '...' : 'Zuordnen'}
+              </button>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
-                Eintrag
-              </label>
-              <select
-                className="form-input w-full"
-                value={assignId}
-                onChange={(e) => setAssignId(e.target.value)}
-                disabled={!selectedProjectId || assigning}
-              >
-                <option value="">Bitte auswählen</option>
-                {optionsForAssign.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
           </div>
+        )}
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-white/40">
-              {selectedProject ? (
-                <>
-                  Ziel:{' '}
-                  <span className="text-white/70 font-bold">
-                    {selectedProject.title || `Projekt #${selectedProject.id}`}
-                  </span>
-                </>
-              ) : (
-                <>Kein Projekt ausgewählt.</>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={handleAssignToProject}
-              disabled={!selectedProjectId || assigning || !assignId}
-            >
-              {assigning ? '...' : 'Zuordnen'}
-            </button>
-          </div>
-
-          {assignResult && <div className="text-sm text-white/70">{assignResult}</div>}
-        </div>
+        {renderProjectAdminActions()}
 
         <div className="app-card space-y-4">
-          <h2 className="text-lg font-black">Projektliste</h2>
+          <h2 className="text-lg font-black">
+            {projectStatusFilter === 'active' && 'Projektliste'}
+            {projectStatusFilter === 'archived' && 'Archivierte Projekte'}
+            {projectStatusFilter === 'deleted' && 'Gelöschte Projekte'}
+          </h2>
 
           {sortedProjects.length === 0 ? (
             <div className="text-sm text-white/50">
-              Keine Projekte vorhanden. Lege oben dein erstes Projekt an.
+              Keine Projekte in diesem Bereich vorhanden.
             </div>
           ) : (
             <div className="space-y-2">
@@ -1480,14 +1670,21 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                     onClick={() => {
                       const nextId = Number(p.id);
                       localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
-                      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
                       localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
                       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
                       setSelectedProjectId(nextId);
                       setSelectedChatGroupId(null);
                       setOpenChatGroupId(null);
                       setInlineChatMessages([]);
-                      setWheelMode('actions');
+
+                      if (projectStatusFilter === 'active') {
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                        setWheelMode('actions');
+                      } else {
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+                        setWheelMode('project-select');
+                      }
+
                       triggerWheelAnimation();
                     }}
                     className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
@@ -1510,6 +1707,13 @@ const ProjectsView: React.FC<Props> = ({ onNavigate }) => {
                             {p.description}
                           </div>
                         )}
+                        <div
+                          className={`text-[10px] mt-2 uppercase tracking-widest font-black ${
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                          }`}
+                        >
+                          Status: {p.status || 'active'}
+                        </div>
                       </div>
 
                       <div
