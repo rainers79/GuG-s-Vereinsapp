@@ -21,6 +21,7 @@ export type ViewType =
   | 'project-invoices';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
+export type ProjectStatus = 'active' | 'archived' | 'deleted';
 
 export interface CalendarEvent {
   id: string;
@@ -118,6 +119,9 @@ export interface ProjectLite {
   end_date?: string | null;
   next_date?: string | null;
   target_date?: string | null;
+  status?: ProjectStatus;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface Task {
