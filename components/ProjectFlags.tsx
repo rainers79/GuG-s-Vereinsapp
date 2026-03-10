@@ -49,11 +49,11 @@ const ProjectFlags: React.FC<Props> = ({
             ...sharedButtonStyle,
             background: '#C9AE6A',
             color: '#1A1A1A',
-            padding: '16px 2px',
+            padding: '16px 0px',
             fontWeight: 800,
             borderRadius: '0 10px 10px 0',
             minHeight: '110px',
-            width: '20px',
+            width: '30px',
             transform: 'translateX(6px) rotate(180deg)'
           }}
           onMouseEnter={(e) =>
