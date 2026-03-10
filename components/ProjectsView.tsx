@@ -324,7 +324,7 @@ const ProjectsView: React.FC<Props> = ({
      SECTION 06 - MEMOS
   ===================================================== */
 
-  const selectedProject = useMemo(() => {
+const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return projects.find((p) => Number(p.id) === Number(selectedProjectId)) || null;
   }, [projects, selectedProjectId]);
@@ -334,11 +334,6 @@ const ProjectsView: React.FC<Props> = ({
     list.sort((a, b) => a.name.localeCompare(b.name, 'de'));
     return list;
   }, [chatGroups]);
-
-  const selectedChatGroup = useMemo(() => {
-    if (!selectedChatGroupId) return null;
-    return sortedChatGroups.find((group) => Number(group.id) === Number(selectedChatGroupId)) || null;
-  }, [sortedChatGroups, selectedChatGroupId]);
 
   const openChatGroup = useMemo(() => {
     if (!openChatGroupId) return null;
@@ -480,8 +475,6 @@ const ProjectsView: React.FC<Props> = ({
 
   const centerTitle = useMemo(() => {
     if (wheelMode === 'project-select') {
-      if (projectStatusFilter === 'archived') return 'Projektauswahl';
-      if (projectStatusFilter === 'deleted') return 'Projektauswahl';
       return 'Projektauswahl';
     }
     if (wheelMode === 'chat-groups') {
@@ -490,7 +483,7 @@ const ProjectsView: React.FC<Props> = ({
     }
     const title = selectedProject?.title?.trim();
     return title ? title : 'Projekt';
-  }, [wheelMode, selectedProject, projectStatusFilter]);
+  }, [wheelMode, selectedProject]);
 
   const centerLines = useMemo(() => wrapLines(centerTitle, 14), [centerTitle]);
 
@@ -508,6 +501,7 @@ const ProjectsView: React.FC<Props> = ({
 
     return '';
   }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
+
 
   /* =====================================================
      SECTION 07 - CONTEXT EFFECTS
