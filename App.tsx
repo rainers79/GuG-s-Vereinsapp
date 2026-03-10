@@ -54,13 +54,6 @@ interface ProjectContextState {
   moduleLabel: string | null;
 }
 
-interface ProjectFlagItem {
-  id: string;
-  label: string;
-  tone?: 'project' | 'module' | 'submodule';
-  onClick?: () => void;
-}
-
 /* =====================================================
    SECTION 02 - STORAGE KEYS
 ===================================================== */
@@ -329,15 +322,8 @@ const getMainPaddingRight = (
 ): string => {
   if (!showProjectFlags) return '1rem';
   if (activeView === 'projects') return '1rem';
-  if (activeView === 'tasks') return '4.25rem';
-  if (activeView === 'calendar') return '4.25rem';
-  if (activeView === 'polls') return '4.25rem';
-  if (activeView === 'project-chat') return '4.5rem';
-  if (activeView === 'project-coreteam') return '4.25rem';
-  if (activeView === 'project-shopping') return '4.25rem';
-  if (activeView === 'project-invoices') return '4.25rem';
-  if (activeView === 'pos') return '4.25rem';
-  return '1rem';
+  if (activeView === 'project-chat') return '3.5rem';
+  return '3.25rem';
 };
 
 /* =====================================================
@@ -535,8 +521,6 @@ const App: React.FC = () => {
           projectName: current.projectName,
           moduleLabel: getModuleLabelForView(view)
         }));
-      } else if (view === 'tasks') {
-        clearProjectContext();
       } else {
         clearProjectContext();
       }
@@ -577,7 +561,6 @@ const App: React.FC = () => {
       }
 
       setActiveView(previousView);
-
       return history.slice(0, -1);
     });
   }, [projectContext.projectName, clearProjectContext, enforceProjectsActionState]);
@@ -758,7 +741,9 @@ const App: React.FC = () => {
             setStoredNumber(LS_LAST_CHAT_ID, maxId);
           }
         }
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
 
     if (notificationSettings.pollEnabled) {
@@ -782,7 +767,7 @@ const App: React.FC = () => {
 
                 pushToast(`Neue Umfrage: ${preview}`);
               } else {
-                pushToast(`Eine neue Umfrage wurde erstellt`);
+                pushToast('Eine neue Umfrage wurde erstellt');
               }
             }
           }
@@ -790,7 +775,9 @@ const App: React.FC = () => {
           setStoredNumber(LS_LAST_POLL_ID, maxPollId);
           setPolls(p);
         }
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
   }, [notificationSettings, handleUnauthorized, pushToast]);
 
@@ -800,7 +787,6 @@ const App: React.FC = () => {
     checkGlobalUpdates();
 
     const interval = setInterval(checkGlobalUpdates, 5000);
-
     return () => clearInterval(interval);
   }, [user, checkGlobalUpdates]);
 
@@ -808,38 +794,16 @@ const App: React.FC = () => {
      SECTION 13 - FLAGS CONFIG
   ===================================================== */
 
-  const flagsItems: ProjectFlagItem[] = (() => {
-    if (!user) return [];
-    if (!projectContext.projectName) return [];
+  const flagsProjectName = projectContext.projectName;
 
-    const items: ProjectFlagItem[] = [
-      {
-        id: 'flag-project',
-        label: projectContext.projectName,
-        tone: 'project',
-        onClick: () => navigateTo('projects')
-      }
-    ];
-
-    if (activeView !== 'projects') {
-      const moduleLabel =
-        projectContext.moduleLabel || getModuleLabelForView(activeView);
-
-      if (moduleLabel) {
-        items.push({
-          id: 'flag-module',
-          label: moduleLabel,
-          tone: 'module'
-        });
-      }
-    }
-
-    return items;
-  })();
+  const flagsModuleLabel =
+    activeView === 'projects'
+      ? null
+      : projectContext.moduleLabel || getModuleLabelForView(activeView);
 
   const showProjectFlags =
     !!user &&
-    flagsItems.length > 0 &&
+    !!flagsProjectName &&
     (
       activeView === 'projects' ||
       isProjectModuleView(activeView)
@@ -1190,7 +1154,11 @@ const App: React.FC = () => {
           />
 
           {showProjectFlags && (
-            <ProjectFlags items={flagsItems} />
+            <ProjectFlags
+              projectName={flagsProjectName}
+              moduleLabel={flagsModuleLabel}
+              onProjectClick={() => navigateTo('projects')}
+            />
           )}
 
           <main
