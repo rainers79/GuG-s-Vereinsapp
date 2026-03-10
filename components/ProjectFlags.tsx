@@ -50,7 +50,7 @@ const ProjectFlags: React.FC<Props> = ({
             color: '#1A1A1A',
             padding: '14px 8px',
             fontWeight: 800,
-            borderRadius: '10px 0 0 10px',
+            borderRadius: '0 10px 10px 0',
             minHeight: '110px'
           }}
         >
