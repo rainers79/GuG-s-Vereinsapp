@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Poll, User, AppRole } from '../types';
 import PollCreate from './PollCreate';
 import PollItem from './PollItem';
@@ -10,7 +10,14 @@ interface PollListProps {
   onRefresh: () => void;
   onUnauthorized: () => void;
   onBackToProjects?: () => void;
+  onProjectContextChange?: (context: {
+    projectName: string | null;
+    moduleLabel: string | null;
+  }) => void;
 }
+
+const LS_ACTIVE_PROJECT_NAME = 'gug_active_project_name';
+const LS_ACTIVE_PROJECT = 'gug_active_project';
 
 const PollList: React.FC<PollListProps> = ({
   polls,
@@ -18,18 +25,39 @@ const PollList: React.FC<PollListProps> = ({
   selectedPollId,
   onRefresh,
   onUnauthorized,
-  onBackToProjects
+  onBackToProjects,
+  onProjectContextChange
 }) => {
   const [showCreate, setShowCreate] = useState(false);
+
   const canCreate =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
 
-  const selectedPoll = polls.find(p => p.id === selectedPollId);
+  const selectedPoll = polls.find((p) => p.id === selectedPollId);
+
+  useEffect(() => {
+    if (!onProjectContextChange) return;
+
+    const activeProjectId = localStorage.getItem(LS_ACTIVE_PROJECT);
+    const activeProjectName = localStorage.getItem(LS_ACTIVE_PROJECT_NAME);
+
+    if (activeProjectId && activeProjectName) {
+      onProjectContextChange({
+        projectName: activeProjectName,
+        moduleLabel: 'Umfragen'
+      });
+      return;
+    }
+
+    onProjectContextChange({
+      projectName: null,
+      moduleLabel: null
+    });
+  }, [onProjectContextChange]);
 
   return (
     <div className="space-y-8 sm:space-y-16 animate-in fade-in duration-1000 pb-20">
-
       {canCreate && (
         <button
           onClick={() => setShowCreate(!showCreate)}
@@ -79,7 +107,6 @@ const PollList: React.FC<PollListProps> = ({
           ))}
         </div>
       )}
-
     </div>
   );
 };
