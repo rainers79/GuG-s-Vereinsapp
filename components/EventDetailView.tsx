@@ -1,6 +1,7 @@
+// components/EventDetailView.tsx
+
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
-import * as api from '../services/api';
 
 type TabType = 'overview' | 'poll' | 'tasks';
 
@@ -28,6 +29,7 @@ interface Props {
   onCreatePoll: () => void;
   onOpenPoll: (pollId: number) => void;
   onCreateTasks: (eventId: string) => void;
+  onDeleted?: () => void;
 }
 
 const EventDetailView: React.FC<Props> = ({
@@ -36,7 +38,8 @@ const EventDetailView: React.FC<Props> = ({
   onBack,
   onCreatePoll,
   onOpenPoll,
-  onCreateTasks
+  onCreateTasks,
+  onDeleted
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -53,23 +56,29 @@ const EventDetailView: React.FC<Props> = ({
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
 
+  const isArchivedEvent =
+    (event.description || '').toLowerCase().includes('(archiv)') ||
+    (event.description || '').toLowerCase().includes('[archiv]') ||
+    event.title.toLowerCase().includes('(archiv)') ||
+    event.title.toLowerCase().includes('[archiv]');
+
   const loadTasks = () => {
     setLoadingTasks(true);
 
     fetch('https://api.gug-verein.at/wp-json/gug/v1/tasks', {
       headers: {
-        'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+        Authorization: 'Bearer ' + localStorage.getItem('gug_token')
       }
     })
-      .then(r => r.json())
+      .then((r) => r.json())
       .then((data: Task[]) => {
         const eventTasks = data.filter(
-          t => t.event_id === Number(event.id)
+          (t) => t.event_id === Number(event.id)
         );
 
         const visibleTasks = canManage
           ? eventTasks
-          : eventTasks.filter(t => t.assigned_user_id === user.id);
+          : eventTasks.filter((t) => t.assigned_user_id === user.id);
 
         setTasks(visibleTasks);
       })
@@ -79,10 +88,10 @@ const EventDetailView: React.FC<Props> = ({
   const loadMembers = () => {
     fetch('https://api.gug-verein.at/wp-json/gug/v1/members', {
       headers: {
-        'Authorization': 'Bearer ' + localStorage.getItem('gug_token')
+        Authorization: 'Bearer ' + localStorage.getItem('gug_token')
       }
     })
-      .then(r => r.json())
+      .then((r) => r.json())
       .then((data: Member[]) => setMembers(data));
   };
 
@@ -98,7 +107,7 @@ const EventDetailView: React.FC<Props> = ({
     await fetch('https://api.gug-verein.at/wp-json/gug/v1/tasks', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + localStorage.getItem('gug_token'),
+        Authorization: 'Bearer ' + localStorage.getItem('gug_token'),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -121,7 +130,7 @@ const EventDetailView: React.FC<Props> = ({
     await fetch(`https://api.gug-verein.at/wp-json/gug/v1/tasks/${task.id}`, {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + localStorage.getItem('gug_token'),
+        Authorization: 'Bearer ' + localStorage.getItem('gug_token'),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -135,16 +144,38 @@ const EventDetailView: React.FC<Props> = ({
   const handleDeleteEvent = async () => {
     if (!canManage) return;
 
-    const confirmed = window.confirm('Termin wirklich löschen?');
+    const confirmed = window.confirm(
+      'Termin wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.'
+    );
+
     if (!confirmed) return;
 
     try {
       setDeletingEvent(true);
-      await api.deleteEvent(event.id, () => {});
+
+      const response = await fetch(
+        `https://api.gug-verein.at/wp-json/gug/v1/events/${event.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: 'Bearer ' + localStorage.getItem('gug_token')
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Termin konnte nicht gelöscht werden.');
+      }
+
+      if (onDeleted) {
+        onDeleted();
+        return;
+      }
+
       onBack();
     } catch (error) {
-      console.error('Termin konnte nicht gelöscht werden.', error);
-      alert('Termin konnte nicht gelöscht werden.');
+      console.error(error);
+      window.alert('Termin konnte nicht gelöscht werden.');
     } finally {
       setDeletingEvent(false);
     }
@@ -161,9 +192,16 @@ const EventDetailView: React.FC<Props> = ({
 
       <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-8 border border-slate-200 dark:border-white/5">
         <div className="flex items-start justify-between gap-4 mb-2">
-          <div>
-            <h2 className="text-2xl font-black mb-2">{event.title}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+          <div className="min-w-0">
+            <h2
+              className={`text-2xl font-black ${
+                isArchivedEvent ? 'text-blue-600' : ''
+              }`}
+            >
+              {event.title}
+            </h2>
+
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
               {new Date(event.date).toLocaleDateString()}
             </p>
           </div>
@@ -173,9 +211,9 @@ const EventDetailView: React.FC<Props> = ({
               type="button"
               onClick={handleDeleteEvent}
               disabled={deletingEvent}
-              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg whitespace-nowrap disabled:opacity-60"
             >
-              {deletingEvent ? 'Lösche...' : 'Termin löschen'}
+              {deletingEvent ? 'Löschen...' : 'Termin löschen'}
             </button>
           )}
         </div>
@@ -217,7 +255,13 @@ const EventDetailView: React.FC<Props> = ({
 
         {activeTab === 'overview' && (
           <div>
-            <p className="mb-6 text-slate-700 dark:text-slate-300">
+            <p
+              className={`mb-6 ${
+                isArchivedEvent
+                  ? 'text-blue-600'
+                  : 'text-slate-700 dark:text-slate-300'
+              }`}
+            >
               {event.description || 'Keine Beschreibung vorhanden.'}
             </p>
           </div>
@@ -282,7 +326,7 @@ const EventDetailView: React.FC<Props> = ({
                   className="w-full p-3 rounded-lg border"
                 >
                   <option value="">Mitglied auswählen</option>
-                  {members.map(m => (
+                  {members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.display_name}
                     </option>
@@ -305,7 +349,7 @@ const EventDetailView: React.FC<Props> = ({
 
             {!loadingTasks && tasks.length > 0 && (
               <div className="space-y-4">
-                {tasks.map(task => {
+                {tasks.map((task) => {
                   const canToggle =
                     canManage || task.assigned_user_id === user.id;
 
@@ -318,7 +362,7 @@ const EventDetailView: React.FC<Props> = ({
                           : 'bg-slate-100 border-slate-200'
                       }`}
                     >
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center gap-4">
                         <div>
                           <h4 className="font-bold">{task.title}</h4>
                           <p className="text-sm">{task.description}</p>
