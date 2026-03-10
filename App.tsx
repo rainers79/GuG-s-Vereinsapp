@@ -538,7 +538,7 @@ const App: React.FC = () => {
           projectName: current.projectName,
           moduleLabel: getModuleLabelForView(previousView)
         }));
-      } else if (previousView !== 'projects') {
+      } else {
         clearProjectContext();
       }
 
@@ -774,13 +774,13 @@ const App: React.FC = () => {
      SECTION 13 - CONTEXT BAR
   ===================================================== */
 
-const showProjectContextBar =
-  !!user &&
-  String(activeView) === 'projects' &&
-  (
-    projectContext.moduleLabel === 'Projektauswahl' ||
-    !!projectContext.projectName
-  );
+  const showProjectContextBar =
+    !!user &&
+    String(activeView) === 'projects' &&
+    (
+      projectContext.moduleLabel === 'Projektauswahl' ||
+      !!projectContext.projectName
+    );
 
   /* =====================================================
      SECTION 14 - VIEW RENDERING
