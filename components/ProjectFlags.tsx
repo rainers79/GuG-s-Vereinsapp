@@ -1,108 +1,80 @@
-import React from "react";
+import React from 'react';
 
 interface Props {
   projectName: string | null;
-  view: string;
-  projects?: string[];
-  onProjectClick?: (project: string) => void;
+  moduleLabel: string | null;
+  onProjectClick?: () => void;
   onModuleClick?: () => void;
 }
 
-const viewLabels: Record<string, string> = {
-  "project-chat": "Chat",
-  "project-coreteam": "Kernteam",
-  "project-shopping": "Einkaufsliste",
-  "project-invoices": "Rechnungen",
-  "tasks": "Aufgaben"
+const sharedButtonStyle: React.CSSProperties = {
+  writingMode: 'vertical-rl',
+  transform: 'rotate(180deg)',
+  border: 'none',
+  boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+  cursor: 'pointer'
 };
 
 const ProjectFlags: React.FC<Props> = ({
   projectName,
-  view,
-  projects = [],
+  moduleLabel,
   onProjectClick,
   onModuleClick
 }) => {
+  const showProjectFlag = !!projectName;
+  const showModuleFlag = !!moduleLabel && moduleLabel !== projectName;
 
-  const label = viewLabels[view] || view;
+  if (!showProjectFlag && !showModuleFlag) {
+    return null;
+  }
 
   return (
     <div
       style={{
-        position: "fixed",
-        right: "0",
-        top: "140px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        zIndex: 100
+        position: 'fixed',
+        right: '0',
+        top: '132px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        zIndex: 120
       }}
     >
-
-      {/* PROJEKTMODUS */}
-      {projectName && (
-        <>
-          <button
-            onClick={() => onProjectClick?.(projectName)}
-            style={{
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-              background: "#C9AE6A",
-              color: "black",
-              border: "none",
-              padding: "14px 8px",
-              fontWeight: 700,
-              borderRadius: "0 10px 10px 0",
-              boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
-              cursor: "pointer"
-            }}
-          >
-            {projectName}
-          </button>
-
-          <button
-            onClick={onModuleClick}
-            style={{
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-              background: "#F5E9D0",
-              color: "black",
-              border: "none",
-              padding: "12px 6px",
-              fontWeight: 600,
-              borderRadius: "0 10px 10px 0",
-              boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
-              cursor: "pointer"
-            }}
-          >
-            {label}
-          </button>
-        </>
+      {showProjectFlag && (
+        <button
+          type="button"
+          onClick={onProjectClick}
+          style={{
+            ...sharedButtonStyle,
+            background: '#C9AE6A',
+            color: '#1A1A1A',
+            padding: '14px 8px',
+            fontWeight: 800,
+            borderRadius: '10px 0 0 10px',
+            minHeight: '110px'
+          }}
+        >
+          {projectName}
+        </button>
       )}
 
-      {/* GLOBALER AUFGABENMODUS */}
-      {!projectName && projects.length > 0 &&
-        projects.map((p) => (
-          <button
-            key={p}
-            onClick={() => onProjectClick?.(p)}
-            style={{
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-              background: "#C9AE6A",
-              color: "black",
-              border: "none",
-              padding: "14px 8px",
-              fontWeight: 700,
-              borderRadius: "0 10px 10px 0",
-              boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
-              cursor: "pointer"
-            }}
-          >
-            {p}
-          </button>
-        ))}
-
+      {showModuleFlag && (
+        <button
+          type="button"
+          onClick={onModuleClick}
+          style={{
+            ...sharedButtonStyle,
+            background: '#F5E9D0',
+            color: '#1A1A1A',
+            padding: '12px 6px',
+            fontWeight: 700,
+            borderRadius: '10px 0 0 10px',
+            minHeight: '88px'
+          }}
+        >
+          {moduleLabel}
+        </button>
+      )}
     </div>
   );
 };
