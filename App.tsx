@@ -11,7 +11,6 @@ import Sidebar from './components/Sidebar';
 import Notification from './components/Notification';
 import SettingsView from './components/SettingsView';
 import CalendarView from './components/CalendarView';
-import VerifyPage from './components/VerifyPage';
 import DashboardView from './components/DashboardView';
 import ProjectsView from './components/ProjectsView';
 import ProjectChatView from './components/ProjectChatView';
@@ -777,7 +776,7 @@ const App: React.FC = () => {
 
   const showProjectContextBar =
     !!user &&
-    activeView === 'projects' &&
+    String(activeView) === 'projects' &&
     (
       projectContext.moduleLabel === 'Projektauswahl' ||
       !!projectContext.projectName
@@ -909,9 +908,6 @@ const App: React.FC = () => {
             }}
           />
         );
-
-      case 'verify':
-        return <VerifyPage />;
 
       default:
         return null;
