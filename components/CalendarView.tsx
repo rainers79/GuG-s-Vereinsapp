@@ -32,8 +32,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   const [createDefaultDate, setCreateDefaultDate] = useState<string>('');
   const [openEventAfterCreate, setOpenEventAfterCreate] = useState<boolean>(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
 
   const canCreate =
+    user.role === AppRole.SUPERADMIN ||
+    user.role === AppRole.VORSTAND;
+
+  const canDelete =
     user.role === AppRole.SUPERADMIN ||
     user.role === AppRole.VORSTAND;
 
@@ -48,6 +53,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     } catch (e) {
       console.error('Could not load events', e);
     }
+  };
+
+  const isArchivedProjectEvent = (event: CalendarEvent) => {
+    const title = (event.title || '').toLowerCase();
+    const description = (event.description || '').toLowerCase();
+
+    return title.includes('(archiv)') || description.includes('(archiv)');
   };
 
   const allEventsCombined: CalendarEvent[] = useMemo(() => {
@@ -130,23 +142,26 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     openCreateForDate(formatDateYYYYMMDD(selectedDay), true);
   };
 
-  const getEventAccentClass = (event: CalendarEvent) => {
-    const description = (event.description || '').toLowerCase();
+  const handleDeleteSelectedEvent = async () => {
+    if (!selectedEvent || !canDelete) return;
+    if (selectedEvent.type === 'poll') return;
 
-    if (
-      description.includes('(archiv)') ||
-      description.includes('[archiv]') ||
-      event.title.toLowerCase().includes('(archiv)') ||
-      event.title.toLowerCase().includes('[archiv]')
-    ) {
-      return 'text-blue-600';
+    const confirmed = window.confirm('Termin wirklich löschen?');
+    if (!confirmed) return;
+
+    setDeletingEvent(true);
+
+    try {
+      await api.deleteEvent(selectedEvent.id, () => {});
+      setSelectedEvent(null);
+      await loadEvents();
+      onRefresh();
+    } catch (error) {
+      console.error('Could not delete event', error);
+      window.alert('Termin konnte nicht gelöscht werden.');
+    } finally {
+      setDeletingEvent(false);
     }
-
-    if (event.type === 'poll') {
-      return 'text-[#B5A47A]';
-    }
-
-    return 'text-[#B5A47A]';
   };
 
   const renderMonthGrid = (year: number, month: number, isMini = false) => {
@@ -183,7 +198,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 setSelectedDay(d);
                 setViewMode('day');
               }}
-              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer 
+              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer
               bg-white dark:bg-[#1E1E1E]
               border border-slate-200 dark:border-white/5
               hover:bg-slate-100 dark:hover:bg-white/10
@@ -198,18 +213,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 {d.getDate()}
               </span>
 
-              {dayEvents.slice(0, 2).map((ev) => (
-                <button
-                  key={ev.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedEvent(ev);
-                  }}
-                  className={`mt-1 text-[10px] font-bold hover:underline max-w-[90%] truncate ${getEventAccentClass(ev)}`}
-                >
-                  {ev.title}
-                </button>
-              ))}
+              {dayEvents.slice(0, 2).map((ev) => {
+                const archived = isArchivedProjectEvent(ev);
+
+                return (
+                  <button
+                    key={ev.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(ev);
+                    }}
+                    className={`mt-1 text-[10px] font-bold hover:underline max-w-[90%] truncate ${
+                      archived ? 'text-blue-600 dark:text-blue-400' : 'text-[#B5A47A]'
+                    }`}
+                  >
+                    {ev.title}
+                  </button>
+                );
+              })}
             </div>
           );
         })}
@@ -224,7 +245,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <button
             onClick={() => setViewMode('month')}
             className="text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
@@ -239,7 +260,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           {canCreate && (
             <button
               onClick={openCreateForSelectedDay}
-              className="bg-[#B5A47A] text-black font-bold px-4 py-2 rounded-lg"
+              className="bg-[#B5A47A] text-black font-bold px-5 py-2.5 rounded-xl min-w-[150px]"
             >
               + Termin
             </button>
@@ -253,20 +274,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             </p>
           ) : (
             <div className="space-y-3">
-              {dayEvents.map((ev) => (
-                <button
-                  key={ev.id}
-                  onClick={() => setSelectedEvent(ev)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#B5A47A] transition"
-                >
-                  <div className={`font-black ${getEventAccentClass(ev)}`}>
-                    {ev.title}
-                  </div>
-                  <div className="text-sm text-slate-500 mt-1">
-                    {ev.description || 'Keine Beschreibung'}
-                  </div>
-                </button>
-              ))}
+              {dayEvents.map((ev) => {
+                const archived = isArchivedProjectEvent(ev);
+
+                return (
+                  <button
+                    key={ev.id}
+                    onClick={() => setSelectedEvent(ev)}
+                    className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#B5A47A] transition"
+                  >
+                    <div
+                      className={`font-black ${
+                        archived ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'
+                      }`}
+                    >
+                      {ev.title}
+                    </div>
+
+                    <div className="text-sm text-slate-500 mt-1">
+                      {ev.description || 'Keine Beschreibung'}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -306,29 +336,51 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   }
 
   if (selectedEvent) {
+    const archived = isArchivedProjectEvent(selectedEvent);
+    const canDeleteThisEvent = canDelete && selectedEvent.type !== 'poll';
+
     return (
-      <EventDetailView
-        event={selectedEvent}
-        user={user}
-        onBack={() => {
-          setSelectedEvent(null);
-          loadEvents();
-          onRefresh();
-        }}
-        onCreatePoll={() => {
-          setPollEventContext(selectedEvent);
-          setShowPollCreate(true);
-        }}
-        onOpenPoll={(pollId) => {
-          onOpenPoll(pollId);
-        }}
-        onCreateTasks={(id) => console.log('Create tasks for', id)}
-        onDeleted={async () => {
-          setSelectedEvent(null);
-          await loadEvents();
-          onRefresh();
-        }}
-      />
+      <div className="max-w-4xl mx-auto px-4 pb-20">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <button
+            onClick={() => setSelectedEvent(null)}
+            className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-[#B5A47A]"
+          >
+            ← Zurück zum Kalender
+          </button>
+
+          {canDeleteThisEvent && (
+            <button
+              type="button"
+              onClick={handleDeleteSelectedEvent}
+              disabled={deletingEvent}
+              className="bg-red-600 text-white font-bold px-4 py-2 rounded-xl disabled:opacity-60"
+            >
+              {deletingEvent ? 'Lösche...' : 'Termin löschen'}
+            </button>
+          )}
+        </div>
+
+        {archived && (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
+            Dieses Projekt ist archiviert.
+          </div>
+        )}
+
+        <EventDetailView
+          event={selectedEvent}
+          user={user}
+          onBack={() => setSelectedEvent(null)}
+          onCreatePoll={() => {
+            setPollEventContext(selectedEvent);
+            setShowPollCreate(true);
+          }}
+          onOpenPoll={(pollId) => {
+            onOpenPoll(pollId);
+          }}
+          onCreateTasks={(id) => console.log('Create tasks for', id)}
+        />
+      </div>
     );
   }
 
@@ -359,7 +411,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         />
       )}
 
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl">
           <button
             onClick={() => setViewMode('month')}
@@ -371,6 +423,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           >
             Monat
           </button>
+
           <button
             onClick={() => setViewMode('year')}
             className={`flex-1 py-3 px-6 rounded-xl font-bold ${
@@ -381,6 +434,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           >
             Jahr
           </button>
+
           <button
             onClick={() => setViewMode('year-list')}
             className={`flex-1 py-3 px-6 rounded-xl font-bold ${
@@ -398,7 +452,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             onClick={() => {
               openCreateForDate('', false);
             }}
-            className="bg-[#B5A47A] text-black font-bold px-6 py-3 rounded-xl whitespace-nowrap"
+            className="bg-[#B5A47A] text-black font-bold px-8 py-3 rounded-xl min-w-[170px] text-center"
           >
             + Termin
           </button>
