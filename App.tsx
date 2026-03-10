@@ -774,13 +774,13 @@ const App: React.FC = () => {
      SECTION 13 - CONTEXT BAR
   ===================================================== */
 
-  const showProjectContextBar =
-    !!user &&
-    String(activeView) === 'projects' &&
-    (
-      projectContext.moduleLabel === 'Projektauswahl' ||
-      !!projectContext.projectName
-    );
+const showProjectContextBar =
+  !!user &&
+  String(activeView) === 'projects' &&
+  (
+    projectContext.moduleLabel === 'Projektauswahl' ||
+    !!projectContext.projectName
+  );
 
   /* =====================================================
      SECTION 14 - VIEW RENDERING
