@@ -510,7 +510,7 @@ const ProjectsView: React.FC<Props> = ({
     if (wheelMode === 'project-select') {
       onProjectContextChange({
         projectName: null,
-        moduleLabel: 'Projektauswahl'
+        moduleLabel: null
       });
       return;
     }
@@ -526,7 +526,7 @@ const ProjectsView: React.FC<Props> = ({
 
     onProjectContextChange({
       projectName: null,
-      moduleLabel: 'Projektauswahl'
+      moduleLabel: null
     });
   }, [wheelMode, selectedProject, onProjectContextChange]);
 
