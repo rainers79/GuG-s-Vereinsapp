@@ -17,6 +17,7 @@ import ProjectChatView from './components/ProjectChatView';
 import ProjectCoreTeamView from './components/ProjectCoreTeamView';
 import ProjectShoppingView from './components/ProjectShoppingView';
 import ProjectInvoicesView from './components/ProjectInvoicesView';
+import ProjectFlags from './components/ProjectFlags';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -771,15 +772,28 @@ const App: React.FC = () => {
   }, [user, checkGlobalUpdates]);
 
   /* =====================================================
-     SECTION 13 - CONTEXT BAR
+     SECTION 13 - FLAGS CONFIG
   ===================================================== */
 
-  const showProjectContextBar =
+  const flagsProjectName =
+    activeView === 'projects'
+      ? (projectContext.projectName || 'Projektauswahl')
+      : projectContext.projectName;
+
+  const flagsModuleLabel =
+    activeView === 'projects'
+      ? null
+      : getModuleLabelForView(activeView);
+
+  const showProjectFlags =
     !!user &&
-    String(activeView) === 'projects' &&
     (
-      projectContext.moduleLabel === 'Projektauswahl' ||
-      !!projectContext.projectName
+      activeView === 'projects' ||
+      isProjectModuleView(activeView)
+    ) &&
+    (
+      !!flagsProjectName ||
+      !!flagsModuleLabel
     );
 
   /* =====================================================
@@ -1124,34 +1138,16 @@ const App: React.FC = () => {
             onGoHome={() => navigateToRoot('dashboard')}
           />
 
-          {showProjectContextBar && (
-            <div className="px-3 pt-2 sm:px-4">
-              <div className="mx-auto max-w-4xl rounded-2xl border border-[#C9AE6A]/30 bg-[#F6E7B0]/85 backdrop-blur-sm px-3 py-2 shadow-sm">
-                <div className="flex flex-col gap-1">
-                  {projectContext.projectName ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => navigateTo('projects')}
-                        className="w-full rounded-xl bg-[#D6B45D] px-3 py-1.5 text-left text-[11px] font-black uppercase tracking-wide text-[#1A1A1A]"
-                      >
-                        {projectContext.projectName}
-                      </button>
-
-                      {projectContext.moduleLabel && (
-                        <div className="w-full rounded-xl bg-white/70 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#1A1A1A]">
-                          {projectContext.moduleLabel}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="w-full rounded-xl bg-[#D6B45D] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#1A1A1A]">
-                      Projektauswahl
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+          {showProjectFlags && (
+            <ProjectFlags
+              projectName={flagsProjectName}
+              moduleLabel={flagsModuleLabel}
+              onProjectClick={() => {
+                if (projectContext.projectName) {
+                  navigateTo('projects');
+                }
+              }}
+            />
           )}
 
           <main className="flex-grow container mx-auto px-4 pt-4 pb-8 max-w-4xl">
