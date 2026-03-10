@@ -49,7 +49,7 @@ const ProjectFlags: React.FC<Props> = ({
             ...sharedButtonStyle,
             background: '#C9AE6A',
             color: '#1A1A1A',
-            padding: '8px 4px',
+            padding: '30px 4px',
             fontWeight: 800,
             borderRadius: '0 10px 10px 0',
             minHeight: '110px',
