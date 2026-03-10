@@ -43,10 +43,11 @@ const ProjectFlags: React.FC<Props> = ({
           writingMode: "vertical-rl",
           transform: "rotate(180deg)",
           background: "#C9AE6A",
+          color: "black",
           border: "none",
           padding: "14px 8px",
           fontWeight: 700,
-          borderRadius: "10px 0 0 10px",
+          borderRadius: "10px 0 0 10px",   // Abrundung Richtung Body
           boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
           cursor: "pointer"
         }}
@@ -60,10 +61,11 @@ const ProjectFlags: React.FC<Props> = ({
           writingMode: "vertical-rl",
           transform: "rotate(180deg)",
           background: "#F5E9D0",
+          color: "black",
           border: "none",
           padding: "12px 6px",
           fontWeight: 600,
-          borderRadius: "10px 0 0 10px",
+          borderRadius: "10px 0 0 10px",   // Abrundung Richtung Body
           boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
           cursor: "pointer"
         }}
