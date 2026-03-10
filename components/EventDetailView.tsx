@@ -1,7 +1,6 @@
-// components/EventDetailView.tsx
-
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, User, AppRole } from '../types';
+import * as api from '../services/api';
 
 type TabType = 'overview' | 'poll' | 'tasks';
 
@@ -39,12 +38,12 @@ const EventDetailView: React.FC<Props> = ({
   onOpenPoll,
   onCreateTasks
 }) => {
-
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -64,7 +63,6 @@ const EventDetailView: React.FC<Props> = ({
     })
       .then(r => r.json())
       .then((data: Task[]) => {
-
         const eventTasks = data.filter(
           t => t.event_id === Number(event.id)
         );
@@ -134,9 +132,26 @@ const EventDetailView: React.FC<Props> = ({
     loadTasks();
   };
 
+  const handleDeleteEvent = async () => {
+    if (!canManage) return;
+
+    const confirmed = window.confirm('Termin wirklich löschen?');
+    if (!confirmed) return;
+
+    try {
+      setDeletingEvent(true);
+      await api.deleteEvent(event.id, () => {});
+      onBack();
+    } catch (error) {
+      console.error('Termin konnte nicht gelöscht werden.', error);
+      alert('Termin konnte nicht gelöscht werden.');
+    } finally {
+      setDeletingEvent(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 pb-20">
-
       <button
         onClick={onBack}
         className="mb-6 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-[#B5A47A]"
@@ -145,11 +160,25 @@ const EventDetailView: React.FC<Props> = ({
       </button>
 
       <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-8 border border-slate-200 dark:border-white/5">
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <h2 className="text-2xl font-black mb-2">{event.title}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {new Date(event.date).toLocaleDateString()}
+            </p>
+          </div>
 
-        <h2 className="text-2xl font-black mb-2">{event.title}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-          {new Date(event.date).toLocaleDateString()}
-        </p>
+          {canManage && (
+            <button
+              type="button"
+              onClick={handleDeleteEvent}
+              disabled={deletingEvent}
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg"
+            >
+              {deletingEvent ? 'Lösche...' : 'Termin löschen'}
+            </button>
+          )}
+        </div>
 
         <div className="flex bg-slate-200 dark:bg-[#111] p-1 rounded-xl mb-6">
           <button
@@ -223,7 +252,6 @@ const EventDetailView: React.FC<Props> = ({
 
         {activeTab === 'tasks' && (
           <div>
-
             {canManage && (
               <button
                 onClick={() => setShowCreateTask(!showCreateTask)}
@@ -310,10 +338,8 @@ const EventDetailView: React.FC<Props> = ({
                 })}
               </div>
             )}
-
           </div>
         )}
-
       </div>
     </div>
   );
