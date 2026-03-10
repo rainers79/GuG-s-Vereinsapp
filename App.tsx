@@ -282,18 +282,27 @@ const getPrimaryInstallButtonLabel = (
 
 const isProjectModuleView = (view: ViewType) => {
   return (
+    view === 'calendar' ||
+    view === 'polls' ||
+    view === 'tasks' ||
+    view === 'pos' ||
     view === 'project-chat' ||
     view === 'project-coreteam' ||
     view === 'project-shopping' ||
-    view === 'project-invoices' ||
-    view === 'tasks'
+    view === 'project-invoices'
   );
 };
 
 const getModuleLabelForView = (view: ViewType): string | null => {
   switch (view) {
+    case 'calendar':
+      return 'Kalender';
+    case 'polls':
+      return 'Umfragen';
     case 'tasks':
       return 'Aufgaben';
+    case 'pos':
+      return 'Boniersystem';
     case 'project-chat':
       return 'Chat';
     case 'project-coreteam':
@@ -305,6 +314,23 @@ const getModuleLabelForView = (view: ViewType): string | null => {
     default:
       return null;
   }
+};
+
+const getMainPaddingRight = (
+  activeView: ViewType,
+  showProjectFlags: boolean
+): string => {
+  if (!showProjectFlags) return '1rem';
+  if (activeView === 'projects') return '1rem';
+  if (activeView === 'tasks') return '4.25rem';
+  if (activeView === 'calendar') return '4.25rem';
+  if (activeView === 'polls') return '4.25rem';
+  if (activeView === 'project-chat') return '4.5rem';
+  if (activeView === 'project-coreteam') return '4.25rem';
+  if (activeView === 'project-shopping') return '4.25rem';
+  if (activeView === 'project-invoices') return '4.25rem';
+  if (activeView === 'pos') return '4.25rem';
+  return '1rem';
 };
 
 /* =====================================================
@@ -775,26 +801,21 @@ const App: React.FC = () => {
      SECTION 13 - FLAGS CONFIG
   ===================================================== */
 
-  const flagsProjectName =
-    activeView === 'projects'
-      ? (projectContext.projectName || 'Projektauswahl')
-      : projectContext.projectName;
-
+  const flagsProjectName = projectContext.projectName;
   const flagsModuleLabel =
     activeView === 'projects'
       ? null
-      : getModuleLabelForView(activeView);
+      : projectContext.moduleLabel || getModuleLabelForView(activeView);
 
   const showProjectFlags =
     !!user &&
+    !!flagsProjectName &&
     (
       activeView === 'projects' ||
       isProjectModuleView(activeView)
-    ) &&
-    (
-      !!flagsProjectName ||
-      !!flagsModuleLabel
     );
+
+  const mainPaddingRight = getMainPaddingRight(activeView, showProjectFlags);
 
   /* =====================================================
      SECTION 14 - VIEW RENDERING
@@ -1143,14 +1164,18 @@ const App: React.FC = () => {
               projectName={flagsProjectName}
               moduleLabel={flagsModuleLabel}
               onProjectClick={() => {
-                if (projectContext.projectName) {
-                  navigateTo('projects');
-                }
+                navigateTo('projects');
               }}
             />
           )}
 
-          <main className="flex-grow container mx-auto px-4 pt-4 pb-8 max-w-4xl">
+          <main
+            className="flex-grow container mx-auto pt-4 pb-8 max-w-4xl"
+            style={{
+              paddingLeft: '1rem',
+              paddingRight: mainPaddingRight
+            }}
+          >
             {canGoBack && (
               <div className="mb-4">
                 <button
