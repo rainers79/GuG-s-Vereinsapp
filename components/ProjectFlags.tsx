@@ -47,7 +47,7 @@ const ProjectFlags: React.FC<Props> = ({
           border: "none",
           padding: "14px 8px",
           fontWeight: 700,
-          borderRadius: "10px 0 0 10px",   // Abrundung Richtung Body
+          borderRadius: "0 10px 10px 0",   // Abrundung Richtung Body
           boxShadow: "0 3px 10px rgba(0,0,0,0.2)",
           cursor: "pointer"
         }}
