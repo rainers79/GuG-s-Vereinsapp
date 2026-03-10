@@ -321,6 +321,12 @@ const App: React.FC = () => {
     installEnvironment
   );
 const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
+  
+  const taskProjects = [
+  "Ostermarkt",
+  "Schlossfest",
+  "Bauernmarkt"
+]; 
    
   /* =====================================================
      SECTION 07 - BASIC EFFECTS
@@ -950,26 +956,31 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
             userRole={user.role}
           />
 
-          <Header
-            user={user}
-            onLogout={() => {
-              api.clearToken();
-              setUser(null);
-              setViewHistory([]);
-              setActiveView('dashboard');
-              localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
-              localStorage.removeItem(LS_ACTIVE_VIEW);
-            }}
-            onOpenMenu={() => setIsSidebarOpen(true)}
-            onGoHome={() => navigateToRoot('dashboard')}
-          />
-
- <ProjectFlags
-  projectName={localStorage.getItem("gug_active_project")}
-  view={activeView}
-  onProjectClick={() => navigateTo("projects")}
-  onModuleClick={() => navigateTo("projects")}
+<Header
+  user={user}
+  onLogout={() => {
+    api.clearToken();
+    setUser(null);
+    setViewHistory([]);
+    setActiveView('dashboard');
+    localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+    localStorage.removeItem(LS_ACTIVE_VIEW);
+  }}
+  onOpenMenu={() => setIsSidebarOpen(true)}
+  onGoHome={() => navigateToRoot('dashboard')}
 />
+
+{(activeProject || activeView === "tasks") && (
+  <ProjectFlags
+    projectName={activeProject}
+    view={activeView}
+    projects={activeView === "tasks" ? taskProjects : []}
+    onProjectClick={(project) => {
+      localStorage.setItem(LS_ACTIVE_PROJECT, project);
+      navigateTo("tasks");
+    }}
+  />
+)}
 
 <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {canGoBack && (
