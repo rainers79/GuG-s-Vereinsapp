@@ -1,5 +1,3 @@
-// services/api.ts
-
 import {
   AppRole,
   User,
@@ -730,6 +728,19 @@ export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () =>
     {
       method: 'POST',
       body: JSON.stringify(event)
+    },
+    onUnauth
+  );
+}
+
+export async function deleteEvent(
+  eventId: string | number,
+  onUnauth: () => void
+): Promise<{ success: boolean; message?: string }> {
+  return await apiRequest<{ success: boolean; message?: string }>(
+    `/gug/v1/events/${eventId}`,
+    {
+      method: 'DELETE'
     },
     onUnauth
   );
