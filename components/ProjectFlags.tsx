@@ -12,7 +12,8 @@ const sharedButtonStyle: React.CSSProperties = {
   transform: 'rotate(180deg)',
   border: 'none',
   boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-  cursor: 'pointer'
+  cursor: 'pointer',
+  transition: 'transform 0.25s ease'
 };
 
 const ProjectFlags: React.FC<Props> = ({
@@ -36,7 +37,7 @@ const ProjectFlags: React.FC<Props> = ({
         top: '132px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
+        gap: '6px',
         zIndex: 120
       }}
     >
@@ -48,11 +49,19 @@ const ProjectFlags: React.FC<Props> = ({
             ...sharedButtonStyle,
             background: '#C9AE6A',
             color: '#1A1A1A',
-            padding: '14px 8px',
+            padding: '12px 6px',
             fontWeight: 800,
             borderRadius: '0 10px 10px 0',
-            minHeight: '110px'
+            minHeight: '110px',
+            width: '40px',
+            transform: 'translateX(6px) rotate(180deg)'
           }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)')
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)')
+          }
         >
           {projectName}
         </button>
@@ -66,11 +75,19 @@ const ProjectFlags: React.FC<Props> = ({
             ...sharedButtonStyle,
             background: '#F5E9D0',
             color: '#1A1A1A',
-            padding: '12px 6px',
+            padding: '10px 4px',
             fontWeight: 700,
-            borderRadius: '10px 0 0 10px',
-            minHeight: '88px'
+            borderRadius: '0 10px 10px 0',
+            minHeight: '80px',
+            width: '32px',
+            transform: 'translateX(6px) rotate(180deg)'
           }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)')
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)')
+          }
         >
           {moduleLabel}
         </button>
