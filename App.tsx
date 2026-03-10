@@ -964,11 +964,14 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
             onGoHome={() => navigateToRoot('dashboard')}
           />
 
-          <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
-             <ProjectFlags
-  projectName={activeProject}
+ <ProjectFlags
+  projectName={localStorage.getItem("gug_active_project")}
   view={activeView}
+  onProjectClick={() => navigateTo("projects")}
+  onModuleClick={() => navigateTo("projects")}
 />
+
+<main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {canGoBack && (
               <div className="mb-6">
                 <button
