@@ -320,7 +320,8 @@ const App: React.FC = () => {
     installingApp,
     installEnvironment
   );
-
+const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
+   
   /* =====================================================
      SECTION 07 - BASIC EFFECTS
   ===================================================== */
@@ -964,6 +965,10 @@ const App: React.FC = () => {
           />
 
           <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+             <ProjectFlags
+  projectName={activeProject}
+  view={activeView}
+/>
             {canGoBack && (
               <div className="mb-6">
                 <button
