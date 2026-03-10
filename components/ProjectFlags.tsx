@@ -38,7 +38,8 @@ const ProjectFlags: React.FC<Props> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '6px',
-        zIndex: 120
+        zIndex: 120,
+        pointerEvents: 'none'
       }}
     >
       {showProjectFlag && (
@@ -54,14 +55,15 @@ const ProjectFlags: React.FC<Props> = ({
             borderRadius: '0 10px 10px 0',
             minHeight: '110px',
             width: '30px',
-            transform: 'translateX(6px) rotate(180deg)'
+            transform: 'translateX(6px) rotate(180deg)',
+            pointerEvents: 'auto'
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)')
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)')
-          }
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)';
+          }}
         >
           {projectName}
         </button>
@@ -75,19 +77,20 @@ const ProjectFlags: React.FC<Props> = ({
             ...sharedButtonStyle,
             background: '#F5E9D0',
             color: '#1A1A1A',
-            padding: '10px 4px',
+            padding: '10px 2px',
             fontWeight: 700,
             borderRadius: '0 10px 10px 0',
             minHeight: '80px',
-            width: '32px',
-            transform: 'translateX(6px) rotate(180deg)'
+            width: '26px',
+            transform: 'translateX(6px) rotate(180deg)',
+            pointerEvents: 'auto'
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)')
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)')
-          }
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(0px) rotate(180deg)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(6px) rotate(180deg)';
+          }}
         >
           {moduleLabel}
         </button>
