@@ -77,7 +77,7 @@ const defaultNotificationSettings: NotificationSettings = {
    SECTION 04 - HELPERS
 ===================================================== */
 
- const getStoredActiveView = (): ViewType => {
+const getStoredActiveView = (): ViewType => {
   const raw = localStorage.getItem(LS_ACTIVE_VIEW) as ViewType | null;
 
   const allowedViews: ViewType[] = [
@@ -106,8 +106,13 @@ const defaultNotificationSettings: NotificationSettings = {
 const isStandaloneDisplay = () => {
   if (typeof window === 'undefined') return false;
 
-  const byMatchMedia = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-  const byNavigator = 'standalone' in window.navigator && (window.navigator as any).standalone === true;
+  const byMatchMedia =
+    window.matchMedia &&
+    window.matchMedia('(display-mode: standalone)').matches;
+
+  const byNavigator =
+    'standalone' in window.navigator &&
+    (window.navigator as any).standalone === true;
 
   return byMatchMedia || byNavigator;
 };
@@ -131,15 +136,18 @@ const getInstallEnvironment = (): InstallEnvironment => {
 
   const isIOS =
     /iphone|ipad|ipod/.test(lower) ||
-    (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+    (window.navigator.platform === 'MacIntel' &&
+      window.navigator.maxTouchPoints > 1);
 
   const isAndroid = /android/.test(lower);
   const isEdge = /edg\//.test(lower);
   const isSamsung = /samsungbrowser/.test(lower);
   const isFirefox = /firefox|fxios/.test(lower);
+
   const isChrome =
     (/chrome|crios/.test(lower) || isEdge || isSamsung) &&
     !isFirefox;
+
   const isSafari =
     /safari/.test(lower) &&
     !isChrome &&
@@ -267,12 +275,21 @@ const getPrimaryInstallButtonLabel = (
   return 'Installationshilfe anzeigen';
 };
 
+const isProjectModuleView = (view: ViewType) => {
+  return (
+    view === 'project-chat' ||
+    view === 'project-coreteam' ||
+    view === 'project-shopping' ||
+    view === 'project-invoices' ||
+    view === 'tasks'
+  );
+};
+
 /* =====================================================
    SECTION 05 - COMPONENT
 ===================================================== */
 
 const App: React.FC = () => {
-
   /* =====================================================
      SECTION 06 - STATE
   ===================================================== */
@@ -300,7 +317,8 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     (localStorage.getItem('gug_theme') as 'light' | 'dark') || 'light'
   );
-  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<DeferredInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => isStandaloneDisplay());
   const [showPreLoginLanding, setShowPreLoginLanding] = useState<boolean>(() => {
@@ -309,6 +327,9 @@ const App: React.FC = () => {
     return localStorage.getItem(LS_PRELOGIN_LANDING_DISMISSED) !== '1';
   });
   const [installingApp, setInstallingApp] = useState(false);
+  const [activeProject, setActiveProject] = useState<string | null>(() => {
+    return localStorage.getItem(LS_ACTIVE_PROJECT);
+  });
 
   const userRef = useRef<User | null>(user);
 
@@ -320,14 +341,7 @@ const App: React.FC = () => {
     installingApp,
     installEnvironment
   );
-const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
-  
-  const taskProjects = [
-  "Ostermarkt",
-  "Schlossfest",
-  "Bauernmarkt"
-]; 
-   
+
   /* =====================================================
      SECTION 07 - BASIC EFFECTS
   ===================================================== */
@@ -355,6 +369,14 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
   }, [activeView]);
 
   useEffect(() => {
+    if (activeProject) {
+      localStorage.setItem(LS_ACTIVE_PROJECT, activeProject);
+    } else {
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+    }
+  }, [activeProject]);
+
+  useEffect(() => {
     if (activeView === 'pos') {
       setIsSidebarOpen(false);
     }
@@ -377,6 +399,7 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
     };
 
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
+
     const handleDisplayModeChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
         setIsInstalled(true);
@@ -401,32 +424,58 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
   ===================================================== */
 
   const enforceProjectsActionState = useCallback(() => {
-    const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
-    if (activeProject) {
+    const storedActiveProject = localStorage.getItem(LS_ACTIVE_PROJECT);
+    if (storedActiveProject) {
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
     }
+  }, []);
+
+  const clearProjectContext = useCallback(() => {
+    setActiveProject(null);
+    localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+  }, []);
+
+  const setProjectContext = useCallback((projectName: string | null) => {
+    setActiveProject(projectName);
   }, []);
 
   const navigateTo = useCallback((view: ViewType) => {
     setActiveView((prev) => {
       if (prev === view) return prev;
 
+      const fromProjects = prev === 'projects';
+      const keepProjectContext =
+        fromProjects &&
+        !!activeProject &&
+        isProjectModuleView(view);
+
       if (prev === 'projects' && view !== 'projects') {
         enforceProjectsActionState();
+      }
+
+      if (view === 'projects') {
+        // Projektkontext bleibt erhalten
+      } else if (keepProjectContext) {
+        // Projektkontext bleibt erhalten
+      } else if (view === 'tasks') {
+        clearProjectContext();
+      } else {
+        clearProjectContext();
       }
 
       setViewHistory((history) => [...history, prev]);
       return view;
     });
-  }, [enforceProjectsActionState]);
+  }, [activeProject, clearProjectContext, enforceProjectsActionState]);
 
   const navigateToRoot = useCallback((view: ViewType) => {
     if (view === 'dashboard') {
-      localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+      clearProjectContext();
     }
+
     setViewHistory([]);
     setActiveView(view);
-  }, []);
+  }, [clearProjectContext]);
 
   const goBack = useCallback(() => {
     setViewHistory((history) => {
@@ -459,7 +508,9 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
       }
 
       if (installEnvironment.isAndroid) {
-        setError(`Öffne das Menü in ${installEnvironment.browserLabel} und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.`);
+        setError(
+          `Öffne das Menü in ${installEnvironment.browserLabel} und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.`
+        );
         return;
       }
 
@@ -518,9 +569,9 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
     setIsSidebarOpen(false);
     setViewHistory([]);
     setActiveView('dashboard');
-    localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
+    clearProjectContext();
     localStorage.removeItem(LS_ACTIVE_VIEW);
-  }, []);
+  }, [clearProjectContext]);
 
   const fetchAppData = useCallback(async () => {
     try {
@@ -545,9 +596,10 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
     } else {
       setLoading(false);
       setActiveView('dashboard');
+      clearProjectContext();
       localStorage.removeItem(LS_ACTIVE_VIEW);
     }
-  }, [fetchAppData]);
+  }, [clearProjectContext, fetchAppData]);
 
   useEffect(() => {
     if (!user) return;
@@ -810,15 +862,24 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
   /* =====================================================
      SECTION 15 - PRE LOGIN LANDING
   ===================================================== */
- if (!user && showPreLoginLanding && !isInstalled) {
+
+  if (!user && showPreLoginLanding && !isInstalled) {
     return (
       <div className="min-h-screen bg-[#F6F1E4] text-black flex flex-col">
         {error && (
-          <Notification message={error} type="error" onClose={() => setError(null)} />
+          <Notification
+            message={error}
+            type="error"
+            onClose={() => setError(null)}
+          />
         )}
 
         {success && (
-          <Notification message={success} type="success" onClose={() => setSuccess(null)} />
+          <Notification
+            message={success}
+            type="success"
+            onClose={() => setSuccess(null)}
+          />
         )}
 
         <div className="flex-1 flex items-center justify-center px-5 py-10">
@@ -835,9 +896,11 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-[#C9AE6A]">
                 CoreV
               </div>
+
               <h1 className="mt-2 text-3xl font-black tracking-tight">
                 Vereinsplattform
               </h1>
+
               <p className="mt-4 text-sm leading-6 text-black/70 font-medium">
                 Installiere die App direkt auf deinem Handy für schnelleren Zugriff,
                 einen appähnlichen Start und eine sauberere Nutzung im Alltag.
@@ -896,11 +959,19 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
     return (
       <div className="min-h-screen w-full bg-[#F5E9D0]">
         {error && (
-          <Notification message={error} type="error" onClose={() => setError(null)} />
+          <Notification
+            message={error}
+            type="error"
+            onClose={() => setError(null)}
+          />
         )}
 
         {success && (
-          <Notification message={success} type="success" onClose={() => setSuccess(null)} />
+          <Notification
+            message={success}
+            type="success"
+            onClose={() => setSuccess(null)}
+          />
         )}
 
         {toasts.map(t => (
@@ -920,17 +991,44 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
   }
 
   /* =====================================================
-     SECTION 17 - DEFAULT LAYOUT
+     SECTION 17 - FLAGS CONFIG
+  ===================================================== */
+
+  const flagProjectName =
+    activeProject ||
+    (activeView === 'tasks' ? 'Sidebar' : null);
+
+  const showProjectFlags =
+    !!flagProjectName &&
+    (
+      activeView === 'projects' ||
+      activeView === 'tasks' ||
+      activeView === 'project-chat' ||
+      activeView === 'project-coreteam' ||
+      activeView === 'project-shopping' ||
+      activeView === 'project-invoices'
+    );
+
+  /* =====================================================
+     SECTION 18 - DEFAULT LAYOUT
   ===================================================== */
 
   return (
     <div className="min-h-screen flex flex-col">
       {error && (
-        <Notification message={error} type="error" onClose={() => setError(null)} />
+        <Notification
+          message={error}
+          type="error"
+          onClose={() => setError(null)}
+        />
       )}
 
       {success && (
-        <Notification message={success} type="success" onClose={() => setSuccess(null)} />
+        <Notification
+          message={success}
+          type="success"
+          onClose={() => setSuccess(null)}
+        />
       )}
 
       {toasts.map(t => (
@@ -944,8 +1042,18 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
 
       {!user ? (
         isRegistering
-          ? <RegisterForm onBackToLogin={() => setIsRegistering(false)} onSuccess={setSuccess} />
-          : <LoginForm onLoginSuccess={setUser} onShowRegister={() => setIsRegistering(true)} />
+          ? (
+            <RegisterForm
+              onBackToLogin={() => setIsRegistering(false)}
+              onSuccess={setSuccess}
+            />
+          )
+          : (
+            <LoginForm
+              onLoginSuccess={setUser}
+              onShowRegister={() => setIsRegistering(true)}
+            />
+          )
       ) : (
         <>
           <Sidebar
@@ -956,33 +1064,33 @@ const activeProject = localStorage.getItem(LS_ACTIVE_PROJECT);
             userRole={user.role}
           />
 
-<Header
-  user={user}
-  onLogout={() => {
-    api.clearToken();
-    setUser(null);
-    setViewHistory([]);
-    setActiveView('dashboard');
-    localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
-    localStorage.removeItem(LS_ACTIVE_VIEW);
-  }}
-  onOpenMenu={() => setIsSidebarOpen(true)}
-  onGoHome={() => navigateToRoot('dashboard')}
-/>
+          <Header
+            user={user}
+            onLogout={() => {
+              api.clearToken();
+              setUser(null);
+              setViewHistory([]);
+              setActiveView('dashboard');
+              clearProjectContext();
+              localStorage.removeItem(LS_ACTIVE_VIEW);
+            }}
+            onOpenMenu={() => setIsSidebarOpen(true)}
+            onGoHome={() => navigateToRoot('dashboard')}
+          />
 
-{(activeProject || activeView === "tasks") && (
-  <ProjectFlags
-    projectName={activeProject}
-    view={activeView}
-    projects={activeView === "tasks" ? taskProjects : []}
-    onProjectClick={(project) => {
-      localStorage.setItem(LS_ACTIVE_PROJECT, project);
-      navigateTo("tasks");
-    }}
-  />
-)}
+          {showProjectFlags && (
+            <ProjectFlags
+              projectName={flagProjectName}
+              view={activeView}
+              onProjectClick={() => {
+                if (activeProject) {
+                  navigateTo('projects');
+                }
+              }}
+            />
+          )}
 
-<main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+          <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
             {canGoBack && (
               <div className="mb-6">
                 <button
