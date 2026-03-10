@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Poll, ViewType, NotificationSettings } from './types';
 import * as api from './services/api';
-
+import ProjectFlags from './components/ProjectFlags';
 import MembersView from './components/MembersView';
 import TasksView from './components/TasksView';
 import LoginForm from './components/LoginForm';
