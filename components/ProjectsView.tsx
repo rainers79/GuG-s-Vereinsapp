@@ -3547,37 +3547,4 @@ const ProjectsView: React.FC<Props> = ({ onNavigate, userRole }) => {
      SECTION 17 - RENDER
   ===================================================== */
 
-  return (
-    <div className="space-y-10">
-      {error && (
-        <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
-          {error}
-        </div>
-      )}
 
-      <ProjectsWheelMenu
-        wheelItems={wheelDisplayItems}
-        hoveredIndex={hoveredIndex}
-        setHoveredIndex={setHoveredIndex}
-        handleWheelClick={handleWheelClick}
-        wheelColors={wheelColors}
-        center={center}
-        centerRadius={centerRadius}
-        buttonRadius={buttonRadius}
-        labelRadius={labelRadius}
-        polarToCartesian={polarToCartesian}
-        getSliceLift={getSliceLift}
-        centerLines={centerLines}
-        centerSubLabel={centerSubLabel}
-        onCenterClick={handleCenterClick}
-        animationKey={wheelAnimationTick}
-      />
-
-      {renderInlineChatWindow()}
-      {renderChatGroups()}
-      {renderDefaultProjectBlocks()}
-    </div>
-  );
-};
-
-export default ProjectsView;
