@@ -1,497 +1,1065 @@
-// components/CalendarView.tsx
+// services/api.ts
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
-import * as api from '../services/api';
-import EventDetailView from './EventDetailView';
-import EventCreateModal from './EventCreateModal';
-import PollCreate from './PollCreate';
+import {
+  AppRole,
+  User,
+  Poll,
+  WPUserResponse,
+  ApiError,
+  VoteResponse,
+  RegistrationData,
+  CalendarEvent,
+  PosArticle,
+  PosOrder,
+  PosDailyReport,
+  PosCashOpening,
+  Task,
+  ProjectChatGroup,
+  ProjectChatGroupMember,
+  ProjectChatPermission,
+  ProjectChatMessage,
+  ProjectCoreTeamMember,
+  ProjectShoppingItem,
+  CreateProjectShoppingItemPayload,
+  UpdateProjectShoppingItemPayload,
+  ProjectInvoiceItem,
+  ProjectLite,
+  ProjectStatus
+} from '../types';
 
-interface CalendarViewProps {
-  polls: Poll[];
-  user: User;
-  onRefresh: () => void;
-  onOpenPoll: (pollId: number) => void;
-  onProjectContextChange?: (context: {
-    projectName: string | null;
-    moduleLabel: string | null;
-  }) => void;
-}
 
-const LS_ACTIVE_PROJECT_NAME = 'gug_active_project_name';
-const LS_ACTIVE_PROJECT = 'gug_active_project';
+/* =====================================================
+   CONFIG
+===================================================== */
 
-const CalendarView: React.FC<CalendarViewProps> = ({
-  polls,
-  user,
-  onRefresh,
-  onOpenPoll,
-  onProjectContextChange
-}) => {
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+const API_BASE = 'https://api.gug-verein.at/wp-json';
+const TOKEN_KEY = 'gug_token';
+const USER_KEY = 'gug_user_data';
 
-  const [showPollCreate, setShowPollCreate] = useState(false);
-  const [pollEventContext, setPollEventContext] = useState<CalendarEvent | null>(null);
+/* =====================================================
+   ROLE MAPPING
+===================================================== */
 
-  const [createDefaultDate, setCreateDefaultDate] = useState<string>('');
-  const [openEventAfterCreate, setOpenEventAfterCreate] = useState<boolean>(false);
-
-  const canCreate =
-    user.role === AppRole.SUPERADMIN ||
-    user.role === AppRole.VORSTAND;
-
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  useEffect(() => {
-    if (!onProjectContextChange) return;
-
-    const activeProjectId = localStorage.getItem(LS_ACTIVE_PROJECT);
-    const activeProjectName = localStorage.getItem(LS_ACTIVE_PROJECT_NAME);
-
-    if (activeProjectId && activeProjectName) {
-      onProjectContextChange({
-        projectName: activeProjectName,
-        moduleLabel: 'Kalender'
-      });
-      return;
-    }
-
-    onProjectContextChange({
-      projectName: null,
-      moduleLabel: null
-    });
-  }, [onProjectContextChange]);
-
-  const loadEvents = async () => {
-    try {
-      const data = await api.getEvents(() => {});
-      setEvents(data || []);
-    } catch (e) {
-      console.error('Could not load events', e);
-    }
-  };
-
-  const allEventsCombined: CalendarEvent[] = useMemo(() => {
-    const pollEvents: CalendarEvent[] = polls
-      .filter((p) => p.target_date)
-      .map((p) => ({
-        id: `poll-${p.id}`,
-        title: p.question,
-        description: 'Vereinsumfrage aktiv.',
-        date: p.target_date!,
-        type: 'poll',
-        status: 'red',
-        author: p.author_name || 'Vorstand',
-        linkedPollId: p.id,
-        is_private: false
-      }));
-
-    const filteredCustomEvents = events.filter(
-      (e) => !e.is_private || e.author_id === user.id
-    );
-
-    return [...pollEvents, ...filteredCustomEvents];
-  }, [polls, events, user.id]);
-
-  const monthNames = [
-    'Januar',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember'
-  ];
-
-  const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-  const getDaysInMonth = (year: number, month: number) =>
-    new Date(year, month + 1, 0).getDate();
-
-  const getFirstDayOfMonth = (year: number, month: number) => {
-    const d = new Date(year, month, 1).getDay();
-    return d === 0 ? 6 : d - 1;
-  };
-
-  const isSameDay = (d1: Date, d2: Date) => d1.toDateString() === d2.toDateString();
-
-  const getEventsForDay = (date: Date) =>
-    allEventsCombined.filter((e) => isSameDay(new Date(e.date), date));
-
-  const hasEventsInMonth = (year: number, month: number) =>
-    allEventsCombined.some((e) => {
-      const d = new Date(e.date);
-      return d.getFullYear() === year && d.getMonth() === month;
-    });
-
-  const formatDateYYYYMMDD = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
-
-  const openCreateForDate = (dateStr: string, autoOpenAfter = false) => {
-    setCreateDefaultDate(dateStr);
-    setOpenEventAfterCreate(autoOpenAfter);
-    setShowCreateModal(true);
-  };
-
-  const openCreateForSelectedDay = () => {
-    if (!selectedDay) {
-      openCreateForDate('', false);
-      return;
-    }
-
-    openCreateForDate(formatDateYYYYMMDD(selectedDay), true);
-  };
-
-  const renderMonthGrid = (year: number, month: number, isMini = false) => {
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-    const days: (Date | null)[] = [];
-
-    for (let i = 0; i < firstDay; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
-
-    return (
-      <div className="grid grid-cols-7 gap-1 sm:gap-3">
-        {!isMini &&
-          dayNames.map((d) => (
-            <div
-              key={d}
-              className="text-[9px] sm:text-[11px] font-bold text-center text-slate-600 dark:text-slate-300 uppercase tracking-widest mb-2"
-            >
-              {d}
-            </div>
-          ))}
-
-        {days.map((d, idx) => {
-          if (!d) return <div key={`empty-${idx}`} />;
-
-          const dayEvents = getEventsForDay(d);
-          const isToday = isSameDay(new Date(), d);
-          const isSelectedDay = selectedDay ? isSameDay(selectedDay, d) : false;
-
-          return (
-            <div
-              key={idx}
-              onClick={() => {
-                setSelectedDay(d);
-                setViewMode('day');
-              }}
-              className={`h-14 sm:h-24 flex flex-col items-center justify-center rounded-xl transition-all cursor-pointer 
-              bg-white dark:bg-[#1E1E1E]
-              border border-slate-200 dark:border-white/5
-              hover:bg-slate-100 dark:hover:bg-white/10
-              ${isToday ? 'ring-2 ring-[#B5A47A]' : ''}
-              ${isSelectedDay ? 'outline outline-2 outline-[#B5A47A]/60' : ''}`}
-            >
-              <span
-                className={`text-sm sm:text-xl font-black ${
-                  isToday ? 'text-[#B5A47A]' : 'text-slate-900 dark:text-white'
-                }`}
-              >
-                {d.getDate()}
-              </span>
-
-              {dayEvents.slice(0, 2).map((ev) => (
-                <button
-                  key={ev.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedEvent(ev);
-                  }}
-                  className="mt-1 text-[10px] font-bold text-[#B5A47A] hover:underline max-w-[90%] truncate"
-                >
-                  {ev.title}
-                </button>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderDayView = () => {
-    if (!selectedDay) return null;
-
-    const dayEvents = getEventsForDay(selectedDay);
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setViewMode('month')}
-            className="text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
-          >
-            ← zurück
-          </button>
-
-          <div className="text-sm font-black">{selectedDay.toLocaleDateString()}</div>
-
-          {canCreate && (
-            <button
-              onClick={openCreateForSelectedDay}
-              className="bg-[#B5A47A] text-black font-bold px-4 py-2 rounded-lg"
-            >
-              + Termin
-            </button>
-          )}
-        </div>
-
-        <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 border border-slate-200 dark:border-white/5">
-          {dayEvents.length === 0 ? (
-            <p className="text-slate-500 font-bold">Keine Termine an diesem Tag.</p>
-          ) : (
-            <div className="space-y-3">
-              {dayEvents.map((ev) => (
-                <button
-                  key={ev.id}
-                  onClick={() => setSelectedEvent(ev)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:border-[#B5A47A] transition"
-                >
-                  <div className="font-black">{ev.title}</div>
-                  <div className="text-sm text-slate-500 mt-1">
-                    {ev.description || 'Keine Beschreibung'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  if (showPollCreate && pollEventContext) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 pb-20">
-        <button
-          onClick={() => {
-            setShowPollCreate(false);
-            setPollEventContext(null);
-          }}
-          className="mb-6 text-sm font-bold text-slate-500 hover:text-[#B5A47A]"
-        >
-          ← Zurück zum Event
-        </button>
-
-        <PollCreate
-          eventId={pollEventContext.id}
-          defaultDate={
-            typeof pollEventContext.date === 'string'
-              ? pollEventContext.date.split('T')[0]
-              : ''
-          }
-          onSuccess={async () => {
-            await onRefresh();
-            setShowPollCreate(false);
-            setPollEventContext(null);
-          }}
-          onUnauthorized={() => {}}
-        />
-      </div>
-    );
-  }
-
-  if (selectedEvent) {
-    return (
-      <EventDetailView
-        event={selectedEvent}
-        user={user}
-        onBack={() => setSelectedEvent(null)}
-        onCreatePoll={() => {
-          setPollEventContext(selectedEvent);
-          setShowPollCreate(true);
-        }}
-        onOpenPoll={(pollId) => {
-          onOpenPoll(pollId);
-        }}
-        onCreateTasks={(id) => console.log('Create tasks for', id)}
-      />
-    );
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto pb-10 px-4">
-      {showCreateModal && (
-        <EventCreateModal
-          user={user}
-          defaultDate={createDefaultDate}
-          onClose={() => {
-            setShowCreateModal(false);
-            setCreateDefaultDate('');
-            setOpenEventAfterCreate(false);
-          }}
-          onCreated={async (createdEvent) => {
-            await loadEvents();
-            onRefresh();
-
-            setShowCreateModal(false);
-            setCreateDefaultDate('');
-
-            if (openEventAfterCreate && createdEvent) {
-              setSelectedEvent(createdEvent);
-            }
-
-            setOpenEventAfterCreate(false);
-          }}
-        />
-      )}
-
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex bg-slate-200 dark:bg-[#1E1E1E] p-1 rounded-2xl">
-          <button
-            onClick={() => setViewMode('month')}
-            className={`flex-1 py-3 px-6 rounded-xl font-bold ${
-              viewMode === 'month'
-                ? 'bg-[#B5A47A] text-black'
-                : 'text-slate-700 dark:text-white'
-            }`}
-          >
-            Monat
-          </button>
-          <button
-            onClick={() => setViewMode('year')}
-            className={`flex-1 py-3 px-6 rounded-xl font-bold ${
-              viewMode === 'year'
-                ? 'bg-[#B5A47A] text-black'
-                : 'text-slate-700 dark:text-white'
-            }`}
-          >
-            Jahr
-          </button>
-          <button
-            onClick={() => setViewMode('year-list')}
-            className={`flex-1 py-3 px-6 rounded-xl font-bold ${
-              viewMode === 'year-list'
-                ? 'bg-[#B5A47A] text-black'
-                : 'text-slate-700 dark:text-white'
-            }`}
-          >
-            Liste
-          </button>
-        </div>
-
-        {canCreate && viewMode !== 'day' && (
-          <button
-            onClick={() => {
-              openCreateForDate('', false);
-            }}
-            className="bg-[#B5A47A] text-black font-bold px-4 py-3 rounded-xl"
-          >
-            + Termin
-          </button>
-        )}
-      </div>
-
-      {viewMode === 'month' && (
-        <>
-          <div className="flex items-center justify-between mb-6">
-            <button
-              onClick={() =>
-                setCurrentDate(
-                  new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
-                )
-              }
-              className="font-bold text-slate-500 hover:text-[#B5A47A]"
-            >
-              ←
-            </button>
-
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-
-            <button
-              onClick={() =>
-                setCurrentDate(
-                  new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-                )
-              }
-              className="font-bold text-slate-500 hover:text-[#B5A47A]"
-            >
-              →
-            </button>
-          </div>
-
-          {renderMonthGrid(currentDate.getFullYear(), currentDate.getMonth())}
-        </>
-      )}
-
-      {viewMode === 'year' && (
-        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-8">
-          {monthNames.map((name, month) => {
-            const isActive = month === currentDate.getMonth();
-            return (
-              <div
-                key={month}
-                onClick={() => {
-                  setCurrentDate(new Date(currentDate.getFullYear(), month, 1));
-                  setViewMode('month');
-                }}
-                className={`p-8 rounded-2xl cursor-pointer border-2 transition-all
-                ${
-                  hasEventsInMonth(currentDate.getFullYear(), month)
-                    ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'
-                }
-                ${isActive ? 'ring-2 ring-[#B5A47A]' : ''}`}
-              >
-                <h4 className="font-black text-[#B5A47A] mb-4">{name}</h4>
-                {renderMonthGrid(currentDate.getFullYear(), month, true)}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {viewMode === 'year-list' && (
-        <div className="space-y-4">
-          {monthNames.map((name, idx) => {
-            const isActive = idx === currentDate.getMonth();
-            return (
-              <div
-                key={idx}
-                onClick={() => {
-                  setCurrentDate(new Date(currentDate.getFullYear(), idx, 1));
-                  setViewMode('month');
-                }}
-                className={`p-6 rounded-2xl cursor-pointer border transition-all flex justify-between items-center
-                ${
-                  hasEventsInMonth(currentDate.getFullYear(), idx)
-                    ? 'border-[#B5A47A] bg-[#B5A47A]/10'
-                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E1E1E]'
-                }
-                ${isActive ? 'ring-2 ring-[#B5A47A]' : ''}`}
-              >
-                <span className="font-black">{name}</span>
-                {hasEventsInMonth(currentDate.getFullYear(), idx) && (
-                  <span className="text-[#B5A47A] font-bold">Termine</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {viewMode === 'day' && renderDayView()}
-    </div>
-  );
+const mapWPRoleToAppRole = (wpRoles: any = []): AppRole => {
+  const roles = Array.isArray(wpRoles) ? wpRoles : [];
+  if (roles.includes('administrator')) return AppRole.SUPERADMIN;
+  if (roles.includes('vorstand')) return AppRole.VORSTAND;
+  return AppRole.USER;
 };
 
-export default CalendarView;
+/* =====================================================
+   TOKEN HANDLING
+===================================================== */
+
+export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
+
+export const setToken = (token: string): void => {
+  localStorage.setItem(TOKEN_KEY, token);
+};
+
+export const clearToken = (): void => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+};
+
+export const getStoredUser = (): User | null => {
+  const data = localStorage.getItem(USER_KEY);
+  return data ? JSON.parse(data) : null;
+};
+
+/* =====================================================
+   CORE REQUEST
+===================================================== */
+
+export async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  onUnauthorized?: () => void
+): Promise<T> {
+  const token = getToken();
+  const headers = new Headers(options.headers);
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      if (!endpoint.includes('jwt-auth')) {
+        clearToken();
+        if (onUnauthorized) onUnauthorized();
+      }
+
+      const errData = await response.json().catch(() => ({}));
+      throw {
+        message: errData.message || 'Sitzung abgelaufen.',
+        status: response.status
+      } as ApiError;
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      if (response.status === 404) {
+        throw {
+          message: 'Diese Funktion (API Route) ist aktuell nicht verfügbar.',
+          status: 404
+        } as ApiError;
+      }
+
+      throw {
+        message: errorData.message || `Fehler ${response.status}`,
+        status: response.status
+      } as ApiError;
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    if (error?.status) throw error;
+    throw { message: 'Netzwerkfehler. Bitte Verbindung prüfen.' } as ApiError;
+  }
+}
+
+/* =====================================================
+   AUTH
+===================================================== */
+
+export async function login(username: string, password: string): Promise<User> {
+  const data = await apiRequest<WPUserResponse>('/jwt-auth/v1/token', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+
+  setToken(data.token);
+  const user = await getCurrentUser(() => {});
+  return user;
+}
+
+export async function register(regData: RegistrationData): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>('/gug/v1/register', {
+    method: 'POST',
+    body: JSON.stringify(regData)
+  });
+}
+
+export async function verifyEmail(uid: number, token: string): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/verify-email?uid=${uid}&token=${encodeURIComponent(token)}`,
+    { method: 'GET' }
+  );
+}
+
+export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {
+  const wpUser = await apiRequest<any>('/gug/v1/me', {}, onUnauthorized);
+
+  const user: User = {
+    id: wpUser.id || 0,
+    email: wpUser.user_email || wpUser.email || '',
+    displayName: wpUser.display_name || wpUser.name || 'Mitglied',
+    username: wpUser.user_login || wpUser.username || '',
+    role: mapWPRoleToAppRole(wpUser.roles)
+  };
+
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  return user;
+}
+
+/* =====================================================
+   PROJECTS
+===================================================== */
+
+export async function getProjects(
+  onUnauthorized: () => void,
+  status: ProjectStatus | 'all' = 'active'
+): Promise<ProjectLite[]> {
+  const query = `?status=${encodeURIComponent(status)}`;
+
+  return await apiRequest<ProjectLite[]>(
+    `/gug/v1/projects${query}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProject(
+  payload: {
+    title: string;
+    description?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  },
+  onUnauthorized: () => void
+): Promise<{ success?: boolean; id?: number | string; project_id?: number | string }> {
+  return await apiRequest<{ success?: boolean; id?: number | string; project_id?: number | string }>(
+    '/gug/v1/projects',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function archiveProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/archive`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+export async function restoreProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/restore`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProject(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/projects/${projectId}/delete`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   CHAT
+===================================================== */
+
+export interface ChatMessage {
+  id: number;
+  user_id: number;
+  display_name: string;
+  message: string;
+  created_at: string;
+  profile_image_url?: string;
+}
+
+export async function getChatMessages(
+  onUnauthorized: () => void
+): Promise<ChatMessage[]> {
+  return await apiRequest<ChatMessage[]>(
+    '/gug/v1/chat',
+    {},
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   ÄLTERE CHAT NACHRICHTEN LADEN
+===================================================== */
+
+export async function getChatMessagesBefore(
+  beforeId: number,
+  onUnauthorized: () => void
+): Promise<ChatMessage[]> {
+  return await apiRequest<ChatMessage[]>(
+    `/gug/v1/chat?before=${beforeId}`,
+    {},
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   SEND CHAT MESSAGE
+===================================================== */
+
+export async function sendChatMessage(
+  message: string,
+  onUnauthorized: () => void
+): Promise<{ success: boolean }> {
+  return await apiRequest<{ success: boolean }>(
+    '/gug/v1/chat',
+    {
+      method: 'POST',
+      body: JSON.stringify({ message })
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT SHOPPING
+===================================================== */
+
+export async function getProjectShoppingItems(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectShoppingItem[]> {
+  return await apiRequest<ProjectShoppingItem[]>(
+    `/gug/v1/project-shopping?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProjectShoppingItem(
+  payload: CreateProjectShoppingItemPayload,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-shopping',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updateProjectShoppingItem(
+  itemId: number,
+  payload: UpdateProjectShoppingItemPayload,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-shopping/${itemId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProjectShoppingItem(
+  itemId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-shopping/${itemId}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
+export async function createTaskFromProjectShoppingItem(
+  itemId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; task_id: number; message: string }> {
+  return await apiRequest<{ success: boolean; task_id: number; message: string }>(
+    `/gug/v1/project-shopping/${itemId}/create-task`,
+    {
+      method: 'POST'
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT INVOICES
+===================================================== */
+
+export async function getProjectInvoices(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectInvoiceItem[]> {
+  return await apiRequest<ProjectInvoiceItem[]>(
+    `/gug/v1/project-invoices?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function uploadProjectInvoice(
+  payload: {
+    project_id: number;
+    file: File;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  id: number;
+  attachment_id: number;
+  file_url: string;
+}> {
+  const formData = new FormData();
+  formData.append('project_id', String(payload.project_id));
+  formData.append('file', payload.file);
+
+  return await apiRequest<{
+    success: boolean;
+    id: number;
+    attachment_id: number;
+    file_url: string;
+  }>(
+    '/gug/v1/project-invoices',
+    {
+      method: 'POST',
+      body: formData
+    },
+    onUnauthorized
+  );
+}
+
+export async function deleteProjectInvoice(
+  invoiceId: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-invoices/${invoiceId}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT CHAT
+===================================================== */
+
+export async function getProjectChatGroups(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatGroup[]> {
+  return await apiRequest<ProjectChatGroup[]>(
+    `/gug/v1/project-chat/groups?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createProjectChatGroup(
+  payload: {
+    project_id: number;
+    name: string;
+    can_write?: boolean;
+    can_upload_images?: boolean;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-chat/groups',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updateProjectChatGroup(
+  groupId: number,
+  payload: Partial<{
+    project_id: number;
+    name: string;
+    can_write: boolean;
+    can_upload_images: boolean;
+  }>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/project-chat/groups/${groupId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatGroupMembers(
+  groupId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatGroupMember[]> {
+  return await apiRequest<ProjectChatGroupMember[]>(
+    `/gug/v1/project-chat/group-members?group_id=${encodeURIComponent(String(groupId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function saveProjectChatGroupMembers(
+  payload: {
+    group_id: number;
+    members: number[];
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/project-chat/group-members',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatPermissions(
+  groupId: number,
+  onUnauthorized: () => void
+): Promise<ProjectChatPermission[]> {
+  return await apiRequest<ProjectChatPermission[]>(
+    `/gug/v1/project-chat/permissions?group_id=${encodeURIComponent(String(groupId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function saveProjectChatPermission(
+  payload: {
+    group_id: number;
+    user_id: number;
+    can_write_override?: boolean | null;
+    can_upload_images_override?: boolean | null;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/project-chat/permissions',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getProjectChatMessages(
+  params: {
+    project_id: number;
+    group_id: number;
+    before?: number;
+    limit?: number;
+  },
+  onUnauthorized: () => void
+): Promise<ProjectChatMessage[]> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`,
+    `group_id=${encodeURIComponent(String(params.group_id))}`
+  ];
+
+  if (params.before && params.before > 0) {
+    q.push(`before=${encodeURIComponent(String(params.before))}`);
+  }
+
+  if (params.limit && params.limit > 0) {
+    q.push(`limit=${encodeURIComponent(String(params.limit))}`);
+  }
+
+  return await apiRequest<ProjectChatMessage[]>(
+    `/gug/v1/project-chat/messages?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function sendProjectChatMessage(
+  payload: {
+    project_id: number;
+    group_id: number;
+    message: string;
+    message_type?: 'text' | 'image';
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/project-chat/messages',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function uploadProjectChatImage(
+  payload: {
+    project_id: number;
+    group_id: number;
+    file: File;
+    message?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  id: number;
+  attachment_id: number;
+  attachment_url: string;
+}> {
+  const formData = new FormData();
+  formData.append('project_id', String(payload.project_id));
+  formData.append('group_id', String(payload.group_id));
+  formData.append('file', payload.file);
+
+  if (payload.message && payload.message.trim()) {
+    formData.append('message', payload.message.trim());
+  }
+
+  return await apiRequest<{
+    success: boolean;
+    id: number;
+    attachment_id: number;
+    attachment_url: string;
+  }>(
+    '/gug/v1/project-chat/upload',
+    {
+      method: 'POST',
+      body: formData
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   PROJECT CORETEAM
+===================================================== */
+
+export async function getProjectCoreTeamMembers(
+  projectId: number,
+  onUnauthorized: () => void
+): Promise<ProjectCoreTeamMember[]> {
+  return await apiRequest<ProjectCoreTeamMember[]>(
+    `/gug/v1/project-coreteam?project_id=${encodeURIComponent(String(projectId))}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function saveProjectCoreTeamMembers(
+  payload: {
+    project_id: number;
+    members: number[];
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/project-coreteam',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   POLLS
+===================================================== */
+
+export async function getPolls(
+  onUnauthorized: () => void
+): Promise<Poll[]> {
+  const projectId = localStorage.getItem('gug_active_project');
+
+  let endpoint = '/gug/v1/polls';
+
+  if (projectId) {
+    endpoint += '?project_id=' + projectId;
+  }
+
+  return await apiRequest<Poll[]>(
+    endpoint,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createPoll(payload: any, onUnauth: () => void): Promise<Poll> {
+  return await apiRequest<Poll>(
+    '/gug/v1/polls',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauth
+  );
+}
+
+export async function deletePoll(pollId: number, onUnauth: () => void): Promise<any> {
+  return await apiRequest<any>(
+    `/gug/v1/polls/${pollId}`,
+    { method: 'DELETE' },
+    onUnauth
+  );
+}
+
+export async function votePoll(pollId: number, optionIds: string[], onUnauth: () => void): Promise<VoteResponse> {
+  return await apiRequest<VoteResponse>(
+    `/gug/v1/polls/${pollId}/vote`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ option_ids: optionIds })
+    },
+    onUnauth
+  );
+}
+
+/* =====================================================
+   EVENTS
+===================================================== */
+
+export async function getEvents(onUnauthorized: () => void): Promise<CalendarEvent[]> {
+  return await apiRequest<CalendarEvent[]>('/gug/v1/events', {}, onUnauthorized)
+    .catch(() => []);
+}
+
+export async function createEvent(event: Partial<CalendarEvent>, onUnauth: () => void): Promise<CalendarEvent> {
+  return await apiRequest<CalendarEvent>(
+    '/gug/v1/events',
+    {
+      method: 'POST',
+      body: JSON.stringify(event)
+    },
+    onUnauth
+  );
+}
+
+export async function deleteEvent(
+  eventId: string | number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message?: string }> {
+  return await apiRequest<{ success: boolean; message?: string }>(
+    `/gug/v1/events/${eventId}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   MEMBERS
+===================================================== */
+
+export async function getMembers(onUnauthorized: () => void) {
+  return await apiRequest<any[]>(
+    '/gug/v1/members',
+    {},
+    onUnauthorized
+  );
+}
+
+export async function getMember(id: number, onUnauthorized: () => void) {
+  return await apiRequest<any>(
+    `/gug/v1/members/${id}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function updateMember(id: number, payload: any, onUnauthorized: () => void) {
+  return await apiRequest<any>(
+    `/gug/v1/members/${id}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   TASKS
+===================================================== */
+
+export async function getTasks(
+  onUnauthorized: () => void,
+  params: {
+    project_id?: number;
+    scope?: 'project' | 'personal';
+  } = {}
+): Promise<Task[]> {
+  const q: string[] = [];
+
+  if (params.project_id && params.project_id > 0) {
+    q.push(`project_id=${encodeURIComponent(String(params.project_id))}`);
+  }
+
+  if (params.scope) {
+    q.push(`scope=${encodeURIComponent(params.scope)}`);
+  }
+
+  const query = q.length ? `?${q.join('&')}` : '';
+
+  return await apiRequest<Task[]>(
+    `/gug/v1/tasks${query}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createTask(
+  payload: Partial<Task>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/tasks',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updateTask(
+  taskId: number,
+  payload: Partial<Task>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message?: string }> {
+  return await apiRequest<{ success: boolean; message?: string }>(
+    `/gug/v1/tasks/${taskId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+/* =====================================================
+   POS
+===================================================== */
+
+export async function getPosArticles(
+  params: {
+    project_id: number;
+    category?: 'food' | 'drink' | 'gug';
+    all?: boolean;
+  },
+  onUnauthorized: () => void
+): Promise<PosArticle[]> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.category) q.push(`category=${encodeURIComponent(params.category)}`);
+  if (params.all) q.push('all=1');
+
+  return await apiRequest<PosArticle[]>(
+    `/gug/v1/pos/articles?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createPosArticle(
+  payload: {
+    project_id: number;
+    name: string;
+    category: 'food' | 'drink' | 'gug';
+    serving_label?: string;
+    price_cents: number;
+    is_active?: boolean;
+    sort_order?: number;
+    bg_color?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; id: number }> {
+  return await apiRequest<{ success: boolean; id: number }>(
+    '/gug/v1/pos/articles',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function updatePosArticle(
+  id: number,
+  payload: Partial<{
+    project_id: number;
+    name: string;
+    category: 'food' | 'drink' | 'gug';
+    serving_label: string;
+    price_cents: number;
+    is_active: boolean;
+    sort_order: number;
+    bg_color: string;
+  }>,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/articles/${id}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function deletePosArticle(
+  id: number,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/articles/${id}`,
+    {
+      method: 'DELETE'
+    },
+    onUnauthorized
+  );
+}
+
+export async function createPosOrder(
+  payload: {
+    project_id: number;
+    items: { article_id: number; qty: number }[];
+    received_cents?: number;
+    waiter_user_id?: number;
+    note?: string;
+    local_uuid?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  duplicate?: boolean;
+  order_id: number;
+  order_number: string;
+  waiter_user_id: number;
+  total_cents: number;
+  received_cents: number;
+  change_cents: number;
+  status: 'paid' | 'canceled';
+}> {
+  return await apiRequest<{
+    success: boolean;
+    duplicate?: boolean;
+    order_id: number;
+    order_number: string;
+    waiter_user_id: number;
+    total_cents: number;
+    received_cents: number;
+    change_cents: number;
+    status: 'paid' | 'canceled';
+  }>(
+    '/gug/v1/pos/orders',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getPosOrders(
+  params: {
+    project_id: number;
+    date?: string;
+    waiter_user_id?: number;
+    status?: 'paid' | 'canceled' | 'all';
+  },
+  onUnauthorized: () => void
+): Promise<PosOrder[]> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
+  if (params.waiter_user_id) q.push(`waiter_user_id=${encodeURIComponent(String(params.waiter_user_id))}`);
+  if (params.status) q.push(`status=${encodeURIComponent(params.status)}`);
+
+  return await apiRequest<PosOrder[]>(
+    `/gug/v1/pos/orders?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function cancelPosOrder(
+  orderId: number,
+  payload: {
+    cancel_reason?: string;
+  } = {},
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    `/gug/v1/pos/orders/${orderId}/cancel`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getPosCashOpening(
+  params: {
+    project_id: number;
+    date?: string;
+  },
+  onUnauthorized: () => void
+): Promise<PosCashOpening> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
+
+  return await apiRequest<PosCashOpening>(
+    `/gug/v1/pos/cash-opening?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
+
+export async function savePosCashOpening(
+  payload: {
+    project_id: number;
+    opening_cents: number;
+    date?: string;
+  },
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message: string }> {
+  return await apiRequest<{ success: boolean; message: string }>(
+    '/gug/v1/pos/cash-opening',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getPosDailyReport(
+  params: {
+    project_id: number;
+    date?: string;
+  },
+  onUnauthorized: () => void
+): Promise<PosDailyReport> {
+  const q: string[] = [
+    `project_id=${encodeURIComponent(String(params.project_id))}`
+  ];
+
+  if (params.date) q.push(`date=${encodeURIComponent(params.date)}`);
+
+  return await apiRequest<PosDailyReport>(
+    `/gug/v1/pos/reports/daily?${q.join('&')}`,
+    {},
+    onUnauthorized
+  );
+}
