@@ -53,7 +53,7 @@ const ProjectFlags: React.FC<Props> = ({
             fontWeight: 800,
             borderRadius: '0 10px 10px 0',
             minHeight: '110px',
-            width: '40px',
+            width: '20px',
             transform: 'translateX(6px) rotate(180deg)'
           }}
           onMouseEnter={(e) =>
