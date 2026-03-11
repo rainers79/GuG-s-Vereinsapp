@@ -518,47 +518,6 @@ const App: React.FC = () => {
     api.setActiveOrganizationId(preferredOrganizationId);
   }, []);
 
-  const refreshOrganizations = useCallback(async () => {
-    const rows = await api.getOrganizations(handleUnauthorized);
-
-    setOrganizations(rows);
-
-    const currentStoredUser = api.getStoredUser();
-
-    if (currentStoredUser) {
-      const nextActiveOrganizationId =
-        api.getActiveOrganizationId() ||
-        (rows.length > 0 && rows[0]?.id ? Number(rows[0].id) : null);
-
-      const nextUser: User = {
-        ...currentStoredUser,
-        organizations: rows,
-        activeOrganizationId: nextActiveOrganizationId
-      };
-
-      localStorage.setItem('gug_user_data', JSON.stringify(nextUser));
-      setUser(nextUser);
-    }
-
-    if (rows.length === 0) {
-      setActiveOrganizationIdState(null);
-      api.clearActiveOrganizationId();
-      return;
-    }
-
-    const currentActiveId = api.getActiveOrganizationId();
-    const exists = rows.some(org => org.id === currentActiveId);
-
-    if (currentActiveId && exists) {
-      setActiveOrganizationIdState(currentActiveId);
-      return;
-    }
-
-    const fallbackId = Number(rows[0].id);
-    setActiveOrganizationIdState(fallbackId);
-    api.setActiveOrganizationId(fallbackId);
-  }, [handleUnauthorized]);
-
   const handleActiveOrganizationChange = useCallback((organizationId: number | null) => {
     setActiveOrganizationIdState(organizationId);
     api.setActiveOrganizationId(organizationId);
@@ -749,6 +708,47 @@ const App: React.FC = () => {
     clearProjectContext();
     localStorage.removeItem(LS_ACTIVE_VIEW);
   }, [applyUserOrganizationContext, clearProjectContext]);
+
+  const refreshOrganizations = useCallback(async () => {
+    const rows = await api.getOrganizations(handleUnauthorized);
+
+    setOrganizations(rows);
+
+    const currentStoredUser = api.getStoredUser();
+
+    if (currentStoredUser) {
+      const nextActiveOrganizationId =
+        api.getActiveOrganizationId() ||
+        (rows.length > 0 && rows[0]?.id ? Number(rows[0].id) : null);
+
+      const nextUser: User = {
+        ...currentStoredUser,
+        organizations: rows,
+        activeOrganizationId: nextActiveOrganizationId
+      };
+
+      localStorage.setItem('gug_user_data', JSON.stringify(nextUser));
+      setUser(nextUser);
+    }
+
+    if (rows.length === 0) {
+      setActiveOrganizationIdState(null);
+      api.clearActiveOrganizationId();
+      return;
+    }
+
+    const currentActiveId = api.getActiveOrganizationId();
+    const exists = rows.some(org => org.id === currentActiveId);
+
+    if (currentActiveId && exists) {
+      setActiveOrganizationIdState(currentActiveId);
+      return;
+    }
+
+    const fallbackId = Number(rows[0].id);
+    setActiveOrganizationIdState(fallbackId);
+    api.setActiveOrganizationId(fallbackId);
+  }, [handleUnauthorized]);
 
   const fetchAppData = useCallback(async () => {
     try {
@@ -1050,22 +1050,13 @@ const App: React.FC = () => {
       case 'organization-invite':
       case 'organization-join':
         return (
-          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-            <div className="text-lg font-bold">Community-Flow in Vorbereitung</div>
-            <div className="mt-3 text-sm text-black/70">
-              Die technische Basis ist aktiv. Nächster Schritt ist die eigene View
-              für Community anlegen, Einladungslink erzeugen und Beitritt per Einladung.
-            </div>
-            <div className="mt-4 text-sm text-black/70">
-              Aktive Community:{' '}
-              <span className="font-semibold">
-                {organizations.find(org => org.id === activeOrganizationId)?.name || 'Keine'}
-              </span>
-            </div>
-            <div className="mt-2 text-sm text-black/70">
-              Zugeordnete Communities: <span className="font-semibold">{organizations.length}</span>
-            </div>
-          </div>
+          <OrganizationsView
+            organizations={organizations}
+            activeOrganizationId={activeOrganizationId}
+            onActiveOrganizationChange={handleActiveOrganizationChange}
+            onOrganizationsRefresh={refreshOrganizations}
+            onUnauthorized={handleUnauthorized}
+          />
         );
 
       default:
