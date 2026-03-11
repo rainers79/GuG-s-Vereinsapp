@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { NotificationSettings } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { NotificationSettings, OrganizationWithMembership } from '../types';
+import * as api from '../services/api';
 
 interface SettingsViewProps {
   theme: 'light' | 'dark';
   onThemeChange: (theme: 'light' | 'dark') => void;
   notificationSettings: NotificationSettings;
   setNotificationSettings: React.Dispatch<React.SetStateAction<NotificationSettings>>;
+  onUnauthorized?: () => void;
+  onOrganizationChanged?: () => void | Promise<void>;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({
   theme,
   onThemeChange,
   notificationSettings,
-  setNotificationSettings
+  setNotificationSettings,
+  onUnauthorized,
+  onOrganizationChanged
 }) => {
 
   /* =====================================================
@@ -39,6 +44,30 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     })
   );
 
+  /* =====================================================
+     ORGANIZATION STATE
+  ===================================================== */
+
+  const [organizations, setOrganizations] = useState<OrganizationWithMembership[]>([]);
+  const [orgLoading, setOrgLoading] = useState(false);
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [orgSuccess, setOrgSuccess] = useState<string | null>(null);
+
+  const [newOrganizationName, setNewOrganizationName] = useState('');
+  const [newOrganizationDescription, setNewOrganizationDescription] = useState('');
+
+  const [inviteRole, setInviteRole] = useState<'vorstand' | 'admin' | 'member' | 'guest'>('member');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [organizationCreating, setOrganizationCreating] = useState(false);
+
+  const activeOrganizationId = api.getActiveOrganizationId();
+
+  const activeOrganization = useMemo(() => {
+    return organizations.find((org) => org.id === activeOrganizationId) || null;
+  }, [organizations, activeOrganizationId]);
+
   useEffect(() => {
     localStorage.setItem('gug_dnd_active', String(dndActive));
     localStorage.setItem('gug_dnd_start', dndStart);
@@ -59,6 +88,39 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOrganizations = async () => {
+      if (!api.getToken()) return;
+
+      try {
+        setOrgLoading(true);
+        setOrgError(null);
+
+        const rows = await api.getOrganizations(onUnauthorized || (() => {}));
+
+        if (!cancelled) {
+          setOrganizations(rows);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setOrgError(err?.message || 'Communitys konnten nicht geladen werden.');
+        }
+      } finally {
+        if (!cancelled) {
+          setOrgLoading(false);
+        }
+      }
+    };
+
+    loadOrganizations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onUnauthorized]);
+
   const isNowDnd = () => {
     if (!dndActive) return false;
 
@@ -68,6 +130,114 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       return now >= dndStart && now <= dndEnd;
     } else {
       return now >= dndStart || now <= dndEnd;
+    }
+  };
+
+  const refreshOrganizations = async () => {
+    const rows = await api.getOrganizations(onUnauthorized || (() => {}));
+    setOrganizations(rows);
+  };
+
+  const handleCreateOrganization = async () => {
+    const name = newOrganizationName.trim();
+    const description = newOrganizationDescription.trim();
+
+    if (!name) {
+      setOrgError('Name der Community fehlt.');
+      return;
+    }
+
+    try {
+      setOrganizationCreating(true);
+      setOrgError(null);
+      setOrgSuccess(null);
+      setInviteLink('');
+
+      const created = await api.createOrganization(
+        {
+          name,
+          description
+        },
+        onUnauthorized || (() => {})
+      );
+
+      if (created?.id) {
+        api.setActiveOrganizationId(created.id);
+      }
+
+      await refreshOrganizations();
+
+      if (onOrganizationChanged) {
+        await onOrganizationChanged();
+      }
+
+      setNewOrganizationName('');
+      setNewOrganizationDescription('');
+      setOrgSuccess('Community wurde erstellt und als aktiv gesetzt.');
+    } catch (err: any) {
+      setOrgError(err?.message || 'Community konnte nicht erstellt werden.');
+    } finally {
+      setOrganizationCreating(false);
+    }
+  };
+
+  const handleSetActiveOrganization = async (organizationId: number) => {
+    try {
+      setOrgError(null);
+      setOrgSuccess(null);
+
+      api.setActiveOrganizationId(organizationId);
+
+      if (onOrganizationChanged) {
+        await onOrganizationChanged();
+      }
+
+      setOrgSuccess('Aktive Community wurde gewechselt.');
+    } catch (err: any) {
+      setOrgError(err?.message || 'Community konnte nicht gewechselt werden.');
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!activeOrganization?.id) {
+      setOrgError('Keine aktive Community ausgewählt.');
+      return;
+    }
+
+    try {
+      setInviteCreating(true);
+      setOrgError(null);
+      setOrgSuccess(null);
+      setInviteLink('');
+
+      const response = await api.createOrganizationInvite(
+        {
+          organization_id: activeOrganization.id,
+          role: inviteRole,
+          email: inviteEmail.trim() || undefined
+        },
+        onUnauthorized || (() => {})
+      );
+
+      const createdLink = response?.invite_link || '';
+
+      setInviteLink(createdLink);
+      setOrgSuccess('Einladungslink wurde erstellt.');
+    } catch (err: any) {
+      setOrgError(err?.message || 'Einladung konnte nicht erstellt werden.');
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setOrgSuccess('Einladungslink wurde in die Zwischenablage kopiert.');
+    } catch {
+      setOrgError('Einladungslink konnte nicht kopiert werden.');
     }
   };
 
@@ -134,6 +304,203 @@ const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       <div className="grid gap-6">
+
+        {/* COMMUNITY */}
+        <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-2xl p-8 shadow-xl border transition-colors duration-500`}>
+          <h3 className="text-lg font-bold uppercase mb-6">
+            Community & Einladungen
+          </h3>
+
+          {(orgError || orgSuccess) && (
+            <div className="mb-6 space-y-2">
+              {orgError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {orgError}
+                </div>
+              )}
+              {orgSuccess && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                  {orgSuccess}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-2">
+
+            <div className="rounded-2xl border border-black/10 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.2em] opacity-50">
+                Aktive Community
+              </div>
+
+              <div className="mt-3 text-xl font-black">
+                {activeOrganization?.name || 'Keine aktive Community'}
+              </div>
+
+              <div className="mt-2 text-sm opacity-70">
+                {activeOrganization?.description || 'Noch keine Beschreibung vorhanden.'}
+              </div>
+
+              <div className="mt-4 text-xs font-bold uppercase tracking-wider opacity-50">
+                Zugeordnete Communitys: {organizations.length}
+              </div>
+
+              {orgLoading ? (
+                <div className="mt-4 text-sm font-semibold opacity-60">
+                  Communitys werden geladen...
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {organizations.map((org) => {
+                    const isActive = org.id === activeOrganizationId;
+
+                    return (
+                      <div
+                        key={org.id}
+                        className={`rounded-xl border px-4 py-3 ${
+                          isActive
+                            ? 'border-[#B5A47A] bg-[#B5A47A]/10'
+                            : 'border-black/10'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-black uppercase tracking-wide">
+                              {org.name}
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold uppercase tracking-wider opacity-50">
+                              Rolle: {org.membership_role || 'member'}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSetActiveOrganization(org.id)}
+                            disabled={isActive}
+                            className={`rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wide ${
+                              isActive
+                                ? 'bg-slate-200 text-slate-500 cursor-default'
+                                : 'bg-[#B5A47A] text-black'
+                            }`}
+                          >
+                            {isActive ? 'Aktiv' : 'Aktiv setzen'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-black/10 p-5">
+              <div className="text-xs font-black uppercase tracking-[0.2em] opacity-50">
+                Neue Community anlegen
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <input
+                  type="text"
+                  value={newOrganizationName}
+                  onChange={(e) => setNewOrganizationName(e.target.value)}
+                  placeholder="Name der Community"
+                  className="w-full rounded-xl border-2 px-4 py-3 font-semibold focus:border-[#B5A47A] outline-none"
+                />
+
+                <textarea
+                  value={newOrganizationDescription}
+                  onChange={(e) => setNewOrganizationDescription(e.target.value)}
+                  placeholder="Kurze Beschreibung"
+                  rows={4}
+                  className="w-full rounded-xl border-2 px-4 py-3 font-semibold focus:border-[#B5A47A] outline-none resize-none"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleCreateOrganization}
+                  disabled={organizationCreating}
+                  className="w-full rounded-xl bg-[#B5A47A] px-4 py-3 text-sm font-black uppercase tracking-wide text-black disabled:opacity-50"
+                >
+                  {organizationCreating ? 'Community wird erstellt...' : 'Community erstellen'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-black/10 p-5">
+            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-50">
+              Einladungslink erzeugen
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[180px_1fr_auto]">
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as 'vorstand' | 'admin' | 'member' | 'guest')}
+                className="rounded-xl border-2 px-4 py-3 font-semibold focus:border-[#B5A47A] outline-none"
+              >
+                <option value="member">Mitglied</option>
+                <option value="guest">Gast</option>
+                <option value="admin">Admin</option>
+                <option value="vorstand">Vorstand</option>
+              </select>
+
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Optionale E-Mail-Adresse"
+                className="w-full rounded-xl border-2 px-4 py-3 font-semibold focus:border-[#B5A47A] outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={handleCreateInvite}
+                disabled={inviteCreating || !activeOrganization?.id}
+                className="rounded-xl bg-black px-4 py-3 text-sm font-black uppercase tracking-wide text-white disabled:opacity-50"
+              >
+                {inviteCreating ? 'Erzeuge...' : 'Link erstellen'}
+              </button>
+            </div>
+
+            {inviteLink && (
+              <div className="mt-4 rounded-2xl border border-[#B5A47A] bg-[#B5A47A]/10 p-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60">
+                  Einladungslink
+                </div>
+
+                <div className="mt-2 break-all text-sm font-semibold">
+                  {inviteLink}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCopyInvite}
+                    className="rounded-xl bg-[#B5A47A] px-4 py-3 text-[11px] font-black uppercase tracking-wide text-black"
+                  >
+                    Link kopieren
+                  </button>
+
+                  <a
+                    href={`mailto:?subject=Einladung zur Community&body=${encodeURIComponent(inviteLink)}`}
+                    className="rounded-xl bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-black"
+                  >
+                    Per Mail teilen
+                  </a>
+
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(inviteLink)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-black"
+                  >
+                    Per WhatsApp teilen
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* APPEARANCE */}
         <div className={`${theme === 'dark' ? 'bg-[#1E1E1E] border-white/5' : 'bg-white border-slate-100'} rounded-2xl p-8 shadow-xl border transition-colors duration-500`}>
@@ -237,6 +604,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               />
             </div>
           )}
+
+          <div className="mt-4 text-[11px] font-bold uppercase tracking-wider opacity-50">
+            Status jetzt: {isNowDnd() ? 'DND aktiv' : 'DND inaktiv'}
+          </div>
         </div>
 
         {/* FOOTER INFO */}
