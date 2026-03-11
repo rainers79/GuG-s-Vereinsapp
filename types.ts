@@ -5,6 +5,34 @@ export enum AppRole {
   VISITOR = 'VISITOR'
 }
 
+export type OrganizationRole =
+  | 'owner'
+  | 'vorstand'
+  | 'admin'
+  | 'member'
+  | 'guest';
+
+export type OrganizationStatus =
+  | 'active'
+  | 'inactive'
+  | 'archived';
+
+export type OrganizationPlan =
+  | 'basic'
+  | 'premium'
+  | 'enterprise';
+
+export type OrganizationModuleKey =
+  | 'polls'
+  | 'calendar'
+  | 'tasks'
+  | 'projects'
+  | 'project_chat'
+  | 'coreteam'
+  | 'shopping'
+  | 'invoices'
+  | 'pos';
+
 export type ViewType =
   | 'dashboard'
   | 'projects'
@@ -18,13 +46,90 @@ export type ViewType =
   | 'project-chat'
   | 'project-coreteam'
   | 'project-shopping'
-  | 'project-invoices';
+  | 'project-invoices'
+  | 'organizations'
+  | 'organization-create'
+  | 'organization-invite'
+  | 'organization-join';
 
 export type CalendarViewMode = 'month' | 'year' | 'year-list' | 'day';
 export type ProjectStatus = 'active' | 'archived' | 'deleted';
 
+export interface Organization {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  status: OrganizationStatus | string;
+  plan: OrganizationPlan | string;
+  owner_user_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrganizationMembership {
+  id?: number;
+  organization_id: number;
+  user_id: number;
+  role: OrganizationRole | string;
+  status: string;
+  invited_by?: number | null;
+  joined_at?: string | null;
+  created_at?: string;
+}
+
+export interface OrganizationWithMembership extends Organization {
+  membership_role?: OrganizationRole | string;
+  membership_status?: string;
+  joined_at?: string | null;
+}
+
+export interface OrganizationModule {
+  id?: number;
+  organization_id: number;
+  module_key: OrganizationModuleKey | string;
+  is_enabled: number | boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrganizationInvite {
+  id?: number;
+  organization_id: number;
+  email?: string;
+  invite_token: string;
+  role: OrganizationRole | string;
+  status?: string;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  created_at?: string;
+}
+
+export interface CreateOrganizationPayload {
+  name: string;
+  slug?: string;
+  description?: string;
+  logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+}
+
+export interface CreateOrganizationInvitePayload {
+  organization_id: number;
+  role: OrganizationRole;
+  email?: string;
+}
+
+export interface AcceptOrganizationInvitePayload {
+  token: string;
+}
+
 export interface CalendarEvent {
   id: string;
+  organization_id?: number;
   title: string;
   description: string;
   date: string;
@@ -49,6 +154,8 @@ export interface User {
   displayName: string;
   username: string;
   role: AppRole;
+  organizations?: OrganizationWithMembership[];
+  activeOrganizationId?: number | null;
 }
 
 export interface RegistrationData {
@@ -68,6 +175,7 @@ export interface PollOption {
 
 export interface Poll {
   id: number;
+  organization_id?: number;
   question: string;
   options: PollOption[];
   created_at: string;
@@ -111,6 +219,7 @@ export interface Member {
 
 export interface ProjectLite {
   id: number;
+  organization_id?: number;
   title?: string;
   description?: string;
   created_at?: string;
@@ -126,6 +235,7 @@ export interface ProjectLite {
 
 export interface Task {
   id: number;
+  organization_id?: number;
   event_id?: number | null;
   poll_id?: number | null;
   project_id?: number | null;
