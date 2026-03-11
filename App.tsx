@@ -24,6 +24,7 @@ import ProjectCoreTeamView from './components/ProjectCoreTeamView';
 import ProjectShoppingView from './components/ProjectShoppingView';
 import ProjectInvoicesView from './components/ProjectInvoicesView';
 import ProjectFlags from './components/ProjectFlags';
+import OrganizationsView from './components/OrganizationsView';
 import PosView from './components/pos/PosView';
 import PosAdminView from './components/pos/PosAdminView';
 
@@ -515,6 +516,64 @@ const App: React.FC = () => {
 
     setActiveOrganizationIdState(preferredOrganizationId);
     api.setActiveOrganizationId(preferredOrganizationId);
+  }, []);
+
+  const refreshOrganizations = useCallback(async () => {
+    const rows = await api.getOrganizations(handleUnauthorized);
+
+    setOrganizations(rows);
+
+    const currentStoredUser = api.getStoredUser();
+
+    if (currentStoredUser) {
+      const nextActiveOrganizationId =
+        api.getActiveOrganizationId() ||
+        (rows.length > 0 && rows[0]?.id ? Number(rows[0].id) : null);
+
+      const nextUser: User = {
+        ...currentStoredUser,
+        organizations: rows,
+        activeOrganizationId: nextActiveOrganizationId
+      };
+
+      localStorage.setItem('gug_user_data', JSON.stringify(nextUser));
+      setUser(nextUser);
+    }
+
+    if (rows.length === 0) {
+      setActiveOrganizationIdState(null);
+      api.clearActiveOrganizationId();
+      return;
+    }
+
+    const currentActiveId = api.getActiveOrganizationId();
+    const exists = rows.some(org => org.id === currentActiveId);
+
+    if (currentActiveId && exists) {
+      setActiveOrganizationIdState(currentActiveId);
+      return;
+    }
+
+    const fallbackId = Number(rows[0].id);
+    setActiveOrganizationIdState(fallbackId);
+    api.setActiveOrganizationId(fallbackId);
+  }, [handleUnauthorized]);
+
+  const handleActiveOrganizationChange = useCallback((organizationId: number | null) => {
+    setActiveOrganizationIdState(organizationId);
+    api.setActiveOrganizationId(organizationId);
+
+    setUser(prev => {
+      if (!prev) return prev;
+
+      const nextUser: User = {
+        ...prev,
+        activeOrganizationId: organizationId
+      };
+
+      localStorage.setItem('gug_user_data', JSON.stringify(nextUser));
+      return nextUser;
+    });
   }, []);
 
   /* =====================================================
