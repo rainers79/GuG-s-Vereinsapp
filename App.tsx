@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Poll, ViewType, NotificationSettings } from './types';
+import {
+  User,
+  Poll,
+  ViewType,
+  NotificationSettings,
+  OrganizationWithMembership
+} from './types';
 import * as api from './services/api';
 import MembersView from './components/MembersView';
 import TasksView from './components/TasksView';
@@ -98,7 +104,11 @@ const getStoredActiveView = (): ViewType => {
     'project-chat',
     'project-coreteam',
     'project-shopping',
-    'project-invoices'
+    'project-invoices',
+    'organizations',
+    'organization-create',
+    'organization-invite',
+    'organization-join'
   ];
 
   if (raw && allowedViews.includes(raw)) {
@@ -336,6 +346,12 @@ const App: React.FC = () => {
   ===================================================== */
 
   const [user, setUser] = useState<User | null>(api.getStoredUser());
+  const [organizations, setOrganizations] = useState<OrganizationWithMembership[]>(
+    api.getStoredUser()?.organizations || []
+  );
+  const [activeOrganizationId, setActiveOrganizationIdState] = useState<number | null>(
+    api.getActiveOrganizationId()
+  );
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -473,7 +489,36 @@ const App: React.FC = () => {
   }, []);
 
   /* =====================================================
-     SECTION 08 - NAVIGATION HELPERS
+     SECTION 08 - ORGANIZATION HELPERS
+  ===================================================== */
+
+  const applyUserOrganizationContext = useCallback((nextUser: User | null) => {
+    if (!nextUser) {
+      setOrganizations([]);
+      setActiveOrganizationIdState(null);
+      api.clearActiveOrganizationId();
+      return;
+    }
+
+    const nextOrganizations = Array.isArray(nextUser.organizations)
+      ? nextUser.organizations
+      : [];
+
+    setOrganizations(nextOrganizations);
+
+    const preferredOrganizationId =
+      nextUser.activeOrganizationId && nextUser.activeOrganizationId > 0
+        ? nextUser.activeOrganizationId
+        : nextOrganizations.length > 0 && nextOrganizations[0]?.id
+          ? Number(nextOrganizations[0].id)
+          : null;
+
+    setActiveOrganizationIdState(preferredOrganizationId);
+    api.setActiveOrganizationId(preferredOrganizationId);
+  }, []);
+
+  /* =====================================================
+     SECTION 09 - NAVIGATION HELPERS
   ===================================================== */
 
   const enforceProjectsActionState = useCallback(() => {
@@ -617,7 +662,7 @@ const App: React.FC = () => {
   }, []);
 
   /* =====================================================
-     SECTION 09 - TOAST HELPERS
+     SECTION 10 - TOAST HELPERS
   ===================================================== */
 
   const pushToast = useCallback((message: string, type: ToastType = 'success') => {
@@ -630,12 +675,13 @@ const App: React.FC = () => {
   }, []);
 
   /* =====================================================
-     SECTION 10 - AUTH / LOADING
+     SECTION 11 - AUTH / LOADING
   ===================================================== */
 
   const handleUnauthorized = useCallback(() => {
     api.clearToken();
     setUser(null);
+    applyUserOrganizationContext(null);
     setPolls([]);
     setError('Ihre Sitzung ist abgelaufen.');
     setIsSidebarOpen(false);
@@ -643,12 +689,13 @@ const App: React.FC = () => {
     setActiveView('dashboard');
     clearProjectContext();
     localStorage.removeItem(LS_ACTIVE_VIEW);
-  }, [clearProjectContext]);
+  }, [applyUserOrganizationContext, clearProjectContext]);
 
   const fetchAppData = useCallback(async () => {
     try {
       const currentUser = await api.getCurrentUser(handleUnauthorized);
       setUser(currentUser);
+      applyUserOrganizationContext(currentUser);
 
       const pollData = await api.getPolls(handleUnauthorized);
       setPolls(pollData);
@@ -660,7 +707,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [handleUnauthorized]);
+  }, [applyUserOrganizationContext, handleUnauthorized]);
 
   useEffect(() => {
     if (api.getToken()) {
@@ -669,9 +716,10 @@ const App: React.FC = () => {
       setLoading(false);
       setActiveView('dashboard');
       clearProjectContext();
+      applyUserOrganizationContext(null);
       localStorage.removeItem(LS_ACTIVE_VIEW);
     }
-  }, [clearProjectContext, fetchAppData]);
+  }, [applyUserOrganizationContext, clearProjectContext, fetchAppData]);
 
   useEffect(() => {
     if (!user) return;
@@ -684,7 +732,7 @@ const App: React.FC = () => {
   }, [user, activeView]);
 
   /* =====================================================
-     SECTION 11 - STORAGE HELPERS
+     SECTION 12 - STORAGE HELPERS
   ===================================================== */
 
   const getStoredNumber = (key: string): number => {
@@ -698,7 +746,7 @@ const App: React.FC = () => {
   };
 
   /* =====================================================
-     SECTION 12 - GLOBAL UPDATE CHECKS
+     SECTION 13 - GLOBAL UPDATE CHECKS
   ===================================================== */
 
   const checkGlobalUpdates = useCallback(async () => {
@@ -791,7 +839,7 @@ const App: React.FC = () => {
   }, [user, checkGlobalUpdates]);
 
   /* =====================================================
-     SECTION 13 - FLAGS CONFIG
+     SECTION 14 - FLAGS CONFIG
   ===================================================== */
 
   const flagsProjectName = projectContext.projectName;
@@ -812,7 +860,7 @@ const App: React.FC = () => {
   const mainPaddingRight = getMainPaddingRight(activeView, showProjectFlags);
 
   /* =====================================================
-     SECTION 14 - VIEW RENDERING
+     SECTION 15 - VIEW RENDERING
   ===================================================== */
 
   const renderContent = () => {
@@ -938,13 +986,36 @@ const App: React.FC = () => {
           />
         );
 
+      case 'organizations':
+      case 'organization-create':
+      case 'organization-invite':
+      case 'organization-join':
+        return (
+          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+            <div className="text-lg font-bold">Community-Flow in Vorbereitung</div>
+            <div className="mt-3 text-sm text-black/70">
+              Die technische Basis ist aktiv. Nächster Schritt ist die eigene View
+              für Community anlegen, Einladungslink erzeugen und Beitritt per Einladung.
+            </div>
+            <div className="mt-4 text-sm text-black/70">
+              Aktive Community:{' '}
+              <span className="font-semibold">
+                {organizations.find(org => org.id === activeOrganizationId)?.name || 'Keine'}
+              </span>
+            </div>
+            <div className="mt-2 text-sm text-black/70">
+              Zugeordnete Communities: <span className="font-semibold">{organizations.length}</span>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
   };
 
   /* =====================================================
-     SECTION 15 - EARLY RETURN LOADING
+     SECTION 16 - EARLY RETURN LOADING
   ===================================================== */
 
   if (loading && !user) {
@@ -956,7 +1027,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 16 - PRE LOGIN LANDING
+     SECTION 17 - PRE LOGIN LANDING
   ===================================================== */
 
   if (!user && showPreLoginLanding && !isInstalled) {
@@ -1046,7 +1117,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 17 - POS MODE
+     SECTION 18 - POS MODE
   ===================================================== */
 
   const isPosMode = !!user && activeView === 'pos';
@@ -1087,7 +1158,7 @@ const App: React.FC = () => {
   }
 
   /* =====================================================
-     SECTION 18 - DEFAULT LAYOUT
+     SECTION 19 - DEFAULT LAYOUT
   ===================================================== */
 
   return (
@@ -1125,7 +1196,10 @@ const App: React.FC = () => {
           />
         ) : (
           <LoginForm
-            onLoginSuccess={setUser}
+            onLoginSuccess={(nextUser) => {
+              setUser(nextUser);
+              applyUserOrganizationContext(nextUser);
+            }}
             onShowRegister={() => setIsRegistering(true)}
           />
         )
@@ -1144,6 +1218,7 @@ const App: React.FC = () => {
             onLogout={() => {
               api.clearToken();
               setUser(null);
+              applyUserOrganizationContext(null);
               setViewHistory([]);
               setActiveView('dashboard');
               clearProjectContext();
