@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as api from '../services/api';
 
 interface RegisterFormProps {
@@ -19,8 +19,18 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const inviteToken = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('invite') || '').trim();
+  }, []);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    setError(null);
+  }, [inviteToken]);
+
   const isValidEmail = (value: string) => {
-    // Einfacher Check, Backend validiert final
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   };
 
@@ -42,7 +52,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
 
     try {
       const response = await api.register(formData);
-      onSuccess(response.message || 'Registrierung erfolgreich! Bitte bestätigen Sie die E-Mail-Adresse.');
+
+      const inviteMessage = inviteToken
+        ? ' Einladungslink wurde erkannt. Nach der E-Mail-Bestätigung bitte mit diesem Link oder normal über den Login einsteigen, damit der Community-Beitritt abgeschlossen wird.'
+        : '';
+
+      onSuccess(
+        (response.message || 'Registrierung erfolgreich! Bitte bestätigen Sie die E-Mail-Adresse.') +
+          inviteMessage
+      );
+
       onBackToLogin();
     } catch (err: any) {
       setError(err.message || 'Registrierung fehlgeschlagen.');
@@ -68,6 +87,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onBackToLogin, onSuccess })
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {inviteToken && (
+          <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm border border-amber-100 animate-in fade-in duration-300">
+            <span className="font-medium">
+              Einladungslink erkannt. Nach Registrierung und E-Mail-Bestätigung wird der Community-Beitritt beim Login verarbeitet.
+            </span>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 animate-in shake duration-300">
             <span className="font-medium">{error}</span>
