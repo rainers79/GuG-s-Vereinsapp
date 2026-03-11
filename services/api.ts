@@ -24,7 +24,14 @@ import {
   UpdateProjectShoppingItemPayload,
   ProjectInvoiceItem,
   ProjectLite,
-  ProjectStatus
+  ProjectStatus,
+  Organization,
+  OrganizationWithMembership,
+  OrganizationModule,
+  CreateOrganizationPayload,
+  CreateOrganizationInvitePayload,
+  AcceptOrganizationInvitePayload,
+  OrganizationInvite
 } from '../types';
 
 
@@ -35,6 +42,7 @@ import {
 const API_BASE = 'https://api.gug-verein.at/wp-json';
 const TOKEN_KEY = 'gug_token';
 const USER_KEY = 'gug_user_data';
+const ACTIVE_ORGANIZATION_KEY = 'gug_active_organization_id';
 
 /* =====================================================
    ROLE MAPPING
@@ -60,6 +68,7 @@ export const setToken = (token: string): void => {
 export const clearToken = (): void => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
 };
 
 export const getStoredUser = (): User | null => {
@@ -68,19 +77,91 @@ export const getStoredUser = (): User | null => {
 };
 
 /* =====================================================
+   ORGANIZATION CONTEXT
+===================================================== */
+
+export const getActiveOrganizationId = (): number | null => {
+  const raw = localStorage.getItem(ACTIVE_ORGANIZATION_KEY);
+  if (!raw) return null;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+  return parsed;
+};
+
+export const setActiveOrganizationId = (organizationId: number | null): void => {
+  if (!organizationId || organizationId <= 0) {
+    localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
+    return;
+  }
+
+  localStorage.setItem(ACTIVE_ORGANIZATION_KEY, String(organizationId));
+
+  const storedUser = getStoredUser();
+  if (storedUser) {
+    const nextUser: User = {
+      ...storedUser,
+      activeOrganizationId: organizationId
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+  }
+};
+
+export const clearActiveOrganizationId = (): void => {
+  localStorage.removeItem(ACTIVE_ORGANIZATION_KEY);
+};
+
+function resolveOrganizationId(explicitOrganizationId?: number | null): number | null {
+  if (explicitOrganizationId && explicitOrganizationId > 0) {
+    return explicitOrganizationId;
+  }
+
+  return getActiveOrganizationId();
+}
+
+function enrichUserWithOrganizations(baseUser: User, wpUser: any): User {
+  const organizations = Array.isArray(wpUser?.organizations)
+    ? (wpUser.organizations as OrganizationWithMembership[])
+    : [];
+
+  const activeOrganizationId =
+    resolveOrganizationId(
+      typeof wpUser?.activeOrganizationId === 'number' ? wpUser.activeOrganizationId : null
+    ) ??
+    (organizations.length > 0 && organizations[0]?.id ? Number(organizations[0].id) : null);
+
+  if (activeOrganizationId && activeOrganizationId > 0) {
+    setActiveOrganizationId(activeOrganizationId);
+  }
+
+  return {
+    ...baseUser,
+    organizations,
+    activeOrganizationId
+  };
+}
+
+/* =====================================================
    CORE REQUEST
 ===================================================== */
 
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
-  onUnauthorized?: () => void
+  onUnauthorized?: () => void,
+  organizationId?: number | null
 ): Promise<T> {
   const token = getToken();
   const headers = new Headers(options.headers);
+  const resolvedOrganizationId = resolveOrganizationId(organizationId);
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (resolvedOrganizationId && resolvedOrganizationId > 0) {
+    headers.set('X-GUG-ORGANIZATION-ID', String(resolvedOrganizationId));
   }
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -161,7 +242,7 @@ export async function verifyEmail(uid: number, token: string): Promise<{ success
 export async function getCurrentUser(onUnauthorized: () => void): Promise<User> {
   const wpUser = await apiRequest<any>('/gug/v1/me', {}, onUnauthorized);
 
-  const user: User = {
+  const baseUser: User = {
     id: wpUser.id || 0,
     email: wpUser.user_email || wpUser.email || '',
     displayName: wpUser.display_name || wpUser.name || 'Mitglied',
@@ -169,8 +250,91 @@ export async function getCurrentUser(onUnauthorized: () => void): Promise<User> 
     role: mapWPRoleToAppRole(wpUser.roles)
   };
 
+  const user = enrichUserWithOrganizations(baseUser, wpUser);
+
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
+}
+
+/* =====================================================
+   ORGANIZATIONS
+===================================================== */
+
+export async function getOrganizations(
+  onUnauthorized: () => void
+): Promise<OrganizationWithMembership[]> {
+  return await apiRequest<OrganizationWithMembership[]>(
+    '/gug/v1/organizations',
+    {},
+    onUnauthorized
+  );
+}
+
+export async function createOrganization(
+  payload: CreateOrganizationPayload,
+  onUnauthorized: () => void
+): Promise<Organization> {
+  return await apiRequest<Organization>(
+    '/gug/v1/organizations',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
+}
+
+export async function getOrganizationModules(
+  organizationId: number,
+  onUnauthorized: () => void
+): Promise<OrganizationModule[]> {
+  return await apiRequest<OrganizationModule[]>(
+    `/gug/v1/organizations/${organizationId}/modules`,
+    {},
+    onUnauthorized,
+    organizationId
+  );
+}
+
+export async function createOrganizationInvite(
+  payload: CreateOrganizationInvitePayload,
+  onUnauthorized: () => void
+): Promise<{
+  success: boolean;
+  invite?: OrganizationInvite;
+  invite_link?: string;
+  token?: string;
+  message?: string;
+}> {
+  return await apiRequest<{
+    success: boolean;
+    invite?: OrganizationInvite;
+    invite_link?: string;
+    token?: string;
+    message?: string;
+  }>(
+    `/gug/v1/organizations/${payload.organization_id}/invites`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized,
+    payload.organization_id
+  );
+}
+
+export async function acceptOrganizationInvite(
+  payload: AcceptOrganizationInvitePayload,
+  onUnauthorized: () => void
+): Promise<{ success: boolean; message?: string; organization?: Organization }> {
+  return await apiRequest<{ success: boolean; message?: string; organization?: Organization }>(
+    '/gug/v1/organizations/join',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    onUnauthorized
+  );
 }
 
 /* =====================================================
