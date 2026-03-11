@@ -61,6 +61,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'settings' as ViewType,
       label: 'Einstellungen'
+    },
+    {
+      id: 'organizations' as ViewType,
+      label: 'Community & Einladungen'
     }
   ];
 
