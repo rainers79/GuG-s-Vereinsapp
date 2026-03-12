@@ -174,7 +174,7 @@ export async function apiRequest<T>(
       headers
     });
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       if (!endpoint.includes('jwt-auth')) {
         clearToken();
         if (onUnauthorized) onUnauthorized();
@@ -183,6 +183,14 @@ export async function apiRequest<T>(
       const errData = await response.json().catch(() => ({}));
       throw {
         message: errData.message || 'Sitzung abgelaufen.',
+        status: response.status
+      } as ApiError;
+    }
+
+    if (response.status === 403) {
+      const errData = await response.json().catch(() => ({}));
+      throw {
+        message: errData.message || 'Keine Berechtigung für diese Aktion.',
         status: response.status
       } as ApiError;
     }
