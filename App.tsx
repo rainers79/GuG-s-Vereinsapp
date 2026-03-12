@@ -518,7 +518,19 @@ const App: React.FC = () => {
     api.setActiveOrganizationId(preferredOrganizationId);
   }, []);
 
-  const handleActiveOrganizationChange = useCallback((organizationId: number | null) => {
+  const reloadOrganizationScopedData = useCallback(async () => {
+    const currentUser = await api.getCurrentUser(handleUnauthorized);
+    setUser(currentUser);
+    applyUserOrganizationContext(currentUser);
+
+    const pollData = await api.getPolls(handleUnauthorized);
+    setPolls(pollData);
+  }, [applyUserOrganizationContext, handleUnauthorized]);
+
+  const handleActiveOrganizationChange = useCallback(async (organizationId: number | null) => {
+    setError(null);
+    setSuccess(null);
+
     setActiveOrganizationIdState(organizationId);
     api.setActiveOrganizationId(organizationId);
 
@@ -533,7 +545,21 @@ const App: React.FC = () => {
       localStorage.setItem('gug_user_data', JSON.stringify(nextUser));
       return nextUser;
     });
-  }, []);
+
+    setSelectedPollId(null);
+    setPolls([]);
+    setViewHistory([]);
+    setIsSidebarOpen(false);
+    setActiveView('dashboard');
+    localStorage.setItem(LS_ACTIVE_VIEW, 'dashboard');
+    clearProjectContext();
+
+    try {
+      await reloadOrganizationScopedData();
+    } catch (err: any) {
+      setError(err?.message || 'Vereinsdaten konnten nicht neu geladen werden.');
+    }
+  }, [clearProjectContext, reloadOrganizationScopedData]);
 
   /* =====================================================
      SECTION 09 - NAVIGATION HELPERS
@@ -552,6 +578,7 @@ const App: React.FC = () => {
       projectName: null,
       moduleLabel: null
     });
+    localStorage.removeItem(LS_ACTIVE_PROJECT);
     localStorage.removeItem(LS_PROJECTS_WHEEL_MODE);
     localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
   }, []);
