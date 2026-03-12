@@ -317,7 +317,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                 setCreateForm(prev => ({ ...prev, name: e.target.value }))
               }
               placeholder="Name der Community"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
               disabled={loading}
             />
 
@@ -327,7 +327,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                 setCreateForm(prev => ({ ...prev, description: e.target.value }))
               }
               placeholder="Beschreibung"
-              className="min-h-[110px] w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+              className="min-h-[110px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
               disabled={loading}
             />
 
@@ -339,7 +339,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                   setCreateForm(prev => ({ ...prev, primary_color: e.target.value }))
                 }
                 placeholder="Primärfarbe optional"
-                className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
                 disabled={loading}
               />
 
@@ -350,7 +350,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                   setCreateForm(prev => ({ ...prev, secondary_color: e.target.value }))
                 }
                 placeholder="Sekundärfarbe optional"
-                className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
                 disabled={loading}
               />
             </div>
@@ -453,7 +453,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                     onChange={(e) =>
                       setInviteForm(prev => ({ ...prev, role: e.target.value }))
                     }
-                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] outline-none transition-all focus:border-[#B5A47A]"
                     disabled={inviteLoading}
                   >
                     <option value="member">Member</option>
@@ -469,7 +469,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
                       setInviteForm(prev => ({ ...prev, email: e.target.value }))
                     }
                     placeholder="E-Mail optional"
-                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
                     disabled={inviteLoading}
                   />
                 </div>
@@ -520,7 +520,7 @@ const OrganizationsView: React.FC<OrganizationsViewProps> = ({
               value={joinToken}
               onChange={(e) => setJoinToken(e.target.value)}
               placeholder="Einladungslink oder Token einfügen"
-              className="min-h-[100px] w-full rounded-2xl border border-slate-300 px-4 py-3 font-bold outline-none transition-all focus:border-[#B5A47A]"
+              className="min-h-[100px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-bold text-[#1A1A1A] placeholder:text-black/35 outline-none transition-all focus:border-[#B5A47A]"
               disabled={joinLoading}
             />
 
