@@ -1,4 +1,4 @@
-// components/CalendarView.tsx
+// components/CalentarView.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, CalendarViewMode, Poll, User, AppRole } from '../types';
