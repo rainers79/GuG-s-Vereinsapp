@@ -54,6 +54,21 @@ interface Props {
 
 let lastPlayedAnimationKey = -1;
 
+const arcPath = (
+  polarToCartesianFn: (cx: number, cy: number, radius: number, angleDeg: number) => Point,
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+) => {
+  const start = polarToCartesianFn(cx, cy, radius, startAngle);
+  const end = polarToCartesianFn(cx, cy, radius, endAngle);
+  const largeArc = Math.abs(endAngle - startAngle) <= 180 ? 0 : 1;
+
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+};
+
 const ProjectsWheelMenu: React.FC<Props> = ({
   wheelItems,
   hoveredIndex,
@@ -100,10 +115,23 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     };
   }, [animationKey]);
 
-  const segmentGapAngle = 7;
-  const innerGapRadius = 24;
-  const outerRingShadowRadius = buttonRadius + 18;
-  const innerRadiusWithGap = centerRadius + innerGapRadius;
+  void wheelColors;
+  void labelRadius;
+
+  const wheelCx = center;
+  const wheelCy = center - 18;
+
+  const outerRadius = Math.max(132, buttonRadius - 28);
+  const innerRadiusWithGap = Math.max(centerRadius + 28, 100);
+  const visualCenterRadius = Math.max(centerRadius - 4, 66);
+  const outerRingShadowRadius = outerRadius + 16;
+
+  const segmentGapAngle = 9.5;
+
+  const actionCount = useMemo(
+    () => wheelItems.filter((item) => item.slotType === 'action').length,
+    [wheelItems]
+  );
 
   const interactiveSlots = useMemo(
     () => new Set<ProjectsWheelDisplayItem['slotType']>(['project', 'action', 'next', 'prev']),
@@ -115,85 +143,112 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     [wheelItems]
   );
 
+  const topLabel = useMemo(() => {
+    const first = centerLines[0]?.trim();
+    if (!first) return 'Projekt';
+    if (first.length <= 18) return first;
+    return `${first.slice(0, 18)}…`;
+  }, [centerLines]);
+
+  const centerMetaTop = useMemo(() => {
+    if (actionCount > 0) return `${actionCount} Module aktiv`;
+    return '';
+  }, [actionCount]);
+
+  const progressValue = useMemo(() => {
+    if (actionCount > 0) return 75;
+    return null;
+  }, [actionCount]);
+
   const getSegmentPalette = (item: ProjectsWheelDisplayItem, index: number) => {
     const isHovered = hoveredIndex === index;
-    const isDefaultActive = hoveredIndex === null && item.slotType === 'action' && index === firstActionIndex;
+    const isDefaultActive =
+      hoveredIndex === null &&
+      item.slotType === 'action' &&
+      index === firstActionIndex;
+
     const isHighlighted = isHovered || isDefaultActive;
 
     if (item.slotType === 'empty') {
       return {
         fill: 'url(#segmentEmptyGradient)',
-        stroke: 'rgba(255,255,255,0.045)',
-        text: '#7F8898',
-        icon: '#8D97A8',
-        opacity: 0.58,
+        stroke: 'rgba(255,255,255,0.04)',
+        text: '#7C8698',
+        icon: '#8C96A8',
+        opacity: 0.56,
         filter: 'url(#segmentShadowSoft)',
-        innerStroke: 'rgba(255,255,255,0.035)',
-        glow: false
+        innerStroke: 'rgba(255,255,255,0.03)',
+        glow: false,
+        fontWeight: 600 as const
       };
     }
 
     if (item.slotType === 'locked') {
       return {
         fill: 'url(#segmentLockedGradient)',
-        stroke: 'rgba(255,255,255,0.055)',
-        text: '#9AA3B3',
-        icon: '#A8B1C0',
-        opacity: 0.84,
+        stroke: 'rgba(255,255,255,0.05)',
+        text: '#97A1B2',
+        icon: '#A7B0BF',
+        opacity: 0.82,
         filter: 'url(#segmentShadowSoft)',
         innerStroke: 'rgba(255,255,255,0.04)',
-        glow: false
+        glow: false,
+        fontWeight: 600 as const
       };
     }
 
     if (item.slotType === 'next' || item.slotType === 'prev') {
       return {
-        fill: isHighlighted ? 'url(#segmentHighlightGradientStrong)' : 'url(#segmentProjectGradient)',
-        stroke: isHighlighted ? 'rgba(255, 197, 96, 0.62)' : 'rgba(255,255,255,0.06)',
-        text: isHighlighted ? '#FFF8EA' : '#E7EBF1',
-        icon: isHighlighted ? '#FFD27A' : '#C6CED9',
+        fill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
+        stroke: isHighlighted ? 'rgba(255,213,138,0.62)' : 'rgba(255,255,255,0.06)',
+        text: isHighlighted ? '#FFF8EC' : '#E2E8F0',
+        icon: isHighlighted ? '#FFE0A6' : '#CBD5E1',
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
-        innerStroke: isHighlighted ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
-        glow: isHighlighted
+        innerStroke: isHighlighted ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
+        glow: isHighlighted,
+        fontWeight: isHighlighted ? (700 as const) : (600 as const)
       };
     }
 
     if (item.slotType === 'action') {
       return {
-        fill: isHighlighted ? 'url(#segmentHighlightGradientStrong)' : 'url(#segmentProjectGradient)',
-        stroke: isHighlighted ? 'rgba(255, 205, 120, 0.72)' : 'rgba(255,255,255,0.07)',
-        text: isHighlighted ? '#FFF8EA' : '#EEF2F7',
-        icon: isHighlighted ? '#FFE0A2' : '#D4DBE6',
+        fill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
+        stroke: isHighlighted ? 'rgba(255,218,150,0.76)' : 'rgba(255,255,255,0.07)',
+        text: isHighlighted ? '#FFF9EE' : '#EEF2F7',
+        icon: isHighlighted ? '#FFE3AE' : '#D6DEE8',
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
-        innerStroke: isHighlighted ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.075)',
-        glow: isHighlighted
+        innerStroke: isHighlighted ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.07)',
+        glow: isHighlighted,
+        fontWeight: isHighlighted ? (700 as const) : (600 as const)
       };
     }
 
     if (item.slotType === 'project') {
       return {
         fill: isHighlighted ? 'url(#segmentProjectGradientHover)' : 'url(#segmentProjectGradient)',
-        stroke: isHighlighted ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.07)',
-        text: '#EFF3F8',
-        icon: '#D6DCE6',
+        stroke: isHighlighted ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.07)',
+        text: '#EFF4FA',
+        icon: '#D9E0EA',
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentShadowLifted)' : 'url(#segmentShadowSoft)',
         innerStroke: isHighlighted ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-        glow: false
+        glow: false,
+        fontWeight: 650 as const
       };
     }
 
     return {
-      fill: isHighlighted ? 'url(#segmentProjectGradientHover)' : 'url(#segmentProjectGradient)',
+      fill: 'url(#segmentProjectGradient)',
       stroke: 'rgba(255,255,255,0.07)',
-      text: '#EFF3F8',
-      icon: '#D6DCE6',
+      text: '#EFF4FA',
+      icon: '#D9E0EA',
       opacity: 1,
       filter: 'url(#segmentShadowSoft)',
       innerStroke: 'rgba(255,255,255,0.07)',
-      glow: false
+      glow: false,
+      fontWeight: 600 as const
     };
   };
 
@@ -204,188 +259,227 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     color: string
   ) => {
     const common = {
-      size: 18,
+      size: 17,
       strokeWidth: 2,
       color
     };
 
     switch (item.actionKey) {
       case 'calendar':
-        return <CalendarDays {...common} x={x - 9} y={y - 9} />;
+        return <CalendarDays {...common} x={x - 8.5} y={y - 8.5} />;
       case 'tasks':
-        return <CheckSquare {...common} x={x - 9} y={y - 9} />;
+        return <CheckSquare {...common} x={x - 8.5} y={y - 8.5} />;
       case 'polls':
-        return <BarChart3 {...common} x={x - 9} y={y - 9} />;
+        return <BarChart3 {...common} x={x - 8.5} y={y - 8.5} />;
       case 'invoices':
-        return <Receipt {...common} x={x - 9} y={y - 9} />;
+        return <Receipt {...common} x={x - 8.5} y={y - 8.5} />;
       case 'shopping':
-        return <ShoppingCart {...common} x={x - 9} y={y - 9} />;
+        return <ShoppingCart {...common} x={x - 8.5} y={y - 8.5} />;
       case 'coreteam':
-        return <Users {...common} x={x - 9} y={y - 9} />;
+        return <Users {...common} x={x - 8.5} y={y - 8.5} />;
       case 'chatlog':
       case 'chat-group':
-        return <MessageCircle {...common} x={x - 9} y={y - 9} />;
+        return <MessageCircle {...common} x={x - 8.5} y={y - 8.5} />;
       case 'pos':
-        return <Wallet {...common} x={x - 9} y={y - 9} />;
+        return <Wallet {...common} x={x - 8.5} y={y - 8.5} />;
       case 'next':
       case 'chat-next':
-        return <ChevronRight {...common} x={x - 9} y={y - 9} />;
+        return <ChevronRight {...common} x={x - 8.5} y={y - 8.5} />;
       case 'prev':
       case 'chat-prev':
-        return <ChevronLeft {...common} x={x - 9} y={y - 9} />;
+        return <ChevronLeft {...common} x={x - 8.5} y={y - 8.5} />;
       case 'empty':
-        return <FolderKanban {...common} x={x - 9} y={y - 9} />;
+        return <FolderKanban {...common} x={x - 8.5} y={y - 8.5} />;
       default:
         if (item.slotType === 'locked') {
-          return <Lock {...common} x={x - 9} y={y - 9} />;
+          return <Lock {...common} x={x - 8.5} y={y - 8.5} />;
         }
-        return <FolderKanban {...common} x={x - 9} y={y - 9} />;
+        return <FolderKanban {...common} x={x - 8.5} y={y - 8.5} />;
     }
   };
 
+  const progressCircumference = 2 * Math.PI * 18.5;
+  const progressOffset =
+    progressValue === null
+      ? progressCircumference
+      : progressCircumference * (1 - progressValue / 100);
+
   return (
-    <div className="flex justify-center items-center py-8">
-      <svg width="400" height="430" viewBox="0 0 400 430" role="img" aria-label="Projekt Radmenü">
+    <div className="flex justify-center items-center py-4">
+      <svg
+        width="400"
+        height="420"
+        viewBox="0 0 400 420"
+        role="img"
+        aria-label="Projekt Radmenü"
+      >
         <defs>
-          <radialGradient id="screenBg" cx="50%" cy="34%" r="88%">
-            <stop offset="0%" stopColor="#232833" />
-            <stop offset="45%" stopColor="#121720" />
-            <stop offset="100%" stopColor="#070B11" />
+          <radialGradient id="screenBg" cx="50%" cy="32%" r="86%">
+            <stop offset="0%" stopColor="#272B33" />
+            <stop offset="42%" stopColor="#151A22" />
+            <stop offset="100%" stopColor="#0A0E14" />
           </radialGradient>
 
-          <radialGradient id="bgGlowTop" cx="52%" cy="35%" r="55%">
-            <stop offset="0%" stopColor="rgba(248,183,69,0.14)" />
-            <stop offset="42%" stopColor="rgba(248,183,69,0.06)" />
-            <stop offset="100%" stopColor="rgba(248,183,69,0)" />
+          <radialGradient id="screenGlowTop" cx="50%" cy="28%" r="52%">
+            <stop offset="0%" stopColor="rgba(247,184,76,0.12)" />
+            <stop offset="45%" stopColor="rgba(247,184,76,0.035)" />
+            <stop offset="100%" stopColor="rgba(247,184,76,0)" />
           </radialGradient>
 
-          <radialGradient id="bgGlowBottom" cx="46%" cy="73%" r="50%">
-            <stop offset="0%" stopColor="rgba(248,183,69,0.08)" />
-            <stop offset="52%" stopColor="rgba(248,183,69,0.03)" />
-            <stop offset="100%" stopColor="rgba(248,183,69,0)" />
+          <radialGradient id="screenGlowBottom" cx="52%" cy="78%" r="42%">
+            <stop offset="0%" stopColor="rgba(247,184,76,0.08)" />
+            <stop offset="55%" stopColor="rgba(247,184,76,0.02)" />
+            <stop offset="100%" stopColor="rgba(247,184,76,0)" />
           </radialGradient>
 
           <linearGradient id="segmentProjectGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#283244" />
-            <stop offset="38%" stopColor="#131A25" />
-            <stop offset="100%" stopColor="#0A0F17" />
+            <stop offset="0%" stopColor="#243245" />
+            <stop offset="42%" stopColor="#101722" />
+            <stop offset="100%" stopColor="#0A1018" />
           </linearGradient>
 
           <linearGradient id="segmentProjectGradientHover" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#364156" />
-            <stop offset="38%" stopColor="#1C2431" />
-            <stop offset="100%" stopColor="#101722" />
+            <stop offset="0%" stopColor="#33455B" />
+            <stop offset="40%" stopColor="#17212F" />
+            <stop offset="100%" stopColor="#0E141D" />
           </linearGradient>
 
           <linearGradient id="segmentHighlightGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FFD78F" />
-            <stop offset="45%" stopColor="#F7B645" />
-            <stop offset="100%" stopColor="#C77B15" />
-          </linearGradient>
-
-          <linearGradient id="segmentHighlightGradientStrong" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FFE1A7" />
-            <stop offset="34%" stopColor="#FFD079" />
-            <stop offset="64%" stopColor="#F2AA2D" />
-            <stop offset="100%" stopColor="#B96B10" />
+            <stop offset="0%" stopColor="#FFE3AF" />
+            <stop offset="34%" stopColor="#FFD388" />
+            <stop offset="68%" stopColor="#F0B347" />
+            <stop offset="100%" stopColor="#C47B18" />
           </linearGradient>
 
           <linearGradient id="segmentEmptyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#1F2631" />
-            <stop offset="100%" stopColor="#0D121A" />
+            <stop offset="0%" stopColor="#1A222D" />
+            <stop offset="100%" stopColor="#0C1118" />
           </linearGradient>
 
           <linearGradient id="segmentLockedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2A313D" />
-            <stop offset="100%" stopColor="#121822" />
+            <stop offset="0%" stopColor="#252D38" />
+            <stop offset="100%" stopColor="#10161F" />
           </linearGradient>
 
-          <radialGradient id="centerGradient" cx="34%" cy="28%" r="82%">
-            <stop offset="0%" stopColor="#4B3E1E" />
-            <stop offset="36%" stopColor="#2E271C" />
-            <stop offset="72%" stopColor="#171717" />
-            <stop offset="100%" stopColor="#0E1014" />
+          <radialGradient id="centerGradient" cx="34%" cy="26%" r="82%">
+            <stop offset="0%" stopColor="#58461F" />
+            <stop offset="36%" stopColor="#2E281E" />
+            <stop offset="72%" stopColor="#14171D" />
+            <stop offset="100%" stopColor="#0C1016" />
           </radialGradient>
 
-          <radialGradient id="centerLight" cx="32%" cy="28%" r="62%">
-            <stop offset="0%" stopColor="rgba(255,220,150,0.16)" />
-            <stop offset="60%" stopColor="rgba(255,220,150,0.04)" />
-            <stop offset="100%" stopColor="rgba(255,220,150,0)" />
+          <radialGradient id="centerLight" cx="34%" cy="30%" r="60%">
+            <stop offset="0%" stopColor="rgba(255,224,154,0.16)" />
+            <stop offset="58%" stopColor="rgba(255,224,154,0.04)" />
+            <stop offset="100%" stopColor="rgba(255,224,154,0)" />
           </radialGradient>
 
-          <filter id="screenShadow" x="-30%" y="-30%" width="160%" height="180%">
+          <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="180%">
             <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.34" />
           </filter>
 
-          <filter id="wheelShadow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="16" stdDeviation="20" floodColor="#000000" floodOpacity="0.40" />
+          <filter id="wheelShadow" x="-45%" y="-45%" width="190%" height="190%">
+            <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.42" />
           </filter>
 
-          <filter id="segmentShadowSoft" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="6" stdDeviation="9" floodColor="#000000" floodOpacity="0.34" />
+          <filter id="segmentShadowSoft" x="-45%" y="-45%" width="190%" height="190%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000000" floodOpacity="0.34" />
           </filter>
 
-          <filter id="segmentShadowLifted" x="-45%" y="-45%" width="190%" height="190%">
-            <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.38" />
-          </filter>
-
-          <filter id="segmentGlowSoft" x="-60%" y="-60%" width="220%" height="220%">
-            <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#F5A623" floodOpacity="0.20" />
-            <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="#000000" floodOpacity="0.24" />
+          <filter id="segmentShadowLifted" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.38" />
           </filter>
 
           <filter id="segmentGlowStrong" x="-70%" y="-70%" width="240%" height="240%">
-            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#F6B13B" floodOpacity="0.34" />
-            <feDropShadow dx="0" dy="0" stdDeviation="18" floodColor="#F6B13B" floodOpacity="0.12" />
-            <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.26" />
+            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.36" />
+            <feDropShadow dx="0" dy="0" stdDeviation="16" floodColor="#F5B34A" floodOpacity="0.12" />
+            <feDropShadow dx="0" dy="9" stdDeviation="11" floodColor="#000000" floodOpacity="0.24" />
           </filter>
 
-          <filter id="centerShadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="12" stdDeviation="16" floodColor="#000000" floodOpacity="0.42" />
+          <filter id="ringGlow" x="-70%" y="-70%" width="240%" height="240%">
+            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#F5B34A" floodOpacity="0.11" />
+            <feDropShadow dx="0" dy="0" stdDeviation="24" floodColor="#F5B34A" floodOpacity="0.06" />
           </filter>
 
-          <filter id="ringAmbientGlow" x="-70%" y="-70%" width="240%" height="240%">
-            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#F6B13B" floodOpacity="0.10" />
-            <feDropShadow dx="0" dy="0" stdDeviation="22" floodColor="#F6B13B" floodOpacity="0.06" />
+          <filter id="centerShadow" x="-60%" y="-60%" width="220%" height="220%">
+            <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.42" />
           </filter>
         </defs>
 
         <rect
-          x="18"
-          y="10"
-          width="364"
-          height="390"
-          rx="22"
+          x="34"
+          y="14"
+          width="332"
+          height="364"
+          rx="24"
           fill="url(#screenBg)"
-          filter="url(#screenShadow)"
+          filter="url(#cardShadow)"
         />
 
+        <rect x="34" y="14" width="332" height="364" rx="24" fill="url(#screenGlowTop)" />
+        <rect x="34" y="14" width="332" height="364" rx="24" fill="url(#screenGlowBottom)" />
         <rect
-          x="18"
-          y="10"
-          width="364"
-          height="390"
-          rx="22"
-          fill="url(#bgGlowTop)"
+          x="34"
+          y="14"
+          width="332"
+          height="364"
+          rx="24"
+          fill="none"
+          stroke="rgba(255,255,255,0.04)"
+          strokeWidth="1"
         />
 
-        <rect
-          x="18"
-          y="10"
-          width="364"
-          height="390"
-          rx="22"
-          fill="url(#bgGlowBottom)"
+        <text
+          x="66"
+          y="45"
+          fill="#F4F6FA"
+          fontSize="8.8"
+          fontWeight="600"
+          letterSpacing="0.15"
+          opacity="0.95"
+        >
+          {topLabel}
+        </text>
+
+        <path
+          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 8, -24, 36)}
+          fill="none"
+          stroke="rgba(245,179,74,0.16)"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          filter="url(#ringGlow)"
         />
 
-        <circle cx={center} cy={center} r={outerRingShadowRadius + 2} fill="rgba(0,0,0,0.18)" filter="url(#wheelShadow)" />
-        <circle cx={center} cy={center} r={outerRingShadowRadius - 8} fill="rgba(255,255,255,0.02)" />
-        <circle cx={center} cy={center} r={outerRingShadowRadius - 12} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="1" />
+        <path
+          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 8, 146, 222)}
+          fill="none"
+          stroke="rgba(245,179,74,0.11)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          filter="url(#ringGlow)"
+        />
+
+        <circle
+          cx={wheelCx}
+          cy={wheelCy}
+          r={outerRingShadowRadius}
+          fill="rgba(0,0,0,0.14)"
+          filter="url(#wheelShadow)"
+        />
+
+        <circle
+          cx={wheelCx}
+          cy={wheelCy}
+          r={outerRadius + 7}
+          fill="none"
+          stroke="rgba(255,255,255,0.03)"
+          strokeWidth="1"
+        />
 
         <g
           ref={rotatingRingRef}
           style={{
-            transformOrigin: `${center}px ${center}px`,
+            transformOrigin: `${wheelCx}px ${wheelCy}px`,
             transformBox: 'view-box'
           }}
         >
@@ -397,32 +491,55 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             const startAngle = rawStartAngle + segmentGapAngle / 2;
             const endAngle = rawEndAngle - segmentGapAngle / 2;
 
-            const outerStart = polarToCartesian(center, center, buttonRadius, startAngle);
-            const outerEnd = polarToCartesian(center, center, buttonRadius, endAngle);
-            const innerStart = polarToCartesian(center, center, innerRadiusWithGap, startAngle);
-            const innerEnd = polarToCartesian(center, center, innerRadiusWithGap, endAngle);
+            const outerStart = polarToCartesian(wheelCx, wheelCy, outerRadius, startAngle);
+            const outerEnd = polarToCartesian(wheelCx, wheelCy, outerRadius, endAngle);
+            const innerStart = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              innerRadiusWithGap,
+              startAngle
+            );
+            const innerEnd = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              innerRadiusWithGap,
+              endAngle
+            );
 
             const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
 
             const path = `
 M ${outerStart.x} ${outerStart.y}
-A ${buttonRadius} ${buttonRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}
+A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}
 L ${innerEnd.x} ${innerEnd.y}
 A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}
 Z
 `;
 
             const mid = (startAngle + endAngle) / 2;
-            const iconPoint = polarToCartesian(center, center, labelRadius - 12, mid);
-            const textPoint = polarToCartesian(center, center, labelRadius + 8, mid);
+            const iconPoint = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              (outerRadius + innerRadiusWithGap) / 2 - 7,
+              mid
+            );
+            const textPoint = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              (outerRadius + innerRadiusWithGap) / 2 + 11,
+              mid
+            );
             const lift = getSliceLift(i, wheelItems.length);
 
             const isHovered = hoveredIndex === i;
-            const isDefaultActive = hoveredIndex === null && item.slotType === 'action' && i === firstActionIndex;
+            const isDefaultActive =
+              hoveredIndex === null &&
+              item.slotType === 'action' &&
+              i === firstActionIndex;
             const isHighlighted = isHovered || isDefaultActive;
 
-            const translateX = isHighlighted ? lift.dx * 1.12 : lift.dx * 0.38;
-            const translateY = isHighlighted ? lift.dy * 1.12 : lift.dy * 0.38;
+            const translateX = isHighlighted ? lift.dx * 0.92 : lift.dx * 0.22;
+            const translateY = isHighlighted ? lift.dy * 0.92 : lift.dy * 0.22;
 
             const palette = getSegmentPalette(item, i);
             const isClickable = interactiveSlots.has(item.slotType);
@@ -430,6 +547,7 @@ Z
             const lines = (() => {
               const source = item.label?.trim() || '';
               if (!source) return [''];
+
               const words = source.split(/\s+/);
               const result: string[] = [];
               let current = '';
@@ -457,25 +575,27 @@ Z
                 transform={`translate(${translateX}, ${translateY})`}
                 style={{
                   cursor: isClickable ? 'pointer' : 'default',
-                  transition: 'transform 200ms ease-out'
+                  transition: 'transform 180ms ease-out'
                 }}
               >
                 {palette.glow && (
                   <path
                     d={path}
                     fill="none"
-                    stroke="rgba(246,177,59,0.36)"
-                    strokeWidth={3.2}
-                    opacity={0.78}
-                    filter="url(#ringAmbientGlow)"
+                    stroke="rgba(245,179,74,0.34)"
+                    strokeWidth="3.2"
+                    opacity="0.78"
+                    filter="url(#ringGlow)"
                   />
                 )}
 
                 <path
                   d={path}
                   fill={palette.fill}
-                  stroke={palette.stroke}
-                  strokeWidth={1.15}
+                  stroke={palette.fill}
+                  strokeWidth={10}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
                   opacity={palette.opacity}
                   filter={palette.filter}
                 />
@@ -483,16 +603,28 @@ Z
                 <path
                   d={path}
                   fill="none"
+                  stroke={palette.stroke}
+                  strokeWidth={1.05}
+                  opacity={0.96}
+                />
+
+                <path
+                  d={path}
+                  fill="none"
                   stroke={palette.innerStroke}
-                  strokeWidth={0.9}
+                  strokeWidth={0.8}
                   opacity={0.92}
                 />
 
                 <path
                   d={path}
                   fill="none"
-                  stroke={palette.glow ? 'rgba(255,245,220,0.18)' : 'rgba(255,255,255,0.04)'}
-                  strokeWidth={0.55}
+                  stroke={
+                    palette.glow
+                      ? 'rgba(255,248,232,0.18)'
+                      : 'rgba(255,255,255,0.035)'
+                  }
+                  strokeWidth={0.5}
                   opacity={0.9}
                 />
 
@@ -504,16 +636,16 @@ Z
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={palette.text}
-                  fontWeight={palette.glow ? '800' : '700'}
-                  fontSize="12"
-                  letterSpacing="0.15"
+                  fontWeight={palette.fontWeight}
+                  fontSize="10.7"
+                  letterSpacing="0.08"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {lines.map((line, idx) => (
                     <tspan
                       key={idx}
                       x={textPoint.x}
-                      dy={idx === 0 ? 0 : 12.5}
+                      dy={idx === 0 ? 0 : 11.7}
                     >
                       {line}
                     </tspan>
@@ -526,75 +658,75 @@ Z
 
         <g onClick={onCenterClick} style={{ cursor: onCenterClick ? 'pointer' : 'default' }}>
           <circle
-            cx={center}
-            cy={center}
-            r={centerRadius + 12}
-            fill="rgba(255,255,255,0.018)"
-            stroke="rgba(255,255,255,0.055)"
+            cx={wheelCx}
+            cy={wheelCy}
+            r={visualCenterRadius + 10}
+            fill="rgba(255,255,255,0.015)"
+            stroke="rgba(255,255,255,0.05)"
             strokeWidth="1"
             filter="url(#centerShadow)"
           />
 
           <circle
-            cx={center}
-            cy={center}
-            r={centerRadius + 2}
-            fill="rgba(0,0,0,0.14)"
+            cx={wheelCx}
+            cy={wheelCy}
+            r={visualCenterRadius + 1.5}
+            fill="rgba(0,0,0,0.12)"
           />
 
           <circle
-            cx={center}
-            cy={center}
-            r={centerRadius}
+            cx={wheelCx}
+            cy={wheelCy}
+            r={visualCenterRadius}
             fill="url(#centerGradient)"
-            stroke="rgba(255,255,255,0.09)"
-            strokeWidth="1.2"
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth="1.1"
           />
 
           <circle
-            cx={center}
-            cy={center}
-            r={centerRadius}
+            cx={wheelCx}
+            cy={wheelCy}
+            r={visualCenterRadius}
             fill="url(#centerLight)"
           />
 
           <circle
-            cx={center - 18}
-            cy={center - 20}
-            r={centerRadius * 0.56}
+            cx={wheelCx - 16}
+            cy={wheelCy - 16}
+            r={visualCenterRadius * 0.54}
             fill="rgba(255,255,255,0.05)"
           />
 
           <circle
-            cx={center}
-            cy={center}
-            r={centerRadius - 22}
+            cx={wheelCx}
+            cy={wheelCy}
+            r={visualCenterRadius - 20}
             fill="none"
-            stroke="rgba(255,255,255,0.045)"
-            strokeWidth="0.9"
+            stroke="rgba(255,255,255,0.04)"
+            strokeWidth="0.8"
           />
 
           <text
-            x={center}
-            y={center - (centerSubLabel ? 12 : 0)}
+            x={wheelCx}
+            y={wheelCy - 4}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#FAFBFD"
-            fontWeight="800"
-            fontSize="14"
-            letterSpacing="0.15"
+            fontWeight="700"
+            fontSize="11.4"
+            letterSpacing="0.08"
             style={{ pointerEvents: 'none', userSelect: 'none' }}
           >
             {centerLines.map((line, idx) => (
               <tspan
                 key={idx}
-                x={center}
+                x={wheelCx}
                 dy={
                   idx === 0
                     ? centerLines.length > 1
-                      ? -((centerLines.length - 1) * 8)
+                      ? -((centerLines.length - 1) * 7)
                       : 0
-                    : 15
+                    : 13
                 }
               >
                 {line}
@@ -602,34 +734,75 @@ Z
             ))}
           </text>
 
-          {centerSubLabel && (
+          {centerMetaTop && (
             <text
-              x={center}
-              y={center + 29}
+              x={wheelCx}
+              y={wheelCy + 22}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="#D3D9E3"
+              fill="#C9D1DD"
+              fontWeight="500"
+              fontSize="7.7"
+              letterSpacing="0.12"
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {centerMetaTop}
+            </text>
+          )}
+
+          {centerSubLabel && (
+            <text
+              x={wheelCx}
+              y={wheelCy + 35}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#D7DCE6"
               fontWeight="600"
-              fontSize="11"
-              letterSpacing="0.35"
+              fontSize="8.2"
+              letterSpacing="0.24"
               style={{ pointerEvents: 'none', userSelect: 'none' }}
             >
               {centerSubLabel}
             </text>
           )}
-        </g>
 
-        <g opacity="0.82">
-          <text
-            x="42"
-            y="32"
-            fill="#F3F4F6"
-            fontSize="8.5"
-            fontWeight="600"
-            letterSpacing="0.2"
-          >
-            {centerLines[0] || 'Projekt'}
-          </text>
+          {progressValue !== null && (
+            <>
+              <circle
+                cx={wheelCx}
+                cy={wheelCy + 48}
+                r="18.5"
+                fill="none"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="3.2"
+              />
+              <circle
+                cx={wheelCx}
+                cy={wheelCy + 48}
+                r="18.5"
+                fill="none"
+                stroke="url(#segmentHighlightGradient)"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                strokeDasharray={progressCircumference}
+                strokeDashoffset={progressOffset}
+                transform={`rotate(-90 ${wheelCx} ${wheelCy + 48})`}
+                filter="url(#ringGlow)"
+              />
+              <text
+                x={wheelCx}
+                y={wheelCy + 48}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#F8F0E0"
+                fontWeight="700"
+                fontSize="7.8"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {progressValue}%
+              </text>
+            </>
+          )}
         </g>
       </svg>
     </div>
