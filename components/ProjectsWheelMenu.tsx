@@ -69,6 +69,52 @@ const arcPath = (
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
 };
 
+const wrapSegmentLabel = (text: string, maxLen = 11): string[] => {
+  const source = (text || '').trim();
+  if (!source) return [''];
+
+  const words = source.split(/\s+/);
+  const result: string[] = [];
+  let current = '';
+
+  const pushChunkedWord = (word: string) => {
+    if (word.length <= maxLen) {
+      result.push(word);
+      return;
+    }
+
+    const first = word.slice(0, maxLen);
+    const second = word.slice(maxLen, maxLen * 2);
+
+    result.push(first);
+    if (second) result.push(second);
+  };
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+
+    if (next.length <= maxLen) {
+      current = next;
+      continue;
+    }
+
+    if (current) {
+      result.push(current);
+      current = '';
+    }
+
+    if (word.length > maxLen) {
+      pushChunkedWord(word);
+    } else {
+      current = word;
+    }
+  }
+
+  if (current) result.push(current);
+
+  return result.slice(0, 2);
+};
+
 const ProjectsWheelMenu: React.FC<Props> = ({
   wheelItems,
   hoveredIndex,
@@ -116,18 +162,22 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   }, [animationKey]);
 
   void wheelColors;
+  void labelRadius;
 
   const wheelCx = center;
   const wheelCy = center - 18;
 
-  const outerRadius = Math.max(132, buttonRadius - 28);
-  const innerRadiusWithGap = Math.max(centerRadius + 28, 100);
-  const visualCenterRadius = Math.max(centerRadius - 6, 64);
-  const outerRingShadowRadius = outerRadius + 16;
-  const contentRadius = Math.max(
-    innerRadiusWithGap + 18,
-    Math.min(labelRadius - 6, (outerRadius + innerRadiusWithGap) / 2)
-  );
+  /* Größere Segmente / mehr Nutzfläche */
+  const outerRadius = Math.max(148, buttonRadius - 12);
+  const innerRadiusWithGap = Math.max(centerRadius + 14, 84);
+  const visualCenterRadius = Math.max(centerRadius - 8, 62);
+  const outerRingShadowRadius = outerRadius + 18;
+
+  /* Inhalt bewusst weiter nach innen ziehen */
+  const ringThickness = outerRadius - innerRadiusWithGap;
+  const bandMidRadius = innerRadiusWithGap + ringThickness * 0.43;
+  const iconRadius = bandMidRadius - 6;
+  const textRadius = bandMidRadius + 10;
 
   const segmentGapAngle = 9.5;
 
@@ -176,10 +226,11 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       return {
         baseFill: 'url(#segmentEmptyGradient)',
         topFill: 'url(#segmentTopLightDark)',
+        bottomFill: 'url(#segmentBottomShadeDark)',
         stroke: 'rgba(255,255,255,0.035)',
         text: '#788292',
         icon: '#8791A1',
-        opacity: 0.54,
+        opacity: 0.56,
         filter: 'url(#segmentShadowSoft)',
         innerStroke: 'rgba(255,255,255,0.03)',
         glow: false,
@@ -191,6 +242,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       return {
         baseFill: 'url(#segmentLockedGradient)',
         topFill: 'url(#segmentTopLightDark)',
+        bottomFill: 'url(#segmentBottomShadeDark)',
         stroke: 'rgba(255,255,255,0.045)',
         text: '#94A0B0',
         icon: '#A3AFBE',
@@ -206,6 +258,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       return {
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
+        bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
         stroke: isHighlighted ? 'rgba(255,218,146,0.72)' : 'rgba(255,255,255,0.055)',
         text: isHighlighted ? '#FFF8EC' : '#E2E8F0',
         icon: isHighlighted ? '#FFE1A6' : '#CBD5E1',
@@ -221,6 +274,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       return {
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
+        bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
         stroke: isHighlighted ? 'rgba(255,220,156,0.78)' : 'rgba(255,255,255,0.06)',
         text: isHighlighted ? '#FFF9EE' : '#EEF2F7',
         icon: isHighlighted ? '#FFE5B2' : '#D6DEE8',
@@ -236,6 +290,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       return {
         baseFill: isHighlighted ? 'url(#segmentProjectGradientHover)' : 'url(#segmentProjectGradient)',
         topFill: 'url(#segmentTopLightDark)',
+        bottomFill: 'url(#segmentBottomShadeDark)',
         stroke: isHighlighted ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
         text: '#EFF4FA',
         icon: '#D9E0EA',
@@ -250,6 +305,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     return {
       baseFill: 'url(#segmentProjectGradient)',
       topFill: 'url(#segmentTopLightDark)',
+      bottomFill: 'url(#segmentBottomShadeDark)',
       stroke: 'rgba(255,255,255,0.06)',
       text: '#EFF4FA',
       icon: '#D9E0EA',
@@ -370,6 +426,18 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <stop offset="0%" stopColor="rgba(255,255,255,0.26)" />
             <stop offset="24%" stopColor="rgba(255,245,225,0.10)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+          </linearGradient>
+
+          <linearGradient id="segmentBottomShadeDark" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="56%" stopColor="rgba(0,0,0,0.05)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+          </linearGradient>
+
+          <linearGradient id="segmentBottomShadeHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="56%" stopColor="rgba(0,0,0,0.04)" />
+            <stop offset="100%" stopColor="rgba(132,72,10,0.18)" />
           </linearGradient>
 
           <linearGradient id="segmentEmptyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -537,19 +605,8 @@ A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${
 Z
 `;
 
-            const mid = (startAngle + endAngle) / 2;
-            const iconPoint = polarToCartesian(
-              wheelCx,
-              wheelCy,
-              contentRadius - 10,
-              mid
-            );
-            const textPoint = polarToCartesian(
-              wheelCx,
-              wheelCy,
-              contentRadius + 12,
-              mid
-            );
+            const iconPoint = polarToCartesian(wheelCx, wheelCy, iconRadius, (startAngle + endAngle) / 2);
+            const textPoint = polarToCartesian(wheelCx, wheelCy, textRadius, (startAngle + endAngle) / 2);
             const lift = getSliceLift(i, wheelItems.length);
 
             const isHovered = hoveredIndex === i;
@@ -565,28 +622,7 @@ Z
             const palette = getSegmentPalette(item, i);
             const isClickable = interactiveSlots.has(item.slotType);
 
-            const lines = (() => {
-              const source = item.label?.trim() || '';
-              if (!source) return [''];
-
-              const words = source.split(/\s+/);
-              const result: string[] = [];
-              let current = '';
-
-              for (const word of words) {
-                const next = current ? `${current} ${word}` : word;
-                if (next.length <= 11) {
-                  current = next;
-                } else {
-                  if (current) result.push(current);
-                  current = word;
-                }
-              }
-
-              if (current) result.push(current);
-              return result.slice(0, 2);
-            })();
-
+            const lines = wrapSegmentLabel(item.label, 11);
             const textStartY =
               lines.length > 1
                 ? textPoint.y - ((lines.length - 1) * 5.85)
@@ -630,6 +666,12 @@ Z
                   d={path}
                   fill={palette.topFill}
                   opacity={palette.glow ? 0.95 : 0.82}
+                />
+
+                <path
+                  d={path}
+                  fill={palette.bottomFill}
+                  opacity={0.95}
                 />
 
                 <path
