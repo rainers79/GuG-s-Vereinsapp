@@ -70,13 +70,14 @@ const arcPath = (
   cy: number,
   radius: number,
   startAngle: number,
-  endAngle: number
+  endAngle: number,
+  sweepFlag = 1
 ) => {
   const start = polarToCartesianFn(cx, cy, radius, startAngle);
   const end = polarToCartesianFn(cx, cy, radius, endAngle);
   const largeArc = Math.abs(endAngle - startAngle) <= 180 ? 0 : 1;
 
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} ${sweepFlag} ${end.x} ${end.y}`;
 };
 
 const truncateText = (text: string, max = 18) => {
@@ -102,6 +103,7 @@ const genericWrap = (text: string, maxLen = 10): string[] => {
 
     const first = word.slice(0, maxLen);
     const second = word.slice(maxLen, maxLen * 2 - 1);
+
     result.push(first);
     if (second) result.push(`${second}${word.length > maxLen * 2 - 1 ? '…' : ''}`);
   };
@@ -136,162 +138,162 @@ const getLabelLayout = (item: ProjectsWheelDisplayItem): LabelLayout => {
     case 'calendar':
       return {
         lines: ['Kalender'],
-        fontSize: 9.8,
-        lineHeight: 11.4,
+        fontSize: 9.2,
+        lineHeight: 10.8,
         fontWeight: 650,
-        letterSpacing: 0.06,
+        letterSpacing: 0.04,
         textRadiusAdjust: 0,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -2
       };
 
     case 'tasks':
       return {
         lines: ['Aufgaben'],
-        fontSize: 9.8,
-        lineHeight: 11.4,
+        fontSize: 9.2,
+        lineHeight: 10.8,
         fontWeight: 650,
-        letterSpacing: 0.06,
+        letterSpacing: 0.04,
         textRadiusAdjust: 0,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -2
       };
 
     case 'polls':
       return {
         lines: ['Umfragen'],
-        fontSize: 9.8,
-        lineHeight: 11.4,
-        fontWeight: 650,
-        letterSpacing: 0.05,
+        fontSize: 9.0,
+        lineHeight: 10.7,
+        fontWeight: 645,
+        letterSpacing: 0.03,
         textRadiusAdjust: 0,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -2
       };
 
     case 'invoices':
       return {
         lines: ['Rechnungen'],
-        fontSize: 9.3,
-        lineHeight: 11.1,
+        fontSize: 8.5,
+        lineHeight: 10.2,
         fontWeight: 640,
-        letterSpacing: 0.02,
+        letterSpacing: 0.01,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -1
       };
 
     case 'shopping':
       return {
         lines: ['Einkaufs', 'liste'],
-        fontSize: 8.8,
-        lineHeight: 10.6,
-        fontWeight: 640,
-        letterSpacing: 0.02,
+        fontSize: 8.1,
+        lineHeight: 9.7,
+        fontWeight: 635,
+        letterSpacing: 0.01,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
       };
 
     case 'coreteam':
       return {
         lines: ['Kernteam'],
-        fontSize: 9.5,
-        lineHeight: 11.1,
+        fontSize: 8.9,
+        lineHeight: 10.5,
         fontWeight: 640,
-        letterSpacing: 0.04,
+        letterSpacing: 0.03,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -1
       };
 
     case 'chatlog':
       return {
         lines: ['Projekt', 'Chat'],
-        fontSize: 8.9,
-        lineHeight: 10.6,
-        fontWeight: 640,
-        letterSpacing: 0.03,
+        fontSize: 8.1,
+        lineHeight: 9.7,
+        fontWeight: 635,
+        letterSpacing: 0.02,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
       };
 
     case 'pos':
       return {
         lines: ['Bonier', 'system'],
-        fontSize: 8.8,
-        lineHeight: 10.6,
-        fontWeight: 640,
-        letterSpacing: 0.02,
+        fontSize: 8.1,
+        lineHeight: 9.7,
+        fontWeight: 635,
+        letterSpacing: 0.01,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
       };
 
     case 'next':
     case 'chat-next':
       return {
         lines: ['Weiter'],
-        fontSize: 9.7,
-        lineHeight: 11.2,
+        fontSize: 9.0,
+        lineHeight: 10.5,
         fontWeight: 650,
-        letterSpacing: 0.05,
+        letterSpacing: 0.04,
         textRadiusAdjust: 0,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -2
       };
 
     case 'prev':
     case 'chat-prev':
       return {
         lines: ['Zurück'],
-        fontSize: 9.7,
-        lineHeight: 11.2,
+        fontSize: 9.0,
+        lineHeight: 10.5,
         fontWeight: 650,
-        letterSpacing: 0.05,
+        letterSpacing: 0.04,
         textRadiusAdjust: 0,
-        iconRadiusAdjust: 0
+        iconRadiusAdjust: -2
       };
 
     case 'empty':
       return {
         lines: ['Freier', 'Slot'],
-        fontSize: 8.8,
-        lineHeight: 10.5,
-        fontWeight: 620,
-        letterSpacing: 0.03,
-        textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
-      };
-
-    case 'chat-group': {
-      const lines = genericWrap(item.label, 10);
-      return {
-        lines,
-        fontSize: lines.length > 1 ? 8.6 : 9.1,
-        lineHeight: 10.4,
+        fontSize: 8.0,
+        lineHeight: 9.6,
         fontWeight: 620,
         letterSpacing: 0.02,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
+      };
+
+    case 'chat-group': {
+      const lines = genericWrap(item.label, 9);
+      return {
+        lines,
+        fontSize: lines.length > 1 ? 7.9 : 8.4,
+        lineHeight: 9.5,
+        fontWeight: 620,
+        letterSpacing: 0.01,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 0
       };
     }
 
     case 'project': {
-      const lines = genericWrap(item.label, 10);
+      const lines = genericWrap(item.label, 9);
       return {
         lines,
-        fontSize: lines.length > 1 ? 8.6 : 9.1,
-        lineHeight: 10.4,
+        fontSize: lines.length > 1 ? 7.9 : 8.4,
+        lineHeight: 9.5,
         fontWeight: 620,
-        letterSpacing: 0.02,
+        letterSpacing: 0.01,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
       };
     }
 
     default: {
-      const lines = genericWrap(item.label, 10);
+      const lines = genericWrap(item.label, 9);
       return {
         lines,
-        fontSize: lines.length > 1 ? 8.7 : 9.2,
-        lineHeight: 10.5,
+        fontSize: lines.length > 1 ? 8.0 : 8.5,
+        lineHeight: 9.6,
         fontWeight: 620,
-        letterSpacing: 0.02,
+        letterSpacing: 0.01,
         textRadiusAdjust: -1,
-        iconRadiusAdjust: 1
+        iconRadiusAdjust: 0
       };
     }
   }
@@ -356,8 +358,10 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
   const ringThickness = outerRadius - innerRadiusWithGap;
   const bandMidRadius = innerRadiusWithGap + ringThickness * 0.43;
-  const baseIconRadius = bandMidRadius - 9;
-  const baseTextRadius = bandMidRadius + 10;
+
+  /* Mehr Abstand zwischen Icon und Schrift */
+  const baseIconRadius = bandMidRadius - 15;
+  const baseTextRadius = bandMidRadius + 16;
 
   const segmentGapAngle = 9.5;
 
@@ -408,8 +412,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         opacity: 0.56,
         filter: 'url(#segmentShadowSoft)',
         innerStroke: 'rgba(255,255,255,0.03)',
-        glow: false,
-        fontWeight: 600 as const
+        glow: false
       };
     }
 
@@ -424,8 +427,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         opacity: 0.82,
         filter: 'url(#segmentShadowSoft)',
         innerStroke: 'rgba(255,255,255,0.04)',
-        glow: false,
-        fontWeight: 600 as const
+        glow: false
       };
     }
 
@@ -440,8 +442,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
         innerStroke: isHighlighted ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
-        glow: isHighlighted,
-        fontWeight: isHighlighted ? (700 as const) : (600 as const)
+        glow: isHighlighted
       };
     }
 
@@ -456,8 +457,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
         innerStroke: isHighlighted ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.065)',
-        glow: isHighlighted,
-        fontWeight: isHighlighted ? (700 as const) : (600 as const)
+        glow: isHighlighted
       };
     }
 
@@ -472,8 +472,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentShadowLifted)' : 'url(#segmentShadowSoft)',
         innerStroke: isHighlighted ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.06)',
-        glow: false,
-        fontWeight: 650 as const
+        glow: false
       };
     }
 
@@ -487,8 +486,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       opacity: 1,
       filter: 'url(#segmentShadowSoft)',
       innerStroke: 'rgba(255,255,255,0.06)',
-      glow: false,
-      fontWeight: 600 as const
+      glow: false
     };
   };
 
@@ -499,50 +497,44 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     color: string
   ) => {
     const common = {
-      size: 17,
+      size: 16,
       strokeWidth: 2,
       color
     };
 
     switch (item.actionKey) {
       case 'calendar':
-        return <CalendarDays {...common} x={x - 8.5} y={y - 8.5} />;
+        return <CalendarDays {...common} x={x - 8} y={y - 8} />;
       case 'tasks':
-        return <CheckSquare {...common} x={x - 8.5} y={y - 8.5} />;
+        return <CheckSquare {...common} x={x - 8} y={y - 8} />;
       case 'polls':
-        return <BarChart3 {...common} x={x - 8.5} y={y - 8.5} />;
+        return <BarChart3 {...common} x={x - 8} y={y - 8} />;
       case 'invoices':
-        return <Receipt {...common} x={x - 8.5} y={y - 8.5} />;
+        return <Receipt {...common} x={x - 8} y={y - 8} />;
       case 'shopping':
-        return <ShoppingCart {...common} x={x - 8.5} y={y - 8.5} />;
+        return <ShoppingCart {...common} x={x - 8} y={y - 8} />;
       case 'coreteam':
-        return <Users {...common} x={x - 8.5} y={y - 8.5} />;
+        return <Users {...common} x={x - 8} y={y - 8} />;
       case 'chatlog':
       case 'chat-group':
-        return <MessageCircle {...common} x={x - 8.5} y={y - 8.5} />;
+        return <MessageCircle {...common} x={x - 8} y={y - 8} />;
       case 'pos':
-        return <Wallet {...common} x={x - 8.5} y={y - 8.5} />;
+        return <Wallet {...common} x={x - 8} y={y - 8} />;
       case 'next':
       case 'chat-next':
-        return <ChevronRight {...common} x={x - 8.5} y={y - 8.5} />;
+        return <ChevronRight {...common} x={x - 8} y={y - 8} />;
       case 'prev':
       case 'chat-prev':
-        return <ChevronLeft {...common} x={x - 8.5} y={y - 8.5} />;
+        return <ChevronLeft {...common} x={x - 8} y={y - 8} />;
       case 'empty':
-        return <FolderKanban {...common} x={x - 8.5} y={y - 8.5} />;
+        return <FolderKanban {...common} x={x - 8} y={y - 8} />;
       default:
         if (item.slotType === 'locked') {
-          return <Lock {...common} x={x - 8.5} y={y - 8.5} />;
+          return <Lock {...common} x={x - 8} y={y - 8} />;
         }
-        return <FolderKanban {...common} x={x - 8.5} y={y - 8.5} />;
+        return <FolderKanban {...common} x={x - 8} y={y - 8} />;
     }
   };
-
-  const progressCircumference = 2 * Math.PI * 18.5;
-  const progressOffset =
-    progressValue === null
-      ? progressCircumference
-      : progressCircumference * (1 - progressValue / 100);
 
   return (
     <div className="flex justify-center items-center py-4">
@@ -554,42 +546,24 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         aria-label="Projekt Radmenü"
       >
         <defs>
-          <radialGradient id="screenBg" cx="50%" cy="32%" r="86%">
-            <stop offset="0%" stopColor="#282C34" />
-            <stop offset="42%" stopColor="#151A22" />
-            <stop offset="100%" stopColor="#0A0E14" />
-          </radialGradient>
-
-          <radialGradient id="screenGlowTop" cx="50%" cy="28%" r="52%">
-            <stop offset="0%" stopColor="rgba(247,184,76,0.10)" />
-            <stop offset="45%" stopColor="rgba(247,184,76,0.03)" />
-            <stop offset="100%" stopColor="rgba(247,184,76,0)" />
-          </radialGradient>
-
-          <radialGradient id="screenGlowBottom" cx="52%" cy="78%" r="42%">
-            <stop offset="0%" stopColor="rgba(247,184,76,0.06)" />
-            <stop offset="55%" stopColor="rgba(247,184,76,0.015)" />
-            <stop offset="100%" stopColor="rgba(247,184,76,0)" />
-          </radialGradient>
-
-          <linearGradient id="segmentProjectGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <radialGradient id="segmentProjectGradient" cx="35%" cy="28%" r="86%">
             <stop offset="0%" stopColor="#243245" />
             <stop offset="42%" stopColor="#101722" />
             <stop offset="100%" stopColor="#0A1018" />
-          </linearGradient>
+          </radialGradient>
 
-          <linearGradient id="segmentProjectGradientHover" x1="0%" y1="0%" x2="100%" y2="100%">
+          <radialGradient id="segmentProjectGradientHover" cx="35%" cy="28%" r="86%">
             <stop offset="0%" stopColor="#36485F" />
             <stop offset="40%" stopColor="#17212F" />
             <stop offset="100%" stopColor="#0F151E" />
-          </linearGradient>
+          </radialGradient>
 
-          <linearGradient id="segmentHighlightGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FFE4B0" />
+          <radialGradient id="segmentHighlightGradient" cx="34%" cy="24%" r="84%">
+            <stop offset="0%" stopColor="#FFE8BC" />
             <stop offset="32%" stopColor="#FFD48B" />
             <stop offset="68%" stopColor="#F0B347" />
             <stop offset="100%" stopColor="#C47B18" />
-          </linearGradient>
+          </radialGradient>
 
           <linearGradient id="segmentTopLightDark" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="rgba(255,255,255,0.13)" />
@@ -598,8 +572,8 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           </linearGradient>
 
           <linearGradient id="segmentTopLightHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.26)" />
-            <stop offset="24%" stopColor="rgba(255,245,225,0.10)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.28)" />
+            <stop offset="24%" stopColor="rgba(255,245,225,0.12)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </linearGradient>
 
@@ -638,10 +612,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <stop offset="100%" stopColor="rgba(255,224,154,0)" />
           </radialGradient>
 
-          <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="180%">
-            <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.34" />
-          </filter>
-
           <filter id="wheelShadow" x="-45%" y="-45%" width="190%" height="190%">
             <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.42" />
           </filter>
@@ -670,41 +640,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           </filter>
         </defs>
 
-        <rect
-          x="34"
-          y="14"
-          width="332"
-          height="364"
-          rx="24"
-          fill="url(#screenBg)"
-          filter="url(#cardShadow)"
-        />
-
-        <rect x="34" y="14" width="332" height="364" rx="24" fill="url(#screenGlowTop)" />
-        <rect x="34" y="14" width="332" height="364" rx="24" fill="url(#screenGlowBottom)" />
-        <rect
-          x="34"
-          y="14"
-          width="332"
-          height="364"
-          rx="24"
-          fill="none"
-          stroke="rgba(255,255,255,0.04)"
-          strokeWidth="1"
-        />
-
-        <text
-          x="66"
-          y="45"
-          fill="#F4F6FA"
-          fontSize="8.8"
-          fontWeight="600"
-          letterSpacing="0.15"
-          opacity="0.95"
-        >
-          {topLabel}
-        </text>
-
+        {/* Body-adaptierter Hintergrund: kein eigenes dunkles Fenster mehr */}
         <path
           d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 7, -20, 34)}
           fill="none"
@@ -722,6 +658,18 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           strokeLinecap="round"
           filter="url(#ringGlow)"
         />
+
+        <text
+          x="66"
+          y="45"
+          fill="#F4F6FA"
+          fontSize="8.8"
+          fontWeight="600"
+          letterSpacing="0.15"
+          opacity="0.95"
+        >
+          {topLabel}
+        </text>
 
         <circle
           cx={wheelCx}
@@ -1027,25 +975,22 @@ Z
 
           {progressValue !== null && (
             <>
-              <circle
-                cx={wheelCx}
-                cy={wheelCy + 48}
-                r="18.5"
+              <path
+                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 0)}
                 fill="none"
                 stroke="rgba(255,255,255,0.08)"
                 strokeWidth="3.2"
+                strokeLinecap="round"
               />
-              <circle
-                cx={wheelCx}
-                cy={wheelCy + 48}
-                r="18.5"
+              <path
+                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 0)}
                 fill="none"
                 stroke="url(#segmentHighlightGradient)"
                 strokeWidth="3.2"
                 strokeLinecap="round"
-                strokeDasharray={progressCircumference}
-                strokeDashoffset={progressOffset}
-                transform={`rotate(-90 ${wheelCx} ${wheelCy + 48})`}
+                pathLength={100}
+                strokeDasharray={100}
+                strokeDashoffset={100 - progressValue}
                 filter="url(#ringGlow)"
               />
               <text
