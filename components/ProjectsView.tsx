@@ -45,8 +45,12 @@ type CalendarEventLite = {
 type TaskLite = {
   id: number;
   title: string;
+  description?: string;
+  assigned_user_id?: number | null;
   deadline_date?: string | null;
   status?: string;
+  completed?: boolean;
+  created_at?: string;
   project_id?: number | null;
 };
 
@@ -55,6 +59,14 @@ type PollLite = {
   question: string;
   target_date?: string;
   created_at?: string;
+};
+
+type MemberLite = {
+  id: number;
+  display_name?: string;
+  name?: string;
+  user_email?: string;
+  email?: string;
 };
 
 type ProjectChatGroupLite = {
@@ -287,11 +299,13 @@ const ProjectsView: React.FC<Props> = ({
   const [sendingInlineChat, setSendingInlineChat] = useState(false);
   const [uploadingInlineChatImage, setUploadingInlineChatImage] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [creatingInlineTask, setCreatingInlineTask] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [changingProjectStatus, setChangingProjectStatus] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [assignResult, setAssignResult] = useState<string | null>(null);
+  const [inlineTaskSuccess, setInlineTaskSuccess] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectStatusFilter, setProjectStatusFilter] = useState<ProjectStatus>('active');
@@ -305,6 +319,12 @@ const ProjectsView: React.FC<Props> = ({
 
   const [activeInlineModule, setActiveInlineModule] = useState<InlineProjectModule>(null);
   const [inlineTasks, setInlineTasks] = useState<TaskLite[]>([]);
+  const [members, setMembers] = useState<MemberLite[]>([]);
+  const [showInlineTaskCreate, setShowInlineTaskCreate] = useState(false);
+  const [newInlineTaskTitle, setNewInlineTaskTitle] = useState('');
+  const [newInlineTaskDescription, setNewInlineTaskDescription] = useState('');
+  const [newInlineTaskAssignedUserId, setNewInlineTaskAssignedUserId] = useState('');
+  const [newInlineTaskDeadlineDate, setNewInlineTaskDeadlineDate] = useState('');
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -325,8 +345,11 @@ const ProjectsView: React.FC<Props> = ({
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
   const isSuperAdmin = userRole === AppRole.SUPERADMIN;
+  const canCreateInlineTasks =
+    userRole === AppRole.SUPERADMIN || userRole === AppRole.VORSTAND;
+
 /* =====================================================
-   SECTION 06 - MEMOS
+     SECTION 06 - MEMOS
   ===================================================== */
 
   const selectedProject = useMemo(() => {
@@ -527,6 +550,7 @@ const ProjectsView: React.FC<Props> = ({
 
     return '';
   }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
+
 /* =====================================================
      SECTION 07 - CONTEXT EFFECTS
   ===================================================== */
@@ -556,6 +580,7 @@ const ProjectsView: React.FC<Props> = ({
       moduleLabel: null
     });
   }, [wheelMode, selectedProject, activeInlineModule, onProjectContextChange]);
+
   /* =====================================================
      SECTION 08 - STORAGE EFFECTS
   ===================================================== */
@@ -688,6 +713,7 @@ const ProjectsView: React.FC<Props> = ({
         setInlineChatMessages([]);
         setActiveInlineModule(null);
         setInlineTasks([]);
+        setShowInlineTaskCreate(false);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
@@ -746,106 +772,8 @@ const ProjectsView: React.FC<Props> = ({
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
       }
 
-      if (storedOpenChatGroupId && list.some((g) => Number(g.id) === Number(storedOpenChatGroupId))) {
-        setOpenChatGroupId(storedOpenChatGroupId);
-      } else {
-        setOpenChatGroupId(null);
-        setInlineChatMessages([]);
-        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-      }
-    } catch {
-      setChatGroups([]);
-      setSelectedChatGroupId(null);
-      setOpenChatGroupId(null);
-      setInlineChatMessages([]);
-      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
-      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-    } finally {
-      setLoadingChatGroups(false);
-    }
-  };
+      if (storedOpenChatGroupId && list.some((g) => Number(g.id) === Number
 
-  const loadInlineChatMessages = async (groupId: number) => {
-    if (!selectedProjectId) return;
-
-    setLoadingInlineChat(true);
-
-    try {
-      const data = await api.getProjectChatMessages(
-        {
-          project_id: selectedProjectId,
-          group_id: groupId,
-          limit: 50
-        },
-        undefined as any
-      );
-
-      setInlineChatMessages(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setInlineChatMessages([]);
-      setError(e?.message || 'Projekt-Chat konnte nicht geladen werden.');
-    } finally {
-      setLoadingInlineChat(false);
-    }
-  };
-
-  const loadInlineTasks = async (projectId: number) => {
-    if (!projectId) {
-      setInlineTasks([]);
-      return;
-    }
-
-    setLoadingInlineTasks(true);
-
-    try {
-      const data = await api
-        .apiRequest<TaskLite[]>(`/gug/v1/tasks?project_id=${projectId}`, {}, undefined)
-        .catch(() => api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined))
-        .catch(() => []);
-
-      const list = Array.isArray(data)
-        ? data.map((task: any) => ({
-            ...task,
-            id: Number(task.id),
-            project_id:
-              task?.project_id !== undefined && task?.project_id !== null
-                ? Number(task.project_id)
-                : null
-          }))
-        : [];
-
-      const hasProjectIds = list.some(
-        (task) => typeof task.project_id === 'number' && Number(task.project_id) > 0
-      );
-
-      const filtered = hasProjectIds
-        ? list.filter((task) => Number(task.project_id) === Number(projectId))
-        : list;
-
-      setInlineTasks(filtered);
-    } catch (e: any) {
-      setInlineTasks([]);
-      setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
-    } finally {
-      setLoadingInlineTasks(false);
-    }
-  };
-
-  const loadAssignableData = async () => {
-    try {
-      const [ev, ta, po] = await Promise.all([
-        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, undefined).catch(() => []),
-        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined).catch(() => []),
-        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, undefined).catch(() => [])
-      ]);
-
-      setEvents(Array.isArray(ev) ? ev : []);
-      setTasks(Array.isArray(ta) ? ta : []);
-      setPolls(Array.isArray(po) ? po : []);
-    } catch {
-      // silent
-    }
-  };
 /* =====================================================
      SECTION 11 - LOAD EFFECTS
   ===================================================== */
@@ -1619,7 +1547,21 @@ const ProjectsView: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {canCreateInlineTasks && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowInlineTaskCreate((prev) => !prev);
+                  setInlineTaskSuccess(null);
+                  setError(null);
+                }}
+              >
+                {showInlineTaskCreate ? 'Abbrechen' : 'Neue Aufgabe'}
+              </button>
+            )}
+
             <button
               type="button"
               className="btn-secondary"
@@ -1635,12 +1577,114 @@ const ProjectsView: React.FC<Props> = ({
               onClick={() => {
                 setActiveInlineModule(null);
                 setInlineTasks([]);
+                setShowInlineTaskCreate(false);
+                setInlineTaskSuccess(null);
               }}
             >
               Schließen
             </button>
           </div>
         </div>
+
+        {showInlineTaskCreate && canCreateInlineTasks && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
+            <h3 className="text-base font-black text-white">Neue Aufgabe erstellen</h3>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Titel
+                </label>
+                <input
+                  className="form-input w-full"
+                  value={newInlineTaskTitle}
+                  onChange={(e) => setNewInlineTaskTitle(e.target.value)}
+                  placeholder="Aufgabe eingeben"
+                  disabled={creatingInlineTask}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Fälligkeitsdatum
+                </label>
+                <input
+                  type="date"
+                  className="form-input w-full"
+                  value={newInlineTaskDeadlineDate}
+                  onChange={(e) => setNewInlineTaskDeadlineDate(e.target.value)}
+                  disabled={creatingInlineTask}
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Mitglied zuweisen
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={newInlineTaskAssignedUserId}
+                  onChange={(e) => setNewInlineTaskAssignedUserId(e.target.value)}
+                  disabled={creatingInlineTask}
+                >
+                  <option value="">Bitte auswählen</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.display_name ||
+                        member.name ||
+                        member.user_email ||
+                        member.email ||
+                        `Mitglied #${member.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                  Projekt
+                </label>
+                <input
+                  className="form-input w-full opacity-80"
+                  value={selectedProject?.title?.trim() || `Projekt #${selectedProjectId}`}
+                  disabled
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-white/50 font-black uppercase tracking-widest">
+                Beschreibung
+              </label>
+              <textarea
+                className="form-input w-full min-h-[110px]"
+                value={newInlineTaskDescription}
+                onChange={(e) => setNewInlineTaskDescription(e.target.value)}
+                placeholder="Beschreibung"
+                disabled={creatingInlineTask}
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleCreateInlineTask}
+                disabled={creatingInlineTask || !newInlineTaskTitle.trim()}
+              >
+                {creatingInlineTask ? '...' : 'Aufgabe speichern'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {inlineTaskSuccess && (
+          <div className="p-3 rounded-lg border border-emerald-200/20 bg-emerald-500/10 text-emerald-200 text-sm">
+            {inlineTaskSuccess}
+          </div>
+        )}
 
         {loadingInlineTasks ? (
           <div className="text-sm text-white/60">Aufgaben werden geladen...</div>
@@ -1650,28 +1694,49 @@ const ProjectsView: React.FC<Props> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedInlineTasks.map((task) => (
-              <div
-                key={task.id}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="font-black text-white">
-                      {task.title || `Aufgabe #${task.id}`}
+            {sortedInlineTasks.map((task) => {
+              const assignedMember = task.assigned_user_id
+                ? members.find((member) => Number(member.id) === Number(task.assigned_user_id))
+                : null;
+
+              const assignedLabel = assignedMember
+                ? assignedMember.display_name ||
+                  assignedMember.name ||
+                  assignedMember.user_email ||
+                  assignedMember.email ||
+                  `Mitglied #${assignedMember.id}`
+                : 'Nicht zugewiesen';
+
+              return (
+                <div
+                  key={task.id}
+                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-black text-white">
+                        {task.title || `Aufgabe #${task.id}`}
+                      </div>
+
+                      {task.description && (
+                        <div className="text-sm mt-2 text-white/70 whitespace-pre-wrap break-words">
+                          {task.description}
+                        </div>
+                      )}
+
+                      <div className="text-xs mt-3 text-white/45 uppercase tracking-widest font-black space-y-1">
+                        <div>Status: {task.status || (task.completed ? 'erledigt' : 'offen')}</div>
+                        <div>Zugewiesen an: {assignedLabel}</div>
+                      </div>
                     </div>
 
-                    <div className="text-xs mt-2 text-white/45 uppercase tracking-widest font-black">
-                      Status: {task.status || 'offen'}
+                    <div className="text-xs font-black uppercase tracking-widest whitespace-nowrap text-white/35">
+                      {task.deadline_date ? formatDate(task.deadline_date) : 'ohne Datum'}
                     </div>
-                  </div>
-
-                  <div className="text-xs font-black uppercase tracking-widest whitespace-nowrap text-white/35">
-                    {task.deadline_date ? formatDate(task.deadline_date) : 'ohne Datum'}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -1732,6 +1797,7 @@ const ProjectsView: React.FC<Props> = ({
 
   const renderDefaultProjectBlocks = () => {
     if (wheelMode === 'chat-groups') return null;
+    if (activeInlineModule === 'tasks') return null;
 
     return (
       <>
@@ -1751,6 +1817,8 @@ const ProjectsView: React.FC<Props> = ({
                 setInlineChatMessages([]);
                 setActiveInlineModule(null);
                 setInlineTasks([]);
+                setShowInlineTaskCreate(false);
+                setInlineTaskSuccess(null);
                 localStorage.removeItem(LS_ACTIVE_PROJECT);
                 localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
                 localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
@@ -1922,63 +1990,12 @@ const ProjectsView: React.FC<Props> = ({
                       setInlineChatMessages([]);
                       setActiveInlineModule(null);
                       setInlineTasks([]);
+                      setShowInlineTaskCreate(false);
+                      setInlineTaskSuccess(null);
 
                       if (projectStatusFilter === 'active') {
-                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-                        setWheelMode('actions');
-                      } else {
-                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-                        setWheelMode('project-select');
-                      }
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions_
 
-                      triggerWheelAnimation();
-                    }}
-                    className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
-                      isActive
-                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
-                        : 'bg-white/5 hover:bg-white/10 text-white/80'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                          {p.title || `Projekt #${p.id}`}
-                        </div>
-                        {p.description && (
-                          <div
-                            className={`text-xs mt-1 ${
-                              isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
-                            }`}
-                          >
-                            {p.description}
-                          </div>
-                        )}
-                        <div
-                          className={`text-[10px] mt-2 uppercase tracking-widest font-black ${
-                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
-                          }`}
-                        >
-                          Status: {p.status || 'active'}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                          isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
-                        }`}
-                      >
-                        {dateLabel || 'ohne Datum'}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </>
-    );
-  };
  /* =====================================================
      SECTION 18 - RENDER
   ===================================================== */
