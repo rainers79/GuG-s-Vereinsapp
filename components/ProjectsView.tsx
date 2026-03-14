@@ -348,7 +348,7 @@ const ProjectsView: React.FC<Props> = ({
   const canCreateInlineTasks =
     userRole === AppRole.SUPERADMIN || userRole === AppRole.VORSTAND;
 
-/* =====================================================
+  /* =====================================================
      SECTION 06 - MEMOS
   ===================================================== */
 
@@ -551,7 +551,7 @@ const ProjectsView: React.FC<Props> = ({
     return '';
   }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
 
-/* =====================================================
+  /* =====================================================
      SECTION 07 - CONTEXT EFFECTS
   ===================================================== */
 
@@ -669,7 +669,7 @@ const ProjectsView: React.FC<Props> = ({
     }
   }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
 
-/* =====================================================
+  /* =====================================================
      SECTION 10 - LOADERS
   ===================================================== */
 
@@ -891,7 +891,7 @@ const ProjectsView: React.FC<Props> = ({
     }
   };
 
-/* =====================================================
+  /* =====================================================
      SECTION 11 - LOAD EFFECTS
   ===================================================== */
 
@@ -1134,7 +1134,7 @@ const ProjectsView: React.FC<Props> = ({
     if (item.view) onNavigate(item.view);
   };
 
- /* =====================================================
+  /* =====================================================
      SECTION 13 - PROJECT ACTIONS
   ===================================================== */
 
@@ -1328,6 +1328,98 @@ const ProjectsView: React.FC<Props> = ({
       setError(e?.message || 'Projekt konnte nicht dearchiviert werden.');
     } finally {
       setChangingProjectStatus(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!selectedProjectId || !isSuperAdmin) return;
+
+    const confirmed = window.confirm(
+      'Projekt wirklich löschen? Das Projekt wird in den Status "deleted" gesetzt.'
+    );
+    if (!confirmed) return;
+
+    setChangingProjectStatus(true);
+    setError(null);
+
+    try {
+      await api.deleteProject(selectedProjectId, undefined as any);
+      setWheelMode('project-select');
+      setSelectedProjectId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
+      localStorage.removeItem(LS_ACTIVE_PROJECT);
+      localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      await loadProjects(projectStatusFilter);
+    } catch (e: any) {
+      setError(e?.message || 'Projekt konnte nicht gelöscht werden.');
+    } finally {
+      setChangingProjectStatus(false);
+    }
+  };
+
+  const optionsForAssign = useMemo(() => {
+    if (assignType === 'event') {
+      return events.map((e) => ({
+        id: String(e.id),
+        label: `${e.title}${e.date ? ` (${formatDate(e.date)})` : ''}`
+      }));
+    }
+
+    if (assignType === 'task') {
+      return tasks.map((t) => ({
+        id: String(t.id),
+        label: `${t.title}${t.deadline_date ? ` (${formatDate(t.deadline_date)})` : ''}`
+      }));
+    }
+
+    return polls.map((p) => ({
+      id: String(p.id),
+      label: `${p.question}${p.target_date ? ` (${formatDate(p.target_date)})` : ''}`
+    }));
+  }, [assignType, events, tasks, polls]);
+
+  const handleAssignToProject = async () => {
+    if (!selectedProjectId) {
+      setAssignResult('Kein Projekt ausgewählt.');
+      return;
+    }
+
+    if (!assignId) {
+      setAssignResult('Kein Eintrag ausgewählt.');
+      return;
+    }
+
+    setAssigning(true);
+    setAssignResult(null);
+
+    try {
+      const payload = {
+        project_id: selectedProjectId,
+        type: assignType,
+        item_id: Number(assignId)
+      };
+
+      await api.apiRequest<{ success: boolean; message?: string }>(
+        '/gug/v1/projects/link',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        },
+        undefined
+      );
+
+      setAssignResult('Zuordnung gespeichert.');
+      await loadAssignableData();
+    } catch (e: any) {
+      setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -1639,7 +1731,7 @@ const ProjectsView: React.FC<Props> = ({
     );
   };
 
-/* =====================================================
+  /* =====================================================
      SECTION 17 - RENDER DEFAULT PROJECT BLOCKS
   ===================================================== */
 
@@ -2163,8 +2255,7 @@ const ProjectsView: React.FC<Props> = ({
     );
   };
 
-
- /* =====================================================
+  /* =====================================================
      SECTION 18 - RENDER
   ===================================================== */
 
