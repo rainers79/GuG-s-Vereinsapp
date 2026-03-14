@@ -47,6 +47,7 @@ type TaskLite = {
   title: string;
   deadline_date?: string | null;
   status?: string;
+  project_id?: number | null;
 };
 
 type PollLite = {
@@ -96,6 +97,7 @@ export interface WheelItem {
 }
 
 type WheelMode = 'project-select' | 'actions' | 'chat-groups';
+type InlineProjectModule = null | 'tasks';
 
 /* =====================================================
    SECTION 02 - STATIC CONFIG
@@ -281,6 +283,7 @@ const ProjectsView: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [loadingChatGroups, setLoadingChatGroups] = useState(false);
   const [loadingInlineChat, setLoadingInlineChat] = useState(false);
+  const [loadingInlineTasks, setLoadingInlineTasks] = useState(false);
   const [sendingInlineChat, setSendingInlineChat] = useState(false);
   const [uploadingInlineChatImage, setUploadingInlineChatImage] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -299,6 +302,9 @@ const ProjectsView: React.FC<Props> = ({
   const [openChatGroupId, setOpenChatGroupId] = useState<number | null>(() => getStoredOpenChatGroupId());
   const [inlineChatMessages, setInlineChatMessages] = useState<ProjectChatMessageLite[]>([]);
   const [inlineChatMessage, setInlineChatMessage] = useState('');
+
+  const [activeInlineModule, setActiveInlineModule] = useState<InlineProjectModule>(null);
+  const [inlineTasks, setInlineTasks] = useState<TaskLite[]>([]);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -319,9 +325,8 @@ const ProjectsView: React.FC<Props> = ({
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
 
   const isSuperAdmin = userRole === AppRole.SUPERADMIN;
-
-  /* =====================================================
-     SECTION 06 - MEMOS
+/* =====================================================
+   SECTION 06 - MEMOS
   ===================================================== */
 
   const selectedProject = useMemo(() => {
@@ -365,6 +370,27 @@ const ProjectsView: React.FC<Props> = ({
 
     return list;
   }, [projects]);
+
+  const sortedInlineTasks = useMemo(() => {
+    const list = [...inlineTasks];
+
+    list.sort((a, b) => {
+      const da = safeDate(a.deadline_date);
+      const db = safeDate(b.deadline_date);
+
+      if (da && db) {
+        const diff = da.getTime() - db.getTime();
+        if (diff !== 0) return diff;
+      }
+
+      if (da && !db) return -1;
+      if (!da && db) return 1;
+
+      return Number(b.id) - Number(a.id);
+    });
+
+    return list;
+  }, [inlineTasks]);
 
   const projectPageCount = useMemo(() => {
     return Math.max(1, Math.ceil(sortedProjects.length / PROJECT_PAGE_SIZE));
@@ -501,8 +527,7 @@ const ProjectsView: React.FC<Props> = ({
 
     return '';
   }, [wheelMode, projectPage, projectPageCount, chatGroupPage, chatGroupPageCount, sortedChatGroups.length]);
-
-  /* =====================================================
+/* =====================================================
      SECTION 07 - CONTEXT EFFECTS
   ===================================================== */
 
@@ -517,9 +542,11 @@ const ProjectsView: React.FC<Props> = ({
 
     if (selectedProject) {
       const projectName = selectedProject.title?.trim() || `Projekt #${selectedProject.id}`;
+      const moduleLabel = activeInlineModule === 'tasks' ? 'Aufgaben' : null;
+
       onProjectContextChange({
         projectName,
-        moduleLabel: null
+        moduleLabel
       });
       return;
     }
@@ -528,8 +555,7 @@ const ProjectsView: React.FC<Props> = ({
       projectName: null,
       moduleLabel: null
     });
-  }, [wheelMode, selectedProject, onProjectContextChange]);
-
+  }, [wheelMode, selectedProject, activeInlineModule, onProjectContextChange]);
   /* =====================================================
      SECTION 08 - STORAGE EFFECTS
   ===================================================== */
@@ -618,7 +644,7 @@ const ProjectsView: React.FC<Props> = ({
     }
   }, [selectedChatGroupId, sortedChatGroups, chatGroupPage]);
 
-  /* =====================================================
+/* =====================================================
      SECTION 10 - LOADERS
   ===================================================== */
 
@@ -660,6 +686,8 @@ const ProjectsView: React.FC<Props> = ({
         setSelectedChatGroupId(null);
         setOpenChatGroupId(null);
         setInlineChatMessages([]);
+        setActiveInlineModule(null);
+        setInlineTasks([]);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
@@ -761,6 +789,48 @@ const ProjectsView: React.FC<Props> = ({
     }
   };
 
+  const loadInlineTasks = async (projectId: number) => {
+    if (!projectId) {
+      setInlineTasks([]);
+      return;
+    }
+
+    setLoadingInlineTasks(true);
+
+    try {
+      const data = await api
+        .apiRequest<TaskLite[]>(`/gug/v1/tasks?project_id=${projectId}`, {}, undefined)
+        .catch(() => api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined))
+        .catch(() => []);
+
+      const list = Array.isArray(data)
+        ? data.map((task: any) => ({
+            ...task,
+            id: Number(task.id),
+            project_id:
+              task?.project_id !== undefined && task?.project_id !== null
+                ? Number(task.project_id)
+                : null
+          }))
+        : [];
+
+      const hasProjectIds = list.some(
+        (task) => typeof task.project_id === 'number' && Number(task.project_id) > 0
+      );
+
+      const filtered = hasProjectIds
+        ? list.filter((task) => Number(task.project_id) === Number(projectId))
+        : list;
+
+      setInlineTasks(filtered);
+    } catch (e: any) {
+      setInlineTasks([]);
+      setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
+    } finally {
+      setLoadingInlineTasks(false);
+    }
+  };
+
   const loadAssignableData = async () => {
     try {
       const [ev, ta, po] = await Promise.all([
@@ -776,8 +846,7 @@ const ProjectsView: React.FC<Props> = ({
       // silent
     }
   };
-
-  /* =====================================================
+/* =====================================================
      SECTION 11 - LOAD EFFECTS
   ===================================================== */
 
@@ -798,6 +867,8 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
       return;
     }
 
@@ -806,6 +877,8 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
       return;
     }
 
@@ -833,10 +906,27 @@ const ProjectsView: React.FC<Props> = ({
   }, [wheelMode, openChatGroupId, selectedProjectId]);
 
   useEffect(() => {
+    if (wheelMode !== 'actions') {
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+    }
+  }, [wheelMode]);
+
+  useEffect(() => {
+    if (activeInlineModule !== 'tasks') return;
+    if (!selectedProjectId || projectStatusFilter !== 'active') {
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+      return;
+    }
+
+    loadInlineTasks(selectedProjectId);
+  }, [activeInlineModule, selectedProjectId, projectStatusFilter]);
+
+  useEffect(() => {
     setAssignId('');
     setAssignResult(null);
   }, [assignType, selectedProjectId]);
-
   /* =====================================================
      SECTION 12 - WHEEL ACTIONS
   ===================================================== */
@@ -855,6 +945,8 @@ const ProjectsView: React.FC<Props> = ({
       setWheelMode('actions');
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
       localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
       triggerWheelAnimation();
       return;
@@ -864,6 +956,8 @@ const ProjectsView: React.FC<Props> = ({
     setWheelMode('project-select');
     setOpenChatGroupId(null);
     setInlineChatMessages([]);
+    setActiveInlineModule(null);
+    setInlineTasks([]);
     localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     triggerWheelAnimation();
   };
@@ -880,6 +974,8 @@ const ProjectsView: React.FC<Props> = ({
         localStorage.setItem(LS_ACTIVE_PROJECT, String(nextId));
         localStorage.setItem(LS_ACTIVE_PROJECT_NAME, clickedProjectName);
         setSelectedProjectId(nextId);
+        setActiveInlineModule(null);
+        setInlineTasks([]);
 
         if (projectStatusFilter === 'active') {
           localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
@@ -954,6 +1050,15 @@ const ProjectsView: React.FC<Props> = ({
       localStorage.setItem(LS_ACTIVE_PROJECT_NAME, selectedProject.title.trim());
     }
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+
+    if (item.actionKey === 'tasks') {
+      setActiveInlineModule('tasks');
+      loadInlineTasks(selectedProjectId);
+      return;
+    }
+
+    setActiveInlineModule(null);
+    setInlineTasks([]);
 
     if (item.actionKey === 'chatlog') {
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
@@ -1495,9 +1600,83 @@ const ProjectsView: React.FC<Props> = ({
     );
   };
 
-  /* =====================================================
+ /* =====================================================
      SECTION 17 - RENDER DEFAULT PROJECT BLOCKS
   ===================================================== */
+
+  const renderInlineTasksPanel = () => {
+    if (wheelMode !== 'actions') return null;
+    if (activeInlineModule !== 'tasks') return null;
+    if (!selectedProjectId || projectStatusFilter !== 'active') return null;
+
+    return (
+      <div className="app-card space-y-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-lg font-black">Aufgaben</h2>
+            <div className="text-xs text-white/50 mt-1">
+              Projekt: {selectedProject?.title?.trim() || `Projekt #${selectedProjectId}`}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => loadInlineTasks(selectedProjectId)}
+              disabled={loadingInlineTasks}
+            >
+              {loadingInlineTasks ? '...' : 'Aktualisieren'}
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setActiveInlineModule(null);
+                setInlineTasks([]);
+              }}
+            >
+              Schließen
+            </button>
+          </div>
+        </div>
+
+        {loadingInlineTasks ? (
+          <div className="text-sm text-white/60">Aufgaben werden geladen...</div>
+        ) : sortedInlineTasks.length === 0 ? (
+          <div className="text-sm text-white/50">
+            Keine Aufgaben für dieses Projekt vorhanden.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sortedInlineTasks.map((task) => (
+              <div
+                key={task.id}
+                className="rounded-xl border border-white/10 bg-white/5 px-5 py-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-black text-white">
+                      {task.title || `Aufgabe #${task.id}`}
+                    </div>
+
+                    <div className="text-xs mt-2 text-white/45 uppercase tracking-widest font-black">
+                      Status: {task.status || 'offen'}
+                    </div>
+                  </div>
+
+                  <div className="text-xs font-black uppercase tracking-widest whitespace-nowrap text-white/35">
+                    {task.deadline_date ? formatDate(task.deadline_date) : 'ohne Datum'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderProjectAdminActions = () => {
     if (!isSuperAdmin || !selectedProject) return null;
@@ -1570,6 +1749,8 @@ const ProjectsView: React.FC<Props> = ({
                 setSelectedProjectId(null);
                 setOpenChatGroupId(null);
                 setInlineChatMessages([]);
+                setActiveInlineModule(null);
+                setInlineTasks([]);
                 localStorage.removeItem(LS_ACTIVE_PROJECT);
                 localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
                 localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
@@ -1739,6 +1920,8 @@ const ProjectsView: React.FC<Props> = ({
                       setSelectedChatGroupId(null);
                       setOpenChatGroupId(null);
                       setInlineChatMessages([]);
+                      setActiveInlineModule(null);
+                      setInlineTasks([]);
 
                       if (projectStatusFilter === 'active') {
                         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
@@ -1796,8 +1979,7 @@ const ProjectsView: React.FC<Props> = ({
       </>
     );
   };
-
-  /* =====================================================
+ /* =====================================================
      SECTION 18 - RENDER
   ===================================================== */
 
@@ -1829,6 +2011,7 @@ const ProjectsView: React.FC<Props> = ({
         />
       </div>
 
+      {renderInlineTasksPanel()}
       {renderInlineChatWindow()}
       {renderChatGroups()}
       {renderDefaultProjectBlocks()}
