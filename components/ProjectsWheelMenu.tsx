@@ -433,12 +433,12 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
-        stroke: isHighlighted ? 'rgba(255,218,146,0.72)' : 'rgba(255,255,255,0.055)',
+        stroke: isHighlighted ? 'rgba(255,222,162,0.82)' : 'rgba(255,255,255,0.055)',
         text: isHighlighted ? '#FFF8EC' : '#E2E8F0',
         icon: isHighlighted ? '#FFE1A6' : '#CBD5E1',
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
-        innerStroke: isHighlighted ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
+        innerStroke: isHighlighted ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)',
         glow: isHighlighted
       };
     }
@@ -448,12 +448,12 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
-        stroke: isHighlighted ? 'rgba(255,220,156,0.78)' : 'rgba(255,255,255,0.06)',
+        stroke: isHighlighted ? 'rgba(255,224,170,0.88)' : 'rgba(255,255,255,0.06)',
         text: isHighlighted ? '#FFF9EE' : '#EEF2F7',
         icon: isHighlighted ? '#FFE5B2' : '#D6DEE8',
         opacity: 1,
         filter: isHighlighted ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
-        innerStroke: isHighlighted ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.065)',
+        innerStroke: isHighlighted ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.065)',
         glow: isHighlighted
       };
     }
@@ -543,6 +543,26 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         aria-label="Projekt Radmenü"
       >
         <defs>
+          <radialGradient id="ambientWarmTopRight" cx="68%" cy="24%" r="44%">
+            <stop offset="0%" stopColor="rgba(247,186,84,0.30)" />
+            <stop offset="28%" stopColor="rgba(247,186,84,0.16)" />
+            <stop offset="62%" stopColor="rgba(247,186,84,0.05)" />
+            <stop offset="100%" stopColor="rgba(247,186,84,0)" />
+          </radialGradient>
+
+          <radialGradient id="ambientWarmBottomLeft" cx="30%" cy="74%" r="46%">
+            <stop offset="0%" stopColor="rgba(242,170,62,0.18)" />
+            <stop offset="34%" stopColor="rgba(242,170,62,0.09)" />
+            <stop offset="66%" stopColor="rgba(242,170,62,0.03)" />
+            <stop offset="100%" stopColor="rgba(242,170,62,0)" />
+          </radialGradient>
+
+          <radialGradient id="ambientBlueOuter" cx="24%" cy="36%" r="82%">
+            <stop offset="0%" stopColor="rgba(44,88,138,0.10)" />
+            <stop offset="42%" stopColor="rgba(29,53,89,0.05)" />
+            <stop offset="100%" stopColor="rgba(29,53,89,0)" />
+          </radialGradient>
+
           <radialGradient id="segmentProjectGradient" cx="35%" cy="28%" r="86%">
             <stop offset="0%" stopColor="#243245" />
             <stop offset="42%" stopColor="#101722" />
@@ -556,10 +576,10 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           </radialGradient>
 
           <radialGradient id="segmentHighlightGradient" cx="34%" cy="24%" r="84%">
-            <stop offset="0%" stopColor="#FFE8BC" />
-            <stop offset="32%" stopColor="#FFD48B" />
-            <stop offset="68%" stopColor="#F0B347" />
-            <stop offset="100%" stopColor="#C47B18" />
+            <stop offset="0%" stopColor="#FFF1CC" />
+            <stop offset="24%" stopColor="#FFD98F" />
+            <stop offset="58%" stopColor="#F0B347" />
+            <stop offset="100%" stopColor="#BF7417" />
           </radialGradient>
 
           <linearGradient id="segmentTopLightDark" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -575,8 +595,8 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           </linearGradient>
 
           <linearGradient id="segmentTopLightHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.28)" />
-            <stop offset="24%" stopColor="rgba(255,245,225,0.12)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.34)" />
+            <stop offset="22%" stopColor="rgba(255,245,225,0.14)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </linearGradient>
 
@@ -648,48 +668,80 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.38" />
           </filter>
 
-          <filter id="segmentGlowSoft" x="-70%" y="-70%" width="240%" height="240%">
-            <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#F5B34A" floodOpacity="0.18" />
-            <feDropShadow dx="0" dy="0" stdDeviation="14" floodColor="#F5B34A" floodOpacity="0.06" />
-            <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="#000000" floodOpacity="0.20" />
-          </filter>
-
-          <filter id="segmentGlowStrong" x="-70%" y="-70%" width="240%" height="240%">
-            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.34" />
-            <feDropShadow dx="0" dy="0" stdDeviation="16" floodColor="#F5B34A" floodOpacity="0.10" />
-            <feDropShadow dx="0" dy="9" stdDeviation="11" floodColor="#000000" floodOpacity="0.22" />
-          </filter>
-
-          <filter id="ringGlow" x="-70%" y="-70%" width="240%" height="240%">
-            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.10" />
+          <filter id="segmentGlowSoft" x="-90%" y="-90%" width="280%" height="280%">
+            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.16" />
             <feDropShadow dx="0" dy="0" stdDeviation="22" floodColor="#F5B34A" floodOpacity="0.05" />
+            <feDropShadow dx="0" dy="10" stdDeviation="11" floodColor="#000000" floodOpacity="0.18" />
+          </filter>
+
+          <filter id="segmentGlowStrong" x="-100%" y="-100%" width="300%" height="300%">
+            <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#F5B34A" floodOpacity="0.34" />
+            <feDropShadow dx="0" dy="0" stdDeviation="18" floodColor="#F5B34A" floodOpacity="0.16" />
+            <feDropShadow dx="0" dy="0" stdDeviation="30" floodColor="#F5B34A" floodOpacity="0.06" />
+            <feDropShadow dx="0" dy="10" stdDeviation="11" floodColor="#000000" floodOpacity="0.22" />
+          </filter>
+
+          <filter id="ringGlow" x="-90%" y="-90%" width="280%" height="280%">
+            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.12" />
+            <feDropShadow dx="0" dy="0" stdDeviation="24" floodColor="#F5B34A" floodOpacity="0.06" />
           </filter>
 
           <filter id="centerShadow" x="-60%" y="-60%" width="220%" height="220%">
             <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.42" />
           </filter>
 
-          <filter id="centerGlowStrong" x="-80%" y="-80%" width="260%" height="260%">
+          <filter id="centerGlowStrong" x="-100%" y="-100%" width="300%" height="300%">
             <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.24" />
-            <feDropShadow dx="0" dy="0" stdDeviation="18" floodColor="#F5B34A" floodOpacity="0.10" />
+            <feDropShadow dx="0" dy="0" stdDeviation="20" floodColor="#F5B34A" floodOpacity="0.12" />
+            <feDropShadow dx="0" dy="0" stdDeviation="32" floodColor="#F5B34A" floodOpacity="0.05" />
             <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.26" />
           </filter>
         </defs>
 
+        <circle
+          cx={wheelCx + 34}
+          cy={wheelCy - 28}
+          r={outerRadius + 84}
+          fill="url(#ambientWarmTopRight)"
+        />
+
+        <circle
+          cx={wheelCx - 48}
+          cy={wheelCy + 56}
+          r={outerRadius + 94}
+          fill="url(#ambientWarmBottomLeft)"
+        />
+
+        <circle
+          cx={wheelCx - 26}
+          cy={wheelCy + 4}
+          r={outerRadius + 110}
+          fill="url(#ambientBlueOuter)"
+        />
+
         <path
-          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 7, -20, 34)}
+          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 9, -22, 40)}
           fill="none"
-          stroke="rgba(245,179,74,0.15)"
-          strokeWidth="2.6"
+          stroke="rgba(245,179,74,0.19)"
+          strokeWidth="2.8"
           strokeLinecap="round"
           filter="url(#ringGlow)"
         />
 
         <path
-          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 7, 148, 220)}
+          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 8, 154, 224)}
           fill="none"
-          stroke="rgba(245,179,74,0.09)"
-          strokeWidth="2.1"
+          stroke="rgba(245,179,74,0.14)"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          filter="url(#ringGlow)"
+        />
+
+        <path
+          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 3, 168, 214)}
+          fill="none"
+          stroke="rgba(255,223,160,0.10)"
+          strokeWidth="1.1"
           strokeLinecap="round"
           filter="url(#ringGlow)"
         />
@@ -708,6 +760,15 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           r={outerRadius + 7}
           fill="none"
           stroke="rgba(255,255,255,0.03)"
+          strokeWidth="1"
+        />
+
+        <circle
+          cx={wheelCx}
+          cy={wheelCy}
+          r={outerRadius - 2}
+          fill="none"
+          stroke="rgba(255,218,150,0.03)"
           strokeWidth="1"
         />
 
@@ -800,9 +861,9 @@ Z
                   <path
                     d={path}
                     fill="none"
-                    stroke="rgba(245,179,74,0.34)"
-                    strokeWidth="3.2"
-                    opacity="0.78"
+                    stroke="rgba(245,179,74,0.38)"
+                    strokeWidth="3.3"
+                    opacity="0.84"
                     filter="url(#ringGlow)"
                   />
                 )}
@@ -821,7 +882,7 @@ Z
                 <path
                   d={path}
                   fill={palette.topFill}
-                  opacity={palette.glow ? 0.95 : 0.82}
+                  opacity={palette.glow ? 0.98 : 0.82}
                 />
 
                 <path
@@ -851,7 +912,7 @@ Z
                   fill="none"
                   stroke={
                     palette.glow
-                      ? 'rgba(255,248,232,0.18)'
+                      ? 'rgba(255,248,232,0.22)'
                       : 'rgba(255,255,255,0.035)'
                   }
                   strokeWidth={0.5}
