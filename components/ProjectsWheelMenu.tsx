@@ -953,14 +953,14 @@ Z
           {progressValue !== null && (
             <>
               <path
-                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 0)}
+                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 1)}
                 fill="none"
                 stroke="rgba(255,255,255,0.08)"
                 strokeWidth="3.2"
                 strokeLinecap="round"
               />
               <path
-                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 0)}
+                d={arcPath(polarToCartesian, wheelCx, wheelCy + 48, 18.5, 270, 90, 1)}
                 fill="none"
                 stroke="url(#segmentHighlightGradient)"
                 strokeWidth="3.2"
