@@ -703,7 +703,10 @@ const ProjectsView: React.FC<Props> = ({
       if (storedId && list.some((p) => Number(p.id) === Number(storedId))) {
         setSelectedProjectId(storedId);
         setWheelMode(storedMode);
-      } else if (selectedProjectId && list.some((p) => Number(p.id) === Number(selectedProjectId))) {
+      } else if (
+        selectedProjectId &&
+        list.some((p) => Number(p.id) === Number(selectedProjectId))
+      ) {
         setWheelMode(getStoredWheelMode());
       } else {
         setSelectedProjectId(null);
@@ -714,6 +717,7 @@ const ProjectsView: React.FC<Props> = ({
         setActiveInlineModule(null);
         setInlineTasks([]);
         setShowInlineTaskCreate(false);
+        setInlineTaskSuccess(null);
         localStorage.removeItem(LS_ACTIVE_PROJECT);
         localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
@@ -772,7 +776,120 @@ const ProjectsView: React.FC<Props> = ({
         localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
       }
 
-      if (storedOpenChatGroupId && list.some((g) => Number(g.id) === Number
+      if (
+        storedOpenChatGroupId &&
+        list.some((g) => Number(g.id) === Number(storedOpenChatGroupId))
+      ) {
+        setOpenChatGroupId(storedOpenChatGroupId);
+      } else {
+        setOpenChatGroupId(null);
+        setInlineChatMessages([]);
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      }
+    } catch {
+      setChatGroups([]);
+      setSelectedChatGroupId(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      localStorage.removeItem(LS_PROJECT_CHAT_GROUP_ID);
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    } finally {
+      setLoadingChatGroups(false);
+    }
+  };
+
+  const loadInlineChatMessages = async (groupId: number) => {
+    if (!selectedProjectId) return;
+
+    setLoadingInlineChat(true);
+
+    try {
+      const data = await api.getProjectChatMessages(
+        {
+          project_id: selectedProjectId,
+          group_id: groupId,
+          limit: 50
+        },
+        undefined as any
+      );
+
+      setInlineChatMessages(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setInlineChatMessages([]);
+      setError(e?.message || 'Projekt-Chat konnte nicht geladen werden.');
+    } finally {
+      setLoadingInlineChat(false);
+    }
+  };
+
+  const loadMembers = async () => {
+    if (!canCreateInlineTasks) {
+      setMembers([]);
+      return;
+    }
+
+    try {
+      const data = await api.getMembers(undefined as any);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch {
+      setMembers([]);
+    }
+  };
+
+  const loadInlineTasks = async (projectId: number) => {
+    if (!projectId) {
+      setInlineTasks([]);
+      return;
+    }
+
+    setLoadingInlineTasks(true);
+
+    try {
+      const data = await api.apiRequest<TaskLite[]>(
+        `/gug/v1/tasks?project_id=${projectId}&scope=project`,
+        {},
+        undefined
+      );
+
+      const list = Array.isArray(data)
+        ? data.map((task) => ({
+            ...task,
+            id: Number(task.id),
+            assigned_user_id:
+              task.assigned_user_id !== undefined && task.assigned_user_id !== null
+                ? Number(task.assigned_user_id)
+                : null,
+            project_id:
+              task.project_id !== undefined && task.project_id !== null
+                ? Number(task.project_id)
+                : null
+          }))
+        : [];
+
+      setInlineTasks(list);
+    } catch (e: any) {
+      setInlineTasks([]);
+      setError(e?.message || 'Aufgaben konnten nicht geladen werden.');
+    } finally {
+      setLoadingInlineTasks(false);
+    }
+  };
+
+  const loadAssignableData = async () => {
+    try {
+      const [ev, ta, po] = await Promise.all([
+        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, undefined).catch(() => []),
+        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined).catch(() => []),
+        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, undefined).catch(() => [])
+      ]);
+
+      setEvents(Array.isArray(ev) ? ev : []);
+      setTasks(Array.isArray(ta) ? ta : []);
+      setPolls(Array.isArray(po) ? po : []);
+    } catch {
+      // silent
+    }
+  };
 
 /* =====================================================
      SECTION 11 - LOAD EFFECTS
@@ -783,6 +900,7 @@ const ProjectsView: React.FC<Props> = ({
     loadedOnce.current = true;
     loadProjects(projectStatusFilter);
     loadAssignableData();
+    loadMembers();
   }, []);
 
   useEffect(() => {
@@ -797,6 +915,8 @@ const ProjectsView: React.FC<Props> = ({
       setInlineChatMessages([]);
       setActiveInlineModule(null);
       setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
       return;
     }
 
@@ -807,6 +927,8 @@ const ProjectsView: React.FC<Props> = ({
       setInlineChatMessages([]);
       setActiveInlineModule(null);
       setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
       return;
     }
 
@@ -837,6 +959,8 @@ const ProjectsView: React.FC<Props> = ({
     if (wheelMode !== 'actions') {
       setActiveInlineModule(null);
       setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
     }
   }, [wheelMode]);
 
@@ -845,16 +969,20 @@ const ProjectsView: React.FC<Props> = ({
     if (!selectedProjectId || projectStatusFilter !== 'active') {
       setActiveInlineModule(null);
       setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
       return;
     }
 
     loadInlineTasks(selectedProjectId);
+    loadMembers();
   }, [activeInlineModule, selectedProjectId, projectStatusFilter]);
 
   useEffect(() => {
     setAssignId('');
     setAssignResult(null);
   }, [assignType, selectedProjectId]);
+
   /* =====================================================
      SECTION 12 - WHEEL ACTIONS
   ===================================================== */
@@ -1006,9 +1134,66 @@ const ProjectsView: React.FC<Props> = ({
     if (item.view) onNavigate(item.view);
   };
 
-  /* =====================================================
+ /* =====================================================
      SECTION 13 - PROJECT ACTIONS
   ===================================================== */
+
+  const resetInlineTaskCreateForm = () => {
+    setNewInlineTaskTitle('');
+    setNewInlineTaskDescription('');
+    setNewInlineTaskAssignedUserId('');
+    setNewInlineTaskDeadlineDate('');
+  };
+
+  const handleCreateInlineTask = async () => {
+    const title = newInlineTaskTitle.trim();
+    const description = newInlineTaskDescription.trim();
+
+    if (!canCreateInlineTasks) {
+      setError('Keine Berechtigung zum Erstellen.');
+      return;
+    }
+
+    if (!selectedProjectId) {
+      setError('Kein Projekt ausgewählt.');
+      return;
+    }
+
+    if (!title) {
+      setError('Titel fehlt.');
+      return;
+    }
+
+    setCreatingInlineTask(true);
+    setError(null);
+    setInlineTaskSuccess(null);
+
+    try {
+      await api.createTask(
+        {
+          title,
+          description,
+          assigned_user_id: newInlineTaskAssignedUserId
+            ? Number(newInlineTaskAssignedUserId)
+            : null,
+          deadline_date: newInlineTaskDeadlineDate || null,
+          project_id: Number(selectedProjectId),
+          role_tag: ''
+        },
+        undefined as any
+      );
+
+      setInlineTaskSuccess('Aufgabe erstellt.');
+      resetInlineTaskCreateForm();
+      setShowInlineTaskCreate(false);
+      await loadInlineTasks(selectedProjectId);
+      await loadAssignableData();
+    } catch (e: any) {
+      setError(e?.message || 'Aufgabe konnte nicht erstellt werden.');
+    } finally {
+      setCreatingInlineTask(false);
+    }
+  };
 
   const handleCreateProject = async () => {
     const title = newTitle.trim();
@@ -1056,6 +1241,10 @@ const ProjectsView: React.FC<Props> = ({
         setOpenChatGroupId(null);
         setChatGroups([]);
         setInlineChatMessages([]);
+        setActiveInlineModule(null);
+        setInlineTasks([]);
+        setShowInlineTaskCreate(false);
+        setInlineTaskSuccess(null);
         localStorage.setItem(LS_ACTIVE_PROJECT, String(newId));
 
         const createdProject =
@@ -1100,6 +1289,10 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedProjectId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
       localStorage.removeItem(LS_ACTIVE_PROJECT);
       localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
@@ -1123,6 +1316,10 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedProjectId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
       localStorage.removeItem(LS_ACTIVE_PROJECT);
       localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
       localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
@@ -1131,92 +1328,6 @@ const ProjectsView: React.FC<Props> = ({
       setError(e?.message || 'Projekt konnte nicht dearchiviert werden.');
     } finally {
       setChangingProjectStatus(false);
-    }
-  };
-
-  const handleDeleteProject = async () => {
-    if (!selectedProjectId || !isSuperAdmin) return;
-
-    const confirmed = window.confirm('Projekt wirklich löschen? Das Projekt wird in den Status "deleted" gesetzt.');
-    if (!confirmed) return;
-
-    setChangingProjectStatus(true);
-    setError(null);
-
-    try {
-      await api.deleteProject(selectedProjectId, undefined as any);
-      setWheelMode('project-select');
-      setSelectedProjectId(null);
-      setOpenChatGroupId(null);
-      setInlineChatMessages([]);
-      localStorage.removeItem(LS_ACTIVE_PROJECT);
-      localStorage.removeItem(LS_ACTIVE_PROJECT_NAME);
-      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-      await loadProjects(projectStatusFilter);
-    } catch (e: any) {
-      setError(e?.message || 'Projekt konnte nicht gelöscht werden.');
-    } finally {
-      setChangingProjectStatus(false);
-    }
-  };
-
-  const optionsForAssign = useMemo(() => {
-    if (assignType === 'event') {
-      return events.map((e) => ({
-        id: String(e.id),
-        label: `${e.title}${e.date ? ` (${formatDate(e.date)})` : ''}`
-      }));
-    }
-
-    if (assignType === 'task') {
-      return tasks.map((t) => ({
-        id: String(t.id),
-        label: `${t.title}${t.deadline_date ? ` (${formatDate(t.deadline_date)})` : ''}`
-      }));
-    }
-
-    return polls.map((p) => ({
-      id: String(p.id),
-      label: `${p.question}${p.target_date ? ` (${formatDate(p.target_date)})` : ''}`
-    }));
-  }, [assignType, events, tasks, polls]);
-
-  const handleAssignToProject = async () => {
-    if (!selectedProjectId) {
-      setAssignResult('Kein Projekt ausgewählt.');
-      return;
-    }
-
-    if (!assignId) {
-      setAssignResult('Kein Eintrag ausgewählt.');
-      return;
-    }
-
-    setAssigning(true);
-    setAssignResult(null);
-
-    try {
-      const payload = {
-        project_id: selectedProjectId,
-        type: assignType,
-        item_id: Number(assignId)
-      };
-
-      await api.apiRequest<{ success: boolean; message?: string }>(
-        '/gug/v1/projects/link',
-        {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        },
-        undefined
-      );
-
-      setAssignResult('Zuordnung gespeichert.');
-      await loadAssignableData();
-    } catch (e: any) {
-      setAssignResult(e?.message || 'Zuordnung fehlgeschlagen.');
-    } finally {
-      setAssigning(false);
     }
   };
 
