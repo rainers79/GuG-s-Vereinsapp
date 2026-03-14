@@ -80,13 +80,6 @@ const arcPath = (
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} ${sweepFlag} ${end.x} ${end.y}`;
 };
 
-const truncateText = (text: string, max = 18) => {
-  const source = (text || '').trim();
-  if (!source) return '';
-  if (source.length <= max) return source;
-  return `${source.slice(0, max - 1)}…`;
-};
-
 const genericWrap = (text: string, maxLen = 10): string[] => {
   const source = (text || '').trim();
   if (!source) return [''];
@@ -359,7 +352,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   const ringThickness = outerRadius - innerRadiusWithGap;
   const bandMidRadius = innerRadiusWithGap + ringThickness * 0.43;
 
-  /* Mehr Abstand zwischen Icon und Schrift */
   const baseIconRadius = bandMidRadius - 15;
   const baseTextRadius = bandMidRadius + 16;
 
@@ -379,8 +371,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     () => wheelItems.findIndex((item) => item.slotType === 'action'),
     [wheelItems]
   );
-
-  const topLabel = useMemo(() => truncateText(centerLines[0] || 'Projekt', 18), [centerLines]);
 
   const centerMetaTop = useMemo(() => {
     if (actionCount > 0) return `${actionCount} Module aktiv`;
@@ -640,7 +630,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           </filter>
         </defs>
 
-        {/* Body-adaptierter Hintergrund: kein eigenes dunkles Fenster mehr */}
         <path
           d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 7, -20, 34)}
           fill="none"
@@ -658,18 +647,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
           strokeLinecap="round"
           filter="url(#ringGlow)"
         />
-
-        <text
-          x="66"
-          y="45"
-          fill="#F4F6FA"
-          fontSize="8.8"
-          fontWeight="600"
-          letterSpacing="0.15"
-          opacity="0.95"
-        >
-          {topLabel}
-        </text>
 
         <circle
           cx={wheelCx}
