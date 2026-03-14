@@ -1528,7 +1528,7 @@ const ProjectsView: React.FC<Props> = ({
     );
   };
 
- /* =====================================================
+/* =====================================================
      SECTION 17 - RENDER DEFAULT PROJECT BLOCKS
   ===================================================== */
 
@@ -1725,7 +1725,9 @@ const ProjectsView: React.FC<Props> = ({
                       )}
 
                       <div className="text-xs mt-3 text-white/45 uppercase tracking-widest font-black space-y-1">
-                        <div>Status: {task.status || (task.completed ? 'erledigt' : 'offen')}</div>
+                        <div>
+                          Status: {task.status || (task.completed ? 'erledigt' : 'offen')}
+                        </div>
                         <div>Zugewiesen an: {assignedLabel}</div>
                       </div>
                     </div>
@@ -1994,7 +1996,62 @@ const ProjectsView: React.FC<Props> = ({
                       setInlineTaskSuccess(null);
 
                       if (projectStatusFilter === 'active') {
-                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions_
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+                        setWheelMode('actions');
+                      } else {
+                        localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+                        setWheelMode('project-select');
+                      }
+
+                      triggerWheelAnimation();
+                    }}
+                    className={`w-full text-left px-5 py-4 rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? 'bg-[#B5A47A] text-[#1A1A1A] shadow-lg shadow-[#B5A47A]/20'
+                        : 'bg-white/5 hover:bg-white/10 text-white/80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className={`font-black ${isActive ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                          {p.title || `Projekt #${p.id}`}
+                        </div>
+                        {p.description && (
+                          <div
+                            className={`text-xs mt-1 ${
+                              isActive ? 'text-[#1A1A1A]/70' : 'text-white/40'
+                            }`}
+                          >
+                            {p.description}
+                          </div>
+                        )}
+                        <div
+                          className={`text-[10px] mt-2 uppercase tracking-widest font-black ${
+                            isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                          }`}
+                        >
+                          Status: {p.status || 'active'}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
+                          isActive ? 'text-[#1A1A1A]/70' : 'text-white/30'
+                        }`}
+                      >
+                        {dateLabel || 'ohne Datum'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
 
  /* =====================================================
      SECTION 18 - RENDER
