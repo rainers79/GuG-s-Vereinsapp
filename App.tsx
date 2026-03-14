@@ -924,16 +924,14 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [user, checkGlobalUpdates]);
 
-  /* =====================================================
+   /* =====================================================
      SECTION 14 - FLAGS CONFIG
   ===================================================== */
 
   const flagsProjectName = projectContext.projectName;
 
   const flagsModuleLabel =
-    activeView === 'projects'
-      ? null
-      : projectContext.moduleLabel || getModuleLabelForView(activeView);
+    projectContext.moduleLabel || getModuleLabelForView(activeView);
 
   const showProjectFlags =
     !!user &&
