@@ -367,11 +367,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     []
   );
 
-  const firstActionIndex = useMemo(
-    () => wheelItems.findIndex((item) => item.slotType === 'action'),
-    [wheelItems]
-  );
-
   const isProjectSelectionCenter = useMemo(() => {
     const value = centerLines.join(' ').trim().toLowerCase();
     return value === 'projektauswahl';
@@ -391,16 +386,12 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
   const getSegmentPalette = (item: ProjectsWheelDisplayItem, index: number) => {
     const isHovered = hoveredIndex === index;
-    const isDefaultActive =
-      hoveredIndex === null &&
-      item.slotType === 'action' &&
-      index === firstActionIndex;
-
-    const isHighlighted = isHovered || isDefaultActive;
+    const isHighlighted = isHovered;
 
     if (item.slotType === 'empty') {
       return {
         baseFill: 'url(#segmentEmptyGradient)',
+        midFill: 'url(#segmentMiddleGlowMuted)',
         topFill: 'url(#segmentTopLightDark)',
         bottomFill: 'url(#segmentBottomShadeDark)',
         stroke: 'rgba(255,255,255,0.035)',
@@ -416,6 +407,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (item.slotType === 'locked') {
       return {
         baseFill: 'url(#segmentLockedGradient)',
+        midFill: 'url(#segmentMiddleGlowMuted)',
         topFill: 'url(#segmentTopLightDark)',
         bottomFill: 'url(#segmentBottomShadeDark)',
         stroke: 'rgba(255,255,255,0.045)',
@@ -431,6 +423,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (item.slotType === 'next' || item.slotType === 'prev') {
       return {
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
+        midFill: isHighlighted ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
         stroke: isHighlighted ? 'rgba(255,222,162,0.82)' : 'rgba(255,255,255,0.055)',
@@ -446,6 +439,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (item.slotType === 'action') {
       return {
         baseFill: isHighlighted ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
+        midFill: isHighlighted ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
         stroke: isHighlighted ? 'rgba(255,224,170,0.88)' : 'rgba(255,255,255,0.06)',
@@ -461,6 +455,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     if (item.slotType === 'project') {
       return {
         baseFill: isHovered ? 'url(#segmentProjectGradientHover)' : 'url(#segmentProjectGradient)',
+        midFill: isHovered ? 'url(#segmentMiddleGlowHover)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHovered ? 'url(#segmentTopLightHover)' : 'url(#segmentTopLightDark)',
         bottomFill: isHovered ? 'url(#segmentBottomShadeHover)' : 'url(#segmentBottomShadeDark)',
         stroke: isHovered ? 'rgba(255,214,140,0.44)' : 'rgba(255,255,255,0.06)',
@@ -475,6 +470,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
     return {
       baseFill: 'url(#segmentProjectGradient)',
+      midFill: 'url(#segmentMiddleGlowNeutral)',
       topFill: 'url(#segmentTopLightDark)',
       bottomFill: 'url(#segmentBottomShadeDark)',
       stroke: 'rgba(255,255,255,0.06)',
@@ -543,26 +539,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         aria-label="Projekt Radmenü"
       >
         <defs>
-          <radialGradient id="ambientWarmTopRight" cx="68%" cy="24%" r="44%">
-            <stop offset="0%" stopColor="rgba(247,186,84,0.30)" />
-            <stop offset="28%" stopColor="rgba(247,186,84,0.16)" />
-            <stop offset="62%" stopColor="rgba(247,186,84,0.05)" />
-            <stop offset="100%" stopColor="rgba(247,186,84,0)" />
-          </radialGradient>
-
-          <radialGradient id="ambientWarmBottomLeft" cx="30%" cy="74%" r="46%">
-            <stop offset="0%" stopColor="rgba(242,170,62,0.18)" />
-            <stop offset="34%" stopColor="rgba(242,170,62,0.09)" />
-            <stop offset="66%" stopColor="rgba(242,170,62,0.03)" />
-            <stop offset="100%" stopColor="rgba(242,170,62,0)" />
-          </radialGradient>
-
-          <radialGradient id="ambientBlueOuter" cx="24%" cy="36%" r="82%">
-            <stop offset="0%" stopColor="rgba(44,88,138,0.10)" />
-            <stop offset="42%" stopColor="rgba(29,53,89,0.05)" />
-            <stop offset="100%" stopColor="rgba(29,53,89,0)" />
-          </radialGradient>
-
           <radialGradient id="segmentProjectGradient" cx="35%" cy="28%" r="86%">
             <stop offset="0%" stopColor="#243245" />
             <stop offset="42%" stopColor="#101722" />
@@ -580,6 +556,33 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <stop offset="24%" stopColor="#FFD98F" />
             <stop offset="58%" stopColor="#F0B347" />
             <stop offset="100%" stopColor="#BF7417" />
+          </radialGradient>
+
+          <radialGradient id="segmentMiddleGlowNeutral" cx="50%" cy="50%" r="40%">
+            <stop offset="0%" stopColor="rgba(132,176,232,0.13)" />
+            <stop offset="32%" stopColor="rgba(95,142,198,0.06)" />
+            <stop offset="72%" stopColor="rgba(95,142,198,0.015)" />
+            <stop offset="100%" stopColor="rgba(95,142,198,0)" />
+          </radialGradient>
+
+          <radialGradient id="segmentMiddleGlowHover" cx="50%" cy="50%" r="42%">
+            <stop offset="0%" stopColor="rgba(255,219,148,0.18)" />
+            <stop offset="28%" stopColor="rgba(255,219,148,0.08)" />
+            <stop offset="72%" stopColor="rgba(255,219,148,0.02)" />
+            <stop offset="100%" stopColor="rgba(255,219,148,0)" />
+          </radialGradient>
+
+          <radialGradient id="segmentMiddleGlowHighlight" cx="50%" cy="50%" r="44%">
+            <stop offset="0%" stopColor="rgba(255,245,220,0.26)" />
+            <stop offset="28%" stopColor="rgba(255,214,130,0.18)" />
+            <stop offset="54%" stopColor="rgba(245,179,74,0.09)" />
+            <stop offset="100%" stopColor="rgba(245,179,74,0)" />
+          </radialGradient>
+
+          <radialGradient id="segmentMiddleGlowMuted" cx="50%" cy="50%" r="36%">
+            <stop offset="0%" stopColor="rgba(160,180,205,0.06)" />
+            <stop offset="42%" stopColor="rgba(160,180,205,0.02)" />
+            <stop offset="100%" stopColor="rgba(160,180,205,0)" />
           </radialGradient>
 
           <linearGradient id="segmentTopLightDark" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -699,54 +702,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         </defs>
 
         <circle
-          cx={wheelCx + 34}
-          cy={wheelCy - 28}
-          r={outerRadius + 84}
-          fill="url(#ambientWarmTopRight)"
-        />
-
-        <circle
-          cx={wheelCx - 48}
-          cy={wheelCy + 56}
-          r={outerRadius + 94}
-          fill="url(#ambientWarmBottomLeft)"
-        />
-
-        <circle
-          cx={wheelCx - 26}
-          cy={wheelCy + 4}
-          r={outerRadius + 110}
-          fill="url(#ambientBlueOuter)"
-        />
-
-        <path
-          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 9, -22, 40)}
-          fill="none"
-          stroke="rgba(245,179,74,0.19)"
-          strokeWidth="2.8"
-          strokeLinecap="round"
-          filter="url(#ringGlow)"
-        />
-
-        <path
-          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 8, 154, 224)}
-          fill="none"
-          stroke="rgba(245,179,74,0.14)"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          filter="url(#ringGlow)"
-        />
-
-        <path
-          d={arcPath(polarToCartesian, wheelCx, wheelCy, outerRadius + 3, 168, 214)}
-          fill="none"
-          stroke="rgba(255,223,160,0.10)"
-          strokeWidth="1.1"
-          strokeLinecap="round"
-          filter="url(#ringGlow)"
-        />
-
-        <circle
           cx={wheelCx}
           cy={wheelCy}
           r={outerRingShadowRadius}
@@ -813,18 +768,12 @@ Z
 `;
 
             const isHovered = hoveredIndex === i;
-            const isDefaultActive =
-              hoveredIndex === null &&
-              item.slotType === 'action' &&
-              i === firstActionIndex;
-            const isHighlighted = isHovered || isDefaultActive;
-
             const palette = getSegmentPalette(item, i);
             const isClickable = interactiveSlots.has(item.slotType);
 
             const lift = getSliceLift(i, wheelItems.length);
-            const translateX = isHighlighted ? lift.dx * 0.92 : lift.dx * 0.22;
-            const translateY = isHighlighted ? lift.dy * 0.92 : lift.dy * 0.22;
+            const translateX = isHovered ? lift.dx * 0.92 : lift.dx * 0.22;
+            const translateY = isHovered ? lift.dy * 0.92 : lift.dy * 0.22;
 
             const layout = getLabelLayout(item);
             const iconPoint = polarToCartesian(
@@ -877,6 +826,12 @@ Z
                   strokeLinecap="round"
                   opacity={palette.opacity}
                   filter={palette.filter}
+                />
+
+                <path
+                  d={path}
+                  fill={palette.midFill}
+                  opacity={1}
                 />
 
                 <path
