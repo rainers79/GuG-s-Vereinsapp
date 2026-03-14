@@ -52,6 +52,16 @@ interface Props {
   animationKey: number;
 }
 
+type LabelLayout = {
+  lines: string[];
+  fontSize: number;
+  lineHeight: number;
+  fontWeight: number;
+  letterSpacing: number;
+  textRadiusAdjust: number;
+  iconRadiusAdjust: number;
+};
+
 let lastPlayedAnimationKey = -1;
 
 const arcPath = (
@@ -69,7 +79,14 @@ const arcPath = (
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
 };
 
-const wrapSegmentLabel = (text: string, maxLen = 11): string[] => {
+const truncateText = (text: string, max = 18) => {
+  const source = (text || '').trim();
+  if (!source) return '';
+  if (source.length <= max) return source;
+  return `${source.slice(0, max - 1)}…`;
+};
+
+const genericWrap = (text: string, maxLen = 10): string[] => {
   const source = (text || '').trim();
   if (!source) return [''];
 
@@ -77,17 +94,16 @@ const wrapSegmentLabel = (text: string, maxLen = 11): string[] => {
   const result: string[] = [];
   let current = '';
 
-  const pushChunkedWord = (word: string) => {
+  const pushBrokenWord = (word: string) => {
     if (word.length <= maxLen) {
       result.push(word);
       return;
     }
 
     const first = word.slice(0, maxLen);
-    const second = word.slice(maxLen, maxLen * 2);
-
+    const second = word.slice(maxLen, maxLen * 2 - 1);
     result.push(first);
-    if (second) result.push(second);
+    if (second) result.push(`${second}${word.length > maxLen * 2 - 1 ? '…' : ''}`);
   };
 
   for (const word of words) {
@@ -104,7 +120,7 @@ const wrapSegmentLabel = (text: string, maxLen = 11): string[] => {
     }
 
     if (word.length > maxLen) {
-      pushChunkedWord(word);
+      pushBrokenWord(word);
     } else {
       current = word;
     }
@@ -113,6 +129,172 @@ const wrapSegmentLabel = (text: string, maxLen = 11): string[] => {
   if (current) result.push(current);
 
   return result.slice(0, 2);
+};
+
+const getLabelLayout = (item: ProjectsWheelDisplayItem): LabelLayout => {
+  switch (item.actionKey) {
+    case 'calendar':
+      return {
+        lines: ['Kalender'],
+        fontSize: 9.8,
+        lineHeight: 11.4,
+        fontWeight: 650,
+        letterSpacing: 0.06,
+        textRadiusAdjust: 0,
+        iconRadiusAdjust: 0
+      };
+
+    case 'tasks':
+      return {
+        lines: ['Aufgaben'],
+        fontSize: 9.8,
+        lineHeight: 11.4,
+        fontWeight: 650,
+        letterSpacing: 0.06,
+        textRadiusAdjust: 0,
+        iconRadiusAdjust: 0
+      };
+
+    case 'polls':
+      return {
+        lines: ['Umfragen'],
+        fontSize: 9.8,
+        lineHeight: 11.4,
+        fontWeight: 650,
+        letterSpacing: 0.05,
+        textRadiusAdjust: 0,
+        iconRadiusAdjust: 0
+      };
+
+    case 'invoices':
+      return {
+        lines: ['Rechnungen'],
+        fontSize: 9.3,
+        lineHeight: 11.1,
+        fontWeight: 640,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 0
+      };
+
+    case 'shopping':
+      return {
+        lines: ['Einkaufs', 'liste'],
+        fontSize: 8.8,
+        lineHeight: 10.6,
+        fontWeight: 640,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+
+    case 'coreteam':
+      return {
+        lines: ['Kernteam'],
+        fontSize: 9.5,
+        lineHeight: 11.1,
+        fontWeight: 640,
+        letterSpacing: 0.04,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 0
+      };
+
+    case 'chatlog':
+      return {
+        lines: ['Projekt', 'Chat'],
+        fontSize: 8.9,
+        lineHeight: 10.6,
+        fontWeight: 640,
+        letterSpacing: 0.03,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+
+    case 'pos':
+      return {
+        lines: ['Bonier', 'system'],
+        fontSize: 8.8,
+        lineHeight: 10.6,
+        fontWeight: 640,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+
+    case 'next':
+    case 'chat-next':
+      return {
+        lines: ['Weiter'],
+        fontSize: 9.7,
+        lineHeight: 11.2,
+        fontWeight: 650,
+        letterSpacing: 0.05,
+        textRadiusAdjust: 0,
+        iconRadiusAdjust: 0
+      };
+
+    case 'prev':
+    case 'chat-prev':
+      return {
+        lines: ['Zurück'],
+        fontSize: 9.7,
+        lineHeight: 11.2,
+        fontWeight: 650,
+        letterSpacing: 0.05,
+        textRadiusAdjust: 0,
+        iconRadiusAdjust: 0
+      };
+
+    case 'empty':
+      return {
+        lines: ['Freier', 'Slot'],
+        fontSize: 8.8,
+        lineHeight: 10.5,
+        fontWeight: 620,
+        letterSpacing: 0.03,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+
+    case 'chat-group': {
+      const lines = genericWrap(item.label, 10);
+      return {
+        lines,
+        fontSize: lines.length > 1 ? 8.6 : 9.1,
+        lineHeight: 10.4,
+        fontWeight: 620,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+    }
+
+    case 'project': {
+      const lines = genericWrap(item.label, 10);
+      return {
+        lines,
+        fontSize: lines.length > 1 ? 8.6 : 9.1,
+        lineHeight: 10.4,
+        fontWeight: 620,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+    }
+
+    default: {
+      const lines = genericWrap(item.label, 10);
+      return {
+        lines,
+        fontSize: lines.length > 1 ? 8.7 : 9.2,
+        lineHeight: 10.5,
+        fontWeight: 620,
+        letterSpacing: 0.02,
+        textRadiusAdjust: -1,
+        iconRadiusAdjust: 1
+      };
+    }
+  }
 };
 
 const ProjectsWheelMenu: React.FC<Props> = ({
@@ -167,17 +349,15 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   const wheelCx = center;
   const wheelCy = center - 18;
 
-  /* Größere Segmente / mehr Nutzfläche */
   const outerRadius = Math.max(148, buttonRadius - 12);
   const innerRadiusWithGap = Math.max(centerRadius + 14, 84);
   const visualCenterRadius = Math.max(centerRadius - 8, 62);
   const outerRingShadowRadius = outerRadius + 18;
 
-  /* Inhalt bewusst weiter nach innen ziehen */
   const ringThickness = outerRadius - innerRadiusWithGap;
   const bandMidRadius = innerRadiusWithGap + ringThickness * 0.43;
-  const iconRadius = bandMidRadius - 6;
-  const textRadius = bandMidRadius + 10;
+  const baseIconRadius = bandMidRadius - 9;
+  const baseTextRadius = bandMidRadius + 10;
 
   const segmentGapAngle = 9.5;
 
@@ -196,12 +376,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     [wheelItems]
   );
 
-  const topLabel = useMemo(() => {
-    const first = centerLines[0]?.trim();
-    if (!first) return 'Projekt';
-    if (first.length <= 18) return first;
-    return `${first.slice(0, 18)}…`;
-  }, [centerLines]);
+  const topLabel = useMemo(() => truncateText(centerLines[0] || 'Projekt', 18), [centerLines]);
 
   const centerMetaTop = useMemo(() => {
     if (actionCount > 0) return `${actionCount} Module aktiv`;
@@ -605,10 +780,6 @@ A ${innerRadiusWithGap} ${innerRadiusWithGap} 0 ${largeArc} 0 ${innerStart.x} ${
 Z
 `;
 
-            const iconPoint = polarToCartesian(wheelCx, wheelCy, iconRadius, (startAngle + endAngle) / 2);
-            const textPoint = polarToCartesian(wheelCx, wheelCy, textRadius, (startAngle + endAngle) / 2);
-            const lift = getSliceLift(i, wheelItems.length);
-
             const isHovered = hoveredIndex === i;
             const isDefaultActive =
               hoveredIndex === null &&
@@ -616,16 +787,30 @@ Z
               i === firstActionIndex;
             const isHighlighted = isHovered || isDefaultActive;
 
-            const translateX = isHighlighted ? lift.dx * 0.92 : lift.dx * 0.22;
-            const translateY = isHighlighted ? lift.dy * 0.92 : lift.dy * 0.22;
-
             const palette = getSegmentPalette(item, i);
             const isClickable = interactiveSlots.has(item.slotType);
 
-            const lines = wrapSegmentLabel(item.label, 11);
+            const lift = getSliceLift(i, wheelItems.length);
+            const translateX = isHighlighted ? lift.dx * 0.92 : lift.dx * 0.22;
+            const translateY = isHighlighted ? lift.dy * 0.92 : lift.dy * 0.22;
+
+            const layout = getLabelLayout(item);
+            const iconPoint = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              baseIconRadius + layout.iconRadiusAdjust,
+              (startAngle + endAngle) / 2
+            );
+            const textPoint = polarToCartesian(
+              wheelCx,
+              wheelCy,
+              baseTextRadius + layout.textRadiusAdjust,
+              (startAngle + endAngle) / 2
+            );
+
             const textStartY =
-              lines.length > 1
-                ? textPoint.y - ((lines.length - 1) * 5.85)
+              layout.lines.length > 1
+                ? textPoint.y - ((layout.lines.length - 1) * (layout.lineHeight / 2))
                 : textPoint.y;
 
             return (
@@ -710,16 +895,16 @@ Z
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={palette.text}
-                  fontWeight={palette.fontWeight}
-                  fontSize="10.7"
-                  letterSpacing="0.08"
+                  fontWeight={layout.fontWeight}
+                  fontSize={layout.fontSize}
+                  letterSpacing={layout.letterSpacing}
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                  {lines.map((line, idx) => (
+                  {layout.lines.map((line, idx) => (
                     <tspan
                       key={idx}
                       x={textPoint.x}
-                      dy={idx === 0 ? 0 : 11.7}
+                      dy={idx === 0 ? 0 : layout.lineHeight}
                     >
                       {line}
                     </tspan>
