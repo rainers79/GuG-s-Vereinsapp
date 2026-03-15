@@ -387,6 +387,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         midFill: 'url(#segmentMiddleGlowMuted)',
         topFill: 'url(#segmentTopLightDark)',
         bottomFill: 'url(#segmentBottomShadeDark)',
+        bodyHighlightOpacity: 0,
         stroke: 'rgba(255,255,255,0.035)',
         text: '#788292',
         icon: '#8791A1',
@@ -403,6 +404,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         midFill: 'url(#segmentMiddleGlowMuted)',
         topFill: 'url(#segmentTopLightDark)',
         bottomFill: 'url(#segmentBottomShadeDark)',
+        bodyHighlightOpacity: 0,
         stroke: 'rgba(255,255,255,0.045)',
         text: '#94A0B0',
         icon: '#A3AFBE',
@@ -419,6 +421,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         midFill: isHighlighted ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
+        bodyHighlightOpacity: isHighlighted ? 0.52 : 0,
         stroke: isHighlighted ? 'rgba(255,222,162,0.82)' : 'rgba(255,255,255,0.055)',
         text: isHighlighted ? '#FFF8EC' : '#E2E8F0',
         icon: isHighlighted ? '#FFE1A6' : '#CBD5E1',
@@ -435,6 +438,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         midFill: isHighlighted ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHighlighted ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHighlighted ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
+        bodyHighlightOpacity: isHighlighted ? 0.54 : 0,
         stroke: isHighlighted ? 'rgba(255,224,170,0.88)' : 'rgba(255,255,255,0.06)',
         text: isHighlighted ? '#FFF9EE' : '#EEF2F7',
         icon: isHighlighted ? '#FFE5B2' : '#D6DEE8',
@@ -451,6 +455,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
         midFill: isHovered ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
         topFill: isHovered ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
         bottomFill: isHovered ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
+        bodyHighlightOpacity: isHovered ? 0.58 : 0,
         stroke: isHovered ? 'rgba(255,224,170,0.88)' : 'rgba(255,255,255,0.06)',
         text: isHovered ? '#FFF9EE' : '#EFF4FA',
         icon: isHovered ? '#FFE5B2' : '#D9E0EA',
@@ -466,6 +471,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       midFill: 'url(#segmentMiddleGlowNeutral)',
       topFill: 'url(#segmentTopLightDark)',
       bottomFill: 'url(#segmentBottomShadeDark)',
+      bodyHighlightOpacity: 0,
       stroke: 'rgba(255,255,255,0.06)',
       text: '#EFF4FA',
       icon: '#D9E0EA',
@@ -549,6 +555,14 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <stop offset="24%" stopColor="#FFD98F" />
             <stop offset="58%" stopColor="#F0B347" />
             <stop offset="100%" stopColor="#BF7417" />
+          </radialGradient>
+
+          <radialGradient id="segmentBodyHighlight" cx="50%" cy="52%" r="54%">
+            <stop offset="0%" stopColor="#FFF8E8" stopOpacity="0.92" />
+            <stop offset="22%" stopColor="#FFE7B0" stopOpacity="0.58" />
+            <stop offset="48%" stopColor="#FFC95C" stopOpacity="0.26" />
+            <stop offset="74%" stopColor="#F0B347" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#F0B347" stopOpacity="0" />
           </radialGradient>
 
           <radialGradient id="segmentMiddleGlowNeutral" cx="50%" cy="50%" r="40%">
@@ -800,6 +814,14 @@ Z
                   fill={palette.midFill}
                   opacity={1}
                 />
+
+                {palette.bodyHighlightOpacity > 0 && (
+                  <path
+                    d={path}
+                    fill="url(#segmentBodyHighlight)"
+                    opacity={palette.bodyHighlightOpacity}
+                  />
+                )}
 
                 <path
                   d={path}
