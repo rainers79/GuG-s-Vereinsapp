@@ -14,6 +14,7 @@ interface Props {
     projectName: string | null;
     moduleLabel: string | null;
   }) => void;
+  backRequestTick?: number;
 }
 
 type ProjectStatus = 'active' | 'archived' | 'deleted';
@@ -288,7 +289,8 @@ const getStoredOpenChatGroupId = (): number | null => {
 const ProjectsView: React.FC<Props> = ({
   onNavigate,
   userRole,
-  onProjectContextChange
+  onProjectContextChange,
+  backRequestTick = 0
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -343,6 +345,7 @@ const ProjectsView: React.FC<Props> = ({
   const loadedOnce = useRef(false);
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
+  const lastHandledBackRequestRef = useRef(0);
 
   const isSuperAdmin = userRole === AppRole.SUPERADMIN;
   const canCreateInlineTasks =
@@ -677,6 +680,21 @@ const ProjectsView: React.FC<Props> = ({
     setWheelAnimationTick((prev) => prev + 1);
   };
 
+  const handleInternalBackToProjectSelection = () => {
+    setWheelMode('project-select');
+    setHoveredIndex(null);
+    setOpenChatGroupId(null);
+    setInlineChatMessages([]);
+    setInlineChatMessage('');
+    setActiveInlineModule(null);
+    setInlineTasks([]);
+    setShowInlineTaskCreate(false);
+    setInlineTaskSuccess(null);
+    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+    triggerWheelAnimation();
+  };
+
   const loadProjects = async (status: ProjectStatus = projectStatusFilter) => {
     setError(null);
     setLoading(true);
@@ -982,6 +1000,17 @@ const ProjectsView: React.FC<Props> = ({
     setAssignId('');
     setAssignResult(null);
   }, [assignType, selectedProjectId]);
+
+  useEffect(() => {
+    if (!backRequestTick) return;
+    if (backRequestTick === lastHandledBackRequestRef.current) return;
+
+    lastHandledBackRequestRef.current = backRequestTick;
+
+    if (wheelMode === 'project-select') return;
+
+    handleInternalBackToProjectSelection();
+  }, [backRequestTick, wheelMode]);
 
   /* =====================================================
      SECTION 12 - WHEEL ACTIONS
