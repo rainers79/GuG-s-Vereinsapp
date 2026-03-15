@@ -7,6 +7,8 @@ interface SettingsViewProps {
   onThemeChange: (theme: 'light' | 'dark') => void;
   notificationSettings: NotificationSettings;
   setNotificationSettings: React.Dispatch<React.SetStateAction<NotificationSettings>>;
+  wheelAnimationEnabled: boolean;
+  onWheelAnimationChange: (enabled: boolean) => void;
   onUnauthorized?: () => void;
   onOrganizationChanged?: () => void | Promise<void>;
 }
@@ -16,6 +18,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   onThemeChange,
   notificationSettings,
   setNotificationSettings,
+  wheelAnimationEnabled,
+  onWheelAnimationChange,
   onUnauthorized,
   onOrganizationChanged
 }) => {
@@ -516,6 +520,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               onToggle={() =>
                 onThemeChange(theme === 'dark' ? 'light' : 'dark')
               }
+            />
+
+            <Toggle
+              label="Rad-Animation"
+              sublabel="Drehanimation im Projekt-Radmenü"
+              active={wheelAnimationEnabled}
+              onToggle={() => onWheelAnimationChange(!wheelAnimationEnabled)}
             />
           </div>
         </div>
