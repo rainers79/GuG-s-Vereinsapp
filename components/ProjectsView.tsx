@@ -124,9 +124,9 @@ type EmbeddedProjectModule =
   | null
   | 'calendar'
   | 'polls'
-  | 'coreteam'
+  | 'invoices'
   | 'shopping'
-  | 'invoices';
+  | 'coreteam';
 
 /* =====================================================
    SECTION 02 - STATIC CONFIG
@@ -600,30 +600,29 @@ const ProjectsView: React.FC<Props> = ({
     }
 
     const projectName = selectedProject.title?.trim() || `Projekt #${selectedProject.id}`;
-
     let moduleLabel: string | null = null;
 
     if (wheelMode === 'chat-groups') {
-      moduleLabel = 'Chat';
+      moduleLabel = openChatGroup?.name?.trim() || 'Chat-Auswahl';
     } else if (activeInlineModule === 'tasks') {
       moduleLabel = 'Aufgaben';
     } else if (embeddedModule === 'calendar') {
       moduleLabel = 'Kalender';
     } else if (embeddedModule === 'polls') {
       moduleLabel = 'Umfragen';
-    } else if (embeddedModule === 'coreteam') {
-      moduleLabel = 'Kernteam';
-    } else if (embeddedModule === 'shopping') {
-      moduleLabel = 'Einkaufsliste';
     } else if (embeddedModule === 'invoices') {
       moduleLabel = 'Rechnungen';
+    } else if (embeddedModule === 'shopping') {
+      moduleLabel = 'Einkaufsliste';
+    } else if (embeddedModule === 'coreteam') {
+      moduleLabel = 'Kernteam';
     }
 
     onProjectContextChange({
       projectName,
       moduleLabel
     });
-  }, [wheelMode, selectedProject, activeInlineModule, embeddedModule, onProjectContextChange]);
+  }, [wheelMode, selectedProject, openChatGroup, activeInlineModule, embeddedModule, onProjectContextChange]);
 
   /* =====================================================
      SECTION 08 - STORAGE EFFECTS
@@ -723,21 +722,62 @@ const ProjectsView: React.FC<Props> = ({
     setWheelAnimationTick((prev) => prev + 1);
   };
 
-  const handleInternalBackToProjectSelection = () => {
-    setWheelMode('project-select');
-    setHoveredIndex(null);
-    setOpenChatGroupId(null);
-    setInlineChatMessages([]);
-    setInlineChatMessage('');
-    setActiveInlineModule(null);
-    setEmbeddedModule(null);
-    setSelectedEmbeddedPollId(null);
-    setInlineTasks([]);
-    setShowInlineTaskCreate(false);
-    setInlineTaskSuccess(null);
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
-    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-    triggerWheelAnimation();
+  const handleInternalBack = () => {
+    if (wheelMode === 'chat-groups') {
+      if (openChatGroupId) {
+        setOpenChatGroupId(null);
+        setInlineChatMessages([]);
+        setInlineChatMessage('');
+        localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+        return;
+      }
+
+      setWheelMode('actions');
+      setHoveredIndex(null);
+      setInlineChatMessages([]);
+      setInlineChatMessage('');
+      setActiveInlineModule(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      triggerWheelAnimation();
+      return;
+    }
+
+    if (activeInlineModule === 'tasks') {
+      setActiveInlineModule(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
+      return;
+    }
+
+    if (embeddedModule !== null) {
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
+      return;
+    }
+
+    if (wheelMode === 'actions') {
+      setWheelMode('project-select');
+      setHoveredIndex(null);
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      setInlineChatMessage('');
+      setActiveInlineModule(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
+      setInlineTasks([]);
+      setShowInlineTaskCreate(false);
+      setInlineTaskSuccess(null);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      triggerWheelAnimation();
+    }
   };
 
   const loadProjects = async (status: ProjectStatus = projectStatusFilter) => {
@@ -777,6 +817,7 @@ const ProjectsView: React.FC<Props> = ({
         setSelectedChatGroupId(null);
         setOpenChatGroupId(null);
         setInlineChatMessages([]);
+        setInlineChatMessage('');
         setActiveInlineModule(null);
         setEmbeddedModule(null);
         setSelectedEmbeddedPollId(null);
@@ -1059,11 +1100,8 @@ const ProjectsView: React.FC<Props> = ({
     if (backRequestTick === lastHandledBackRequestRef.current) return;
 
     lastHandledBackRequestRef.current = backRequestTick;
-
-    if (wheelMode === 'project-select') return;
-
-    handleInternalBackToProjectSelection();
-  }, [backRequestTick, wheelMode]);
+    handleInternalBack();
+  }, [backRequestTick]);
 
   /* =====================================================
      SECTION 12 - WHEEL ACTIONS
@@ -1783,6 +1821,7 @@ const ProjectsView: React.FC<Props> = ({
 
   const renderChatGroups = () => {
     if (wheelMode !== 'chat-groups') return null;
+    if (openChatGroupId) return null;
 
     return (
       <div className="app-card space-y-4">
@@ -1812,7 +1851,6 @@ const ProjectsView: React.FC<Props> = ({
           <div className="space-y-3">
             {sortedChatGroups.map((group) => {
               const isSelected = group.id === selectedChatGroupId;
-              const isOpen = group.id === openChatGroupId;
 
               return (
                 <button
@@ -1852,13 +1890,9 @@ const ProjectsView: React.FC<Props> = ({
 
                     <div
                       className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${
-                        isOpen
-                          ? isSelected
-                            ? 'text-[#1A1A1A]/70'
-                            : 'text-[#B5A47A]'
-                          : isSelected
-                            ? 'text-[#1A1A1A]/70'
-                            : 'text-slate-600 dark:text-white/40'
+                        isSelected
+                          ? 'text-[#1A1A1A]/70'
+                          : 'text-slate-600 dark:text-white/40'
                       }`}
                     >
                       Öffnen
@@ -1900,18 +1934,6 @@ const ProjectsView: React.FC<Props> = ({
     if (embeddedModule === 'polls') {
       return (
         <div className="space-y-4">
-          {selectedEmbeddedPollId && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setSelectedEmbeddedPollId(null)}
-                className="btn-secondary"
-              >
-                Zurück zur Umfragenübersicht
-              </button>
-            </div>
-          )}
-
           <PollList
             polls={polls}
             user={user}
