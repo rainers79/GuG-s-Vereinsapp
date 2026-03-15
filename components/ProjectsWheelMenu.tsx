@@ -447,16 +447,16 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
     if (item.slotType === 'project') {
       return {
-        baseFill: isHovered ? 'url(#segmentProjectGradientHover)' : 'url(#segmentProjectGradient)',
-        midFill: isHovered ? 'url(#segmentMiddleGlowHover)' : 'url(#segmentMiddleGlowNeutral)',
-        topFill: isHovered ? 'url(#segmentTopLightHover)' : 'url(#segmentTopLightDark)',
-        bottomFill: isHovered ? 'url(#segmentBottomShadeHover)' : 'url(#segmentBottomShadeDark)',
-        stroke: isHovered ? 'rgba(255,214,140,0.44)' : 'rgba(255,255,255,0.06)',
-        text: '#EFF4FA',
-        icon: '#D9E0EA',
+        baseFill: isHovered ? 'url(#segmentHighlightGradient)' : 'url(#segmentProjectGradient)',
+        midFill: isHovered ? 'url(#segmentMiddleGlowHighlight)' : 'url(#segmentMiddleGlowNeutral)',
+        topFill: isHovered ? 'url(#segmentTopLightHighlight)' : 'url(#segmentTopLightDark)',
+        bottomFill: isHovered ? 'url(#segmentBottomShadeHighlight)' : 'url(#segmentBottomShadeDark)',
+        stroke: isHovered ? 'rgba(255,224,170,0.88)' : 'rgba(255,255,255,0.06)',
+        text: isHovered ? '#FFF9EE' : '#EFF4FA',
+        icon: isHovered ? '#FFE5B2' : '#D9E0EA',
         opacity: 1,
-        filter: isHovered ? 'url(#segmentGlowSoft)' : 'url(#segmentShadowSoft)',
-        innerStroke: isHovered ? 'rgba(255,230,180,0.11)' : 'rgba(255,255,255,0.06)',
+        filter: isHovered ? 'url(#segmentGlowStrong)' : 'url(#segmentShadowSoft)',
+        innerStroke: isHovered ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.06)',
         glow: isHovered
       };
     }
