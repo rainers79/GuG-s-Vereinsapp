@@ -4,7 +4,6 @@ import * as api from '../services/api';
 import ProjectsWheelMenu, { ProjectsWheelDisplayItem } from './ProjectsWheelMenu';
 import CalendarView from './CalendarView';
 import PollList from './PollList';
-import ProjectChatView from './ProjectChatView';
 import ProjectCoreTeamView from './ProjectCoreTeamView';
 import ProjectShoppingView from './ProjectShoppingView';
 import ProjectInvoicesView from './ProjectInvoicesView';
@@ -15,7 +14,11 @@ import ProjectInvoicesView from './ProjectInvoicesView';
 
 interface Props {
   onNavigate: (view: ViewType) => void;
+  user: User;
   userRole: AppRole;
+  polls: Poll[];
+  onRefresh: () => void;
+  onUnauthorized: () => void;
   onProjectContextChange: (context: {
     projectName: string | null;
     moduleLabel: string | null;
@@ -116,15 +119,14 @@ export interface WheelItem {
 }
 
 type WheelMode = 'project-select' | 'actions' | 'chat-groups';
-type InlineProjectModule =
+type InlineProjectModule = null | 'tasks';
+type EmbeddedProjectModule =
   | null
   | 'calendar'
-  | 'tasks'
   | 'polls'
-  | 'invoices'
-  | 'shopping'
   | 'coreteam'
-  | 'chat';
+  | 'shopping'
+  | 'invoices';
 
 /* =====================================================
    SECTION 02 - STATIC CONFIG
@@ -172,6 +174,7 @@ const LS_PROJECTS_PAGE = 'gug_projects_page';
 const LS_PROJECT_CHAT_GROUP_ID = 'gug_active_project_chat_group';
 const LS_PROJECT_CHAT_GROUP_PAGE = 'gug_project_chat_group_page';
 const LS_PROJECT_CHAT_OPEN_GROUP_ID = 'gug_open_project_chat_group';
+const LS_WHEEL_ANIMATION_ENABLED = 'gug_wheel_animation_enabled';
 
 /* =====================================================
    SECTION 04 - HELPERS
@@ -302,7 +305,11 @@ const getStoredOpenChatGroupId = (): number | null => {
 
 const ProjectsView: React.FC<Props> = ({
   onNavigate,
+  user,
   userRole,
+  polls,
+  onRefresh,
+  onUnauthorized,
   onProjectContextChange,
   backRequestTick = 0
 }) => {
@@ -312,7 +319,6 @@ const ProjectsView: React.FC<Props> = ({
   const [loadingChatGroups, setLoadingChatGroups] = useState(false);
   const [loadingInlineChat, setLoadingInlineChat] = useState(false);
   const [loadingInlineTasks, setLoadingInlineTasks] = useState(false);
-  const [loadingInlinePolls, setLoadingInlinePolls] = useState(false);
   const [sendingInlineChat, setSendingInlineChat] = useState(false);
   const [uploadingInlineChatImage, setUploadingInlineChatImage] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -335,9 +341,10 @@ const ProjectsView: React.FC<Props> = ({
   const [inlineChatMessage, setInlineChatMessage] = useState('');
 
   const [activeInlineModule, setActiveInlineModule] = useState<InlineProjectModule>(null);
-  const [selectedInlinePollId, setSelectedInlinePollId] = useState<number | null>(null);
+  const [embeddedModule, setEmbeddedModule] = useState<EmbeddedProjectModule>(null);
+  const [selectedEmbeddedPollId, setSelectedEmbeddedPollId] = useState<number | null>(null);
+
   const [inlineTasks, setInlineTasks] = useState<TaskLite[]>([]);
-  const [inlinePolls, setInlinePolls] = useState<Poll[]>([]);
   const [members, setMembers] = useState<MemberLite[]>([]);
   const [showInlineTaskCreate, setShowInlineTaskCreate] = useState(false);
   const [newInlineTaskTitle, setNewInlineTaskTitle] = useState('');
@@ -363,8 +370,6 @@ const ProjectsView: React.FC<Props> = ({
   const hasStartedInitialWheelAnimation = useRef(false);
   const [wheelAnimationTick, setWheelAnimationTick] = useState(0);
   const lastHandledBackRequestRef = useRef(0);
-
-  const currentUser = api.getStoredUser() as User | null;
 
   const isSuperAdmin = userRole === AppRole.SUPERADMIN;
   const canCreateInlineTasks =
@@ -586,49 +591,39 @@ const ProjectsView: React.FC<Props> = ({
       return;
     }
 
-    if (selectedProject) {
-      const projectName = selectedProject.title?.trim() || `Projekt #${selectedProject.id}`;
-
-      let moduleLabel: string | null = null;
-
-      switch (activeInlineModule) {
-        case 'calendar':
-          moduleLabel = 'Kalender';
-          break;
-        case 'tasks':
-          moduleLabel = 'Aufgaben';
-          break;
-        case 'polls':
-          moduleLabel = 'Umfragen';
-          break;
-        case 'invoices':
-          moduleLabel = 'Rechnungen';
-          break;
-        case 'shopping':
-          moduleLabel = 'Einkaufsliste';
-          break;
-        case 'coreteam':
-          moduleLabel = 'Kernteam';
-          break;
-        case 'chat':
-          moduleLabel = 'Projekt Chat';
-          break;
-        default:
-          moduleLabel = null;
-      }
-
+    if (!selectedProject) {
       onProjectContextChange({
-        projectName,
-        moduleLabel
+        projectName: null,
+        moduleLabel: null
       });
       return;
     }
 
+    const projectName = selectedProject.title?.trim() || `Projekt #${selectedProject.id}`;
+
+    let moduleLabel: string | null = null;
+
+    if (wheelMode === 'chat-groups') {
+      moduleLabel = 'Chat';
+    } else if (activeInlineModule === 'tasks') {
+      moduleLabel = 'Aufgaben';
+    } else if (embeddedModule === 'calendar') {
+      moduleLabel = 'Kalender';
+    } else if (embeddedModule === 'polls') {
+      moduleLabel = 'Umfragen';
+    } else if (embeddedModule === 'coreteam') {
+      moduleLabel = 'Kernteam';
+    } else if (embeddedModule === 'shopping') {
+      moduleLabel = 'Einkaufsliste';
+    } else if (embeddedModule === 'invoices') {
+      moduleLabel = 'Rechnungen';
+    }
+
     onProjectContextChange({
-      projectName: null,
-      moduleLabel: null
+      projectName,
+      moduleLabel
     });
-  }, [wheelMode, selectedProject, activeInlineModule, onProjectContextChange]);
+  }, [wheelMode, selectedProject, activeInlineModule, embeddedModule, onProjectContextChange]);
 
   /* =====================================================
      SECTION 08 - STORAGE EFFECTS
@@ -723,17 +718,20 @@ const ProjectsView: React.FC<Props> = ({
   ===================================================== */
 
   const triggerWheelAnimation = () => {
+    const animationEnabled = localStorage.getItem(LS_WHEEL_ANIMATION_ENABLED);
+    if (animationEnabled === 'false') return;
     setWheelAnimationTick((prev) => prev + 1);
   };
 
   const handleInternalBackToProjectSelection = () => {
     setWheelMode('project-select');
     setHoveredIndex(null);
-    setSelectedInlinePollId(null);
     setOpenChatGroupId(null);
     setInlineChatMessages([]);
     setInlineChatMessage('');
     setActiveInlineModule(null);
+    setEmbeddedModule(null);
+    setSelectedEmbeddedPollId(null);
     setInlineTasks([]);
     setShowInlineTaskCreate(false);
     setInlineTaskSuccess(null);
@@ -747,7 +745,7 @@ const ProjectsView: React.FC<Props> = ({
     setLoading(true);
 
     try {
-      const data = await api.getProjects(() => {}, status);
+      const data = await api.getProjects(onUnauthorized, status);
       const list = Array.isArray(data)
         ? data.map((p) => ({
             ...p,
@@ -779,9 +777,9 @@ const ProjectsView: React.FC<Props> = ({
         setSelectedChatGroupId(null);
         setOpenChatGroupId(null);
         setInlineChatMessages([]);
-        setInlineChatMessage('');
         setActiveInlineModule(null);
-        setSelectedInlinePollId(null);
+        setEmbeddedModule(null);
+        setSelectedEmbeddedPollId(null);
         setInlineTasks([]);
         setShowInlineTaskCreate(false);
         setInlineTaskSuccess(null);
@@ -815,7 +813,7 @@ const ProjectsView: React.FC<Props> = ({
     setLoadingChatGroups(true);
 
     try {
-      const data = await api.getProjectChatGroups(projectId, undefined as any);
+      const data = await api.getProjectChatGroups(projectId, onUnauthorized);
       const list = Array.isArray(data)
         ? data.map((g) => ({
             ...g,
@@ -877,7 +875,7 @@ const ProjectsView: React.FC<Props> = ({
           group_id: groupId,
           limit: 50
         },
-        undefined as any
+        onUnauthorized
       );
 
       setInlineChatMessages(Array.isArray(data) ? data : []);
@@ -896,7 +894,7 @@ const ProjectsView: React.FC<Props> = ({
     }
 
     try {
-      const data = await api.getMembers(undefined as any);
+      const data = await api.getMembers(onUnauthorized);
       setMembers(Array.isArray(data) ? data : []);
     } catch {
       setMembers([]);
@@ -915,7 +913,7 @@ const ProjectsView: React.FC<Props> = ({
       const data = await api.apiRequest<TaskLite[]>(
         `/gug/v1/tasks?project_id=${projectId}&scope=project`,
         {},
-        undefined
+        onUnauthorized
       );
 
       const list = Array.isArray(data)
@@ -942,25 +940,12 @@ const ProjectsView: React.FC<Props> = ({
     }
   };
 
-  const loadInlinePolls = async () => {
-    setLoadingInlinePolls(true);
-
-    try {
-      const data = await api.getPolls(() => {});
-      setInlinePolls(Array.isArray(data) ? data : []);
-    } catch {
-      setInlinePolls([]);
-    } finally {
-      setLoadingInlinePolls(false);
-    }
-  };
-
   const loadAssignableData = async () => {
     try {
       const [ev, ta, po] = await Promise.all([
-        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, undefined).catch(() => []),
-        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, undefined).catch(() => []),
-        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, undefined).catch(() => [])
+        api.apiRequest<CalendarEventLite[]>('/gug/v1/events', {}, onUnauthorized).catch(() => []),
+        api.apiRequest<TaskLite[]>('/gug/v1/tasks', {}, onUnauthorized).catch(() => []),
+        api.apiRequest<PollLite[]>('/gug/v1/polls', {}, onUnauthorized).catch(() => [])
       ]);
 
       setEvents(Array.isArray(ev) ? ev : []);
@@ -981,7 +966,6 @@ const ProjectsView: React.FC<Props> = ({
     loadProjects(projectStatusFilter);
     loadAssignableData();
     loadMembers();
-    loadInlinePolls();
   }, []);
 
   useEffect(() => {
@@ -994,9 +978,9 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
-      setInlineChatMessage('');
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1008,9 +992,9 @@ const ProjectsView: React.FC<Props> = ({
       setSelectedChatGroupId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
-      setInlineChatMessage('');
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1043,7 +1027,8 @@ const ProjectsView: React.FC<Props> = ({
   useEffect(() => {
     if (wheelMode !== 'actions') {
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1065,28 +1050,9 @@ const ProjectsView: React.FC<Props> = ({
   }, [activeInlineModule, selectedProjectId, projectStatusFilter]);
 
   useEffect(() => {
-    if (activeInlineModule === 'calendar' || activeInlineModule === 'polls') {
-      loadInlinePolls();
-    }
-  }, [activeInlineModule]);
-
-  useEffect(() => {
     setAssignId('');
     setAssignResult(null);
   }, [assignType, selectedProjectId]);
-
-  useEffect(() => {
-    if (wheelMode !== 'chat-groups') return;
-
-    localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
-    setWheelMode('actions');
-    setActiveInlineModule('chat');
-    setSelectedInlinePollId(null);
-    setOpenChatGroupId(null);
-    setInlineChatMessages([]);
-    setInlineChatMessage('');
-    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-  }, [wheelMode]);
 
   useEffect(() => {
     if (!backRequestTick) return;
@@ -1108,22 +1074,34 @@ const ProjectsView: React.FC<Props> = ({
       if (selectedProjectId && projectStatusFilter === 'active') {
         localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
         setWheelMode('actions');
-        setActiveInlineModule(null);
-        setSelectedInlinePollId(null);
       }
+      return;
+    }
+
+    if (wheelMode === 'chat-groups') {
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
+      setWheelMode('actions');
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      setInlineChatMessage('');
+      setActiveInlineModule(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
+      setInlineTasks([]);
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      triggerWheelAnimation();
       return;
     }
 
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'project-select');
     setWheelMode('project-select');
-    setSelectedInlinePollId(null);
     setOpenChatGroupId(null);
     setInlineChatMessages([]);
     setInlineChatMessage('');
     setActiveInlineModule(null);
+    setEmbeddedModule(null);
+    setSelectedEmbeddedPollId(null);
     setInlineTasks([]);
-    setShowInlineTaskCreate(false);
-    setInlineTaskSuccess(null);
     localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
     triggerWheelAnimation();
   };
@@ -1141,7 +1119,8 @@ const ProjectsView: React.FC<Props> = ({
         localStorage.setItem(LS_ACTIVE_PROJECT_NAME, clickedProjectName);
         setSelectedProjectId(nextId);
         setActiveInlineModule(null);
-        setSelectedInlinePollId(null);
+        setEmbeddedModule(null);
+        setSelectedEmbeddedPollId(null);
         setInlineTasks([]);
 
         if (projectStatusFilter === 'active') {
@@ -1219,52 +1198,68 @@ const ProjectsView: React.FC<Props> = ({
     }
     localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'actions');
 
-    setShowInlineTaskCreate(false);
-    setInlineTaskSuccess(null);
-    setInlineTasks([]);
-    setSelectedInlinePollId(null);
-    setOpenChatGroupId(null);
-    setInlineChatMessages([]);
-    setInlineChatMessage('');
-    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-
     if (item.actionKey === 'tasks') {
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setActiveInlineModule('tasks');
       loadInlineTasks(selectedProjectId);
       return;
     }
 
+    setActiveInlineModule(null);
+    setInlineTasks([]);
+    setShowInlineTaskCreate(false);
+    setInlineTaskSuccess(null);
+
     if (item.actionKey === 'calendar') {
-      setActiveInlineModule('calendar');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule('calendar');
       return;
     }
 
     if (item.actionKey === 'polls') {
-      setActiveInlineModule('polls');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule('polls');
       return;
     }
 
     if (item.actionKey === 'invoices') {
-      setActiveInlineModule('invoices');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule('invoices');
       return;
     }
 
     if (item.actionKey === 'shopping') {
-      setActiveInlineModule('shopping');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule('shopping');
       return;
     }
 
     if (item.actionKey === 'coreteam') {
-      setActiveInlineModule('coreteam');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule('coreteam');
       return;
     }
 
     if (item.actionKey === 'chatlog') {
-      setActiveInlineModule('chat');
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule(null);
+      localStorage.setItem(LS_PROJECTS_WHEEL_MODE, 'chat-groups');
+      setWheelMode('chat-groups');
+      setOpenChatGroupId(null);
+      setInlineChatMessages([]);
+      setInlineChatMessage('');
+      localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
+      triggerWheelAnimation();
       return;
     }
 
-    setActiveInlineModule(null);
+    if (item.actionKey === 'pos' && item.view) {
+      setSelectedEmbeddedPollId(null);
+      setEmbeddedModule(null);
+      onNavigate(item.view);
+      return;
+    }
 
     if (item.view) onNavigate(item.view);
   };
@@ -1315,7 +1310,7 @@ const ProjectsView: React.FC<Props> = ({
           project_id: Number(selectedProjectId),
           role_tag: ''
         },
-        undefined as any
+        onUnauthorized
       );
 
       setInlineTaskSuccess('Aufgabe erstellt.');
@@ -1348,7 +1343,7 @@ const ProjectsView: React.FC<Props> = ({
           title,
           description
         },
-        undefined as any
+        onUnauthorized
       );
 
       const rawNewId = res?.id ?? res?.project_id;
@@ -1361,7 +1356,7 @@ const ProjectsView: React.FC<Props> = ({
       setProjectStatusFilter('active');
 
       if (newId && Number.isFinite(newId)) {
-        const refreshedProjects = await api.getProjects(() => {}, 'active').catch(() => []);
+        const refreshedProjects = await api.getProjects(onUnauthorized, 'active').catch(() => []);
 
         const normalizedProjects = Array.isArray(refreshedProjects)
           ? refreshedProjects.map((p) => ({
@@ -1378,7 +1373,8 @@ const ProjectsView: React.FC<Props> = ({
         setInlineChatMessages([]);
         setInlineChatMessage('');
         setActiveInlineModule(null);
-        setSelectedInlinePollId(null);
+        setEmbeddedModule(null);
+        setSelectedEmbeddedPollId(null);
         setInlineTasks([]);
         setShowInlineTaskCreate(false);
         setInlineTaskSuccess(null);
@@ -1421,14 +1417,15 @@ const ProjectsView: React.FC<Props> = ({
     setError(null);
 
     try {
-      await api.archiveProject(selectedProjectId, undefined as any);
+      await api.archiveProject(selectedProjectId, onUnauthorized);
       setWheelMode('project-select');
       setSelectedProjectId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
       setInlineChatMessage('');
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1450,14 +1447,15 @@ const ProjectsView: React.FC<Props> = ({
     setError(null);
 
     try {
-      await api.restoreProject(selectedProjectId, undefined as any);
+      await api.restoreProject(selectedProjectId, onUnauthorized);
       setWheelMode('project-select');
       setSelectedProjectId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
       setInlineChatMessage('');
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1484,14 +1482,15 @@ const ProjectsView: React.FC<Props> = ({
     setError(null);
 
     try {
-      await api.deleteProject(selectedProjectId, undefined as any);
+      await api.deleteProject(selectedProjectId, onUnauthorized);
       setWheelMode('project-select');
       setSelectedProjectId(null);
       setOpenChatGroupId(null);
       setInlineChatMessages([]);
       setInlineChatMessage('');
       setActiveInlineModule(null);
-      setSelectedInlinePollId(null);
+      setEmbeddedModule(null);
+      setSelectedEmbeddedPollId(null);
       setInlineTasks([]);
       setShowInlineTaskCreate(false);
       setInlineTaskSuccess(null);
@@ -1554,7 +1553,7 @@ const ProjectsView: React.FC<Props> = ({
           method: 'POST',
           body: JSON.stringify(payload)
         },
-        undefined
+        onUnauthorized
       );
 
       setAssignResult('Zuordnung gespeichert.');
@@ -1586,7 +1585,7 @@ const ProjectsView: React.FC<Props> = ({
           message,
           message_type: 'text'
         },
-        undefined as any
+        onUnauthorized
       );
 
       setInlineChatMessage('');
@@ -1612,7 +1611,7 @@ const ProjectsView: React.FC<Props> = ({
           file,
           message: inlineChatMessage.trim()
         },
-        undefined as any
+        onUnauthorized
       );
 
       setInlineChatMessage('');
@@ -1822,10 +1821,10 @@ const ProjectsView: React.FC<Props> = ({
                   onClick={() => {
                     setSelectedChatGroupId(group.id);
                     localStorage.setItem(LS_PROJECT_CHAT_GROUP_ID, String(group.id));
-                    localStorage.removeItem(LS_PROJECT_CHAT_OPEN_GROUP_ID);
-                    setOpenChatGroupId(null);
-                    setInlineChatMessages([]);
-                    onNavigate('project-chat');
+                    localStorage.setItem(LS_PROJECT_CHAT_OPEN_GROUP_ID, String(group.id));
+                    setOpenChatGroupId(group.id);
+                    setInlineChatMessage('');
+                    loadInlineChatMessages(group.id);
                   }}
                   className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 ${
                     isSelected
@@ -1862,7 +1861,7 @@ const ProjectsView: React.FC<Props> = ({
                             : 'text-slate-600 dark:text-white/40'
                       }`}
                     >
-                      Verwalten
+                      Öffnen
                     </div>
                   </div>
                 </button>
@@ -1875,7 +1874,87 @@ const ProjectsView: React.FC<Props> = ({
   };
 
   /* =====================================================
-     SECTION 17 - RENDER DEFAULT PROJECT BLOCKS
+     SECTION 17 - EMBEDDED MODULES
+  ===================================================== */
+
+  const renderEmbeddedModulePanel = () => {
+    if (wheelMode !== 'actions') return null;
+    if (activeInlineModule === 'tasks') return null;
+    if (!embeddedModule) return null;
+    if (!selectedProjectId || projectStatusFilter !== 'active') return null;
+
+    if (embeddedModule === 'calendar') {
+      return (
+        <CalendarView
+          polls={polls}
+          user={user}
+          onRefresh={onRefresh}
+          onOpenPoll={(pollId) => {
+            setSelectedEmbeddedPollId(pollId);
+            setEmbeddedModule('polls');
+          }}
+        />
+      );
+    }
+
+    if (embeddedModule === 'polls') {
+      return (
+        <div className="space-y-4">
+          {selectedEmbeddedPollId && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setSelectedEmbeddedPollId(null)}
+                className="btn-secondary"
+              >
+                Zurück zur Umfragenübersicht
+              </button>
+            </div>
+          )}
+
+          <PollList
+            polls={polls}
+            user={user}
+            selectedPollId={selectedEmbeddedPollId}
+            onRefresh={onRefresh}
+            onUnauthorized={onUnauthorized}
+          />
+        </div>
+      );
+    }
+
+    if (embeddedModule === 'coreteam') {
+      return (
+        <ProjectCoreTeamView
+          user={user}
+          onUnauthorized={onUnauthorized}
+        />
+      );
+    }
+
+    if (embeddedModule === 'shopping') {
+      return (
+        <ProjectShoppingView
+          user={user}
+          onUnauthorized={onUnauthorized}
+        />
+      );
+    }
+
+    if (embeddedModule === 'invoices') {
+      return (
+        <ProjectInvoicesView
+          user={user}
+          onUnauthorized={onUnauthorized}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  /* =====================================================
+     SECTION 18 - RENDER DEFAULT PROJECT BLOCKS
   ===================================================== */
 
   const renderInlineTasksPanel = () => {
@@ -2143,102 +2222,10 @@ const ProjectsView: React.FC<Props> = ({
     );
   };
 
-  const renderActiveInlineModule = () => {
-    if (wheelMode !== 'actions') return null;
-    if (!selectedProjectId || projectStatusFilter !== 'active') return null;
-
-    if (!currentUser) {
-      return (
-        <div className="app-card">
-          <div className="text-sm text-slate-500 dark:text-white/60">
-            Keine gültige Benutzersitzung vorhanden.
-          </div>
-        </div>
-      );
-    }
-
-    switch (activeInlineModule) {
-      case 'tasks':
-        return renderInlineTasksPanel();
-
-      case 'calendar':
-        return (
-          <CalendarView
-            polls={inlinePolls}
-            user={currentUser}
-            onRefresh={async () => {
-              await loadInlinePolls();
-              await loadAssignableData();
-            }}
-            onOpenPoll={(pollId) => {
-              setSelectedInlinePollId(pollId);
-              setActiveInlineModule('polls');
-            }}
-          />
-        );
-
-      case 'polls':
-        return (
-          <div className="space-y-4">
-            {loadingInlinePolls && (
-              <div className="text-sm text-slate-500 dark:text-white/60">
-                Umfragen werden geladen...
-              </div>
-            )}
-
-            <PollList
-              polls={inlinePolls}
-              user={currentUser}
-              selectedPollId={selectedInlinePollId}
-              onRefresh={async () => {
-                await loadInlinePolls();
-                await loadAssignableData();
-              }}
-              onUnauthorized={() => {}}
-            />
-          </div>
-        );
-
-      case 'invoices':
-        return (
-          <ProjectInvoicesView
-            user={currentUser}
-            onUnauthorized={() => {}}
-          />
-        );
-
-      case 'shopping':
-        return (
-          <ProjectShoppingView
-            user={currentUser}
-            onUnauthorized={() => {}}
-          />
-        );
-
-      case 'coreteam':
-        return (
-          <ProjectCoreTeamView
-            user={currentUser}
-            onUnauthorized={() => {}}
-          />
-        );
-
-      case 'chat':
-        return (
-          <ProjectChatView
-            user={currentUser}
-            onUnauthorized={() => {}}
-          />
-        );
-
-      default:
-        return null;
-    }
-  };
-
   const renderDefaultProjectBlocks = () => {
     if (wheelMode === 'chat-groups') return null;
-    if (activeInlineModule !== null) return null;
+    if (activeInlineModule === 'tasks') return null;
+    if (embeddedModule !== null) return null;
 
     return (
       <>
@@ -2258,7 +2245,8 @@ const ProjectsView: React.FC<Props> = ({
                 setInlineChatMessages([]);
                 setInlineChatMessage('');
                 setActiveInlineModule(null);
-                setSelectedInlinePollId(null);
+                setEmbeddedModule(null);
+                setSelectedEmbeddedPollId(null);
                 setInlineTasks([]);
                 setShowInlineTaskCreate(false);
                 setInlineTaskSuccess(null);
@@ -2433,7 +2421,8 @@ const ProjectsView: React.FC<Props> = ({
                       setInlineChatMessages([]);
                       setInlineChatMessage('');
                       setActiveInlineModule(null);
-                      setSelectedInlinePollId(null);
+                      setEmbeddedModule(null);
+                      setSelectedEmbeddedPollId(null);
                       setInlineTasks([]);
                       setShowInlineTaskCreate(false);
                       setInlineTaskSuccess(null);
@@ -2496,7 +2485,7 @@ const ProjectsView: React.FC<Props> = ({
   };
 
   /* =====================================================
-     SECTION 18 - RENDER
+     SECTION 19 - RENDER
   ===================================================== */
 
   return (
@@ -2527,10 +2516,17 @@ const ProjectsView: React.FC<Props> = ({
         />
       </div>
 
-      {renderActiveInlineModule()}
+      {renderInlineTasksPanel()}
+      {renderEmbeddedModulePanel()}
       {renderInlineChatWindow()}
       {renderChatGroups()}
       {renderDefaultProjectBlocks()}
+
+      {loading && (
+        <div className="text-sm text-white/50">
+          Projekte werden geladen...
+        </div>
+      )}
     </div>
   );
 };
