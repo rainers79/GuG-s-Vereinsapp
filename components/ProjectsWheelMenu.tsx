@@ -367,13 +367,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     []
   );
 
-  const isProjectSelectionCenter = useMemo(() => {
-    const value = centerLines.join(' ').trim().toLowerCase();
-    return value === 'projektauswahl';
-  }, [centerLines]);
-
-  const centerShouldGlow = isProjectSelectionCenter && hoveredIndex === null;
-
   const centerMetaTop = useMemo(() => {
     if (actionCount > 0) return `${actionCount} Module aktiv`;
     return '';
@@ -638,24 +631,9 @@ const ProjectsWheelMenu: React.FC<Props> = ({
             <stop offset="100%" stopColor="#0C1016" />
           </radialGradient>
 
-          <radialGradient id="centerGradientSelectionGlow" cx="34%" cy="26%" r="82%">
-            <stop offset="0%" stopColor="#8A6C2A" />
-            <stop offset="24%" stopColor="#5F4A1F" />
-            <stop offset="54%" stopColor="#2B241B" />
-            <stop offset="80%" stopColor="#13171D" />
-            <stop offset="100%" stopColor="#0B0F15" />
-          </radialGradient>
-
           <radialGradient id="centerLight" cx="34%" cy="30%" r="60%">
             <stop offset="0%" stopColor="rgba(255,224,154,0.16)" />
             <stop offset="58%" stopColor="rgba(255,224,154,0.04)" />
-            <stop offset="100%" stopColor="rgba(255,224,154,0)" />
-          </radialGradient>
-
-          <radialGradient id="centerLightSelectionGlow" cx="34%" cy="28%" r="62%">
-            <stop offset="0%" stopColor="rgba(255,226,158,0.28)" />
-            <stop offset="34%" stopColor="rgba(255,213,122,0.11)" />
-            <stop offset="70%" stopColor="rgba(255,224,154,0.03)" />
             <stop offset="100%" stopColor="rgba(255,224,154,0)" />
           </radialGradient>
 
@@ -665,10 +643,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
           <filter id="segmentShadowSoft" x="-45%" y="-45%" width="190%" height="190%">
             <feDropShadow dx="0" dy="7" stdDeviation="8" floodColor="#000000" floodOpacity="0.34" />
-          </filter>
-
-          <filter id="segmentShadowLifted" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.38" />
           </filter>
 
           <filter id="segmentGlowSoft" x="-90%" y="-90%" width="280%" height="280%">
@@ -691,13 +665,6 @@ const ProjectsWheelMenu: React.FC<Props> = ({
 
           <filter id="centerShadow" x="-60%" y="-60%" width="220%" height="220%">
             <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.42" />
-          </filter>
-
-          <filter id="centerGlowStrong" x="-100%" y="-100%" width="300%" height="300%">
-            <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#F5B34A" floodOpacity="0.24" />
-            <feDropShadow dx="0" dy="0" stdDeviation="20" floodColor="#F5B34A" floodOpacity="0.12" />
-            <feDropShadow dx="0" dy="0" stdDeviation="32" floodColor="#F5B34A" floodOpacity="0.05" />
-            <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#000000" floodOpacity="0.26" />
           </filter>
         </defs>
 
@@ -903,52 +870,29 @@ Z
         </g>
 
         <g onClick={onCenterClick} style={{ cursor: onCenterClick ? 'pointer' : 'default' }}>
-          {centerShouldGlow && (
-            <>
-              <circle
-                cx={wheelCx}
-                cy={wheelCy}
-                r={visualCenterRadius + 18}
-                fill="none"
-                stroke="rgba(245,179,74,0.18)"
-                strokeWidth="2.4"
-                filter="url(#centerGlowStrong)"
-              />
-              <circle
-                cx={wheelCx}
-                cy={wheelCy}
-                r={visualCenterRadius + 8}
-                fill="none"
-                stroke="rgba(255,222,154,0.18)"
-                strokeWidth="1.2"
-                filter="url(#ringGlow)"
-              />
-            </>
-          )}
-
           <circle
             cx={wheelCx}
             cy={wheelCy}
             r={visualCenterRadius + 10}
-            fill={centerShouldGlow ? 'rgba(255,225,155,0.03)' : 'rgba(255,255,255,0.015)'}
-            stroke={centerShouldGlow ? 'rgba(255,214,140,0.12)' : 'rgba(255,255,255,0.05)'}
+            fill="rgba(255,255,255,0.015)"
+            stroke="rgba(255,255,255,0.05)"
             strokeWidth="1"
-            filter={centerShouldGlow ? 'url(#centerGlowStrong)' : 'url(#centerShadow)'}
+            filter="url(#centerShadow)"
           />
 
           <circle
             cx={wheelCx}
             cy={wheelCy}
             r={visualCenterRadius + 1.5}
-            fill={centerShouldGlow ? 'rgba(56,38,14,0.28)' : 'rgba(0,0,0,0.12)'}
+            fill="rgba(0,0,0,0.12)"
           />
 
           <circle
             cx={wheelCx}
             cy={wheelCy}
             r={visualCenterRadius}
-            fill={centerShouldGlow ? 'url(#centerGradientSelectionGlow)' : 'url(#centerGradient)'}
-            stroke={centerShouldGlow ? 'rgba(255,221,160,0.18)' : 'rgba(255,255,255,0.08)'}
+            fill="url(#centerGradient)"
+            stroke="rgba(255,255,255,0.08)"
             strokeWidth="1.1"
           />
 
@@ -956,14 +900,14 @@ Z
             cx={wheelCx}
             cy={wheelCy}
             r={visualCenterRadius}
-            fill={centerShouldGlow ? 'url(#centerLightSelectionGlow)' : 'url(#centerLight)'}
+            fill="url(#centerLight)"
           />
 
           <circle
             cx={wheelCx - 16}
             cy={wheelCy - 16}
             r={visualCenterRadius * 0.54}
-            fill={centerShouldGlow ? 'rgba(255,233,180,0.08)' : 'rgba(255,255,255,0.05)'}
+            fill="rgba(255,255,255,0.05)"
           />
 
           <circle
@@ -971,7 +915,7 @@ Z
             cy={wheelCy}
             r={visualCenterRadius - 20}
             fill="none"
-            stroke={centerShouldGlow ? 'rgba(255,214,138,0.08)' : 'rgba(255,255,255,0.04)'}
+            stroke="rgba(255,255,255,0.04)"
             strokeWidth="0.8"
           />
 
@@ -980,7 +924,7 @@ Z
             y={wheelCy - 4}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill={centerShouldGlow ? '#FFF4D8' : '#FAFBFD'}
+            fill="#FAFBFD"
             fontWeight="700"
             fontSize="11.4"
             letterSpacing="0.08"
@@ -1025,7 +969,7 @@ Z
               y={wheelCy + 35}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill={centerShouldGlow ? '#F1DFC2' : '#D7DCE6'}
+              fill="#D7DCE6"
               fontWeight="600"
               fontSize="8.2"
               letterSpacing="0.24"
