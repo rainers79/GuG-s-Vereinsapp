@@ -373,6 +373,8 @@ const App: React.FC = () => {
     return stored === null ? true : stored === 'true';
   });
 
+  const [projectsBackRequestTick, setProjectsBackRequestTick] = useState(0);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>(() => getStoredActiveView());
@@ -600,6 +602,20 @@ const App: React.FC = () => {
   }, [clearProjectContext]);
 
   const goBack = useCallback(() => {
+    if (activeView === 'projects') {
+      const currentWheelMode = localStorage.getItem(LS_PROJECTS_WHEEL_MODE);
+      const hasActiveProject = !!localStorage.getItem(LS_ACTIVE_PROJECT);
+      const canHandleInternally =
+        hasActiveProject &&
+        currentWheelMode !== null &&
+        currentWheelMode !== 'project-select';
+
+      if (canHandleInternally) {
+        setProjectsBackRequestTick((prev) => prev + 1);
+        return;
+      }
+    }
+
     setViewHistory((history) => {
       if (history.length === 0) return history;
 
@@ -623,9 +639,15 @@ const App: React.FC = () => {
       setActiveView(previousView);
       return history.slice(0, -1);
     });
-  }, [projectContext.projectName, clearProjectContext, enforceProjectsActionState]);
+  }, [activeView, projectContext.projectName, clearProjectContext, enforceProjectsActionState]);
 
-  const canGoBack = viewHistory.length > 0;
+  const canGoBackInsideProjects =
+    !!user &&
+    activeView === 'projects' &&
+    !!localStorage.getItem(LS_ACTIVE_PROJECT) &&
+    localStorage.getItem(LS_PROJECTS_WHEEL_MODE) !== 'project-select';
+
+  const canGoBack = canGoBackInsideProjects || viewHistory.length > 0;
 
   const handleInstallApp = useCallback(async () => {
     if (!deferredInstallPrompt) {
@@ -978,6 +1000,7 @@ const App: React.FC = () => {
             onNavigate={navigateTo}
             userRole={user!.role}
             onProjectContextChange={setProjectContextFromProjects}
+            backRequestTick={projectsBackRequestTick}
           />
         );
 
