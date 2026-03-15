@@ -341,7 +341,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   const wheelCx = center;
   const wheelCy = center - 18;
   const totalRotation = manualRotation + autoRotation;
-  const wheelScale = isMobileView ? 1.42 : 1.16;
+  const wheelScale = isMobileView ? 1.55 : 1.22;
 
   const outerRadius = Math.max(148, buttonRadius - 12);
   const innerRadiusWithGap = Math.max(centerRadius + 14, 84);
