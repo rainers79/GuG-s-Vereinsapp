@@ -341,7 +341,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   const wheelCx = center;
   const wheelCy = center - 18;
   const totalRotation = manualRotation + autoRotation;
-  const wheelScale = isMobileView ? 1.16 : 1;
+  const wheelScale = isMobileView ? 1.42 : 1.16;
 
   const outerRadius = Math.max(148, buttonRadius - 12);
   const innerRadiusWithGap = Math.max(centerRadius + 14, 84);
@@ -776,12 +776,12 @@ const ProjectsWheelMenu: React.FC<Props> = ({
       <svg
         ref={svgRef}
         width="100%"
-        viewBox="-20 -24 440 468"
+        viewBox="-70 -90 540 600"
         role="img"
         aria-label="Projekt Radmenü"
         style={{
           touchAction: 'none',
-          maxWidth: isMobileView ? '430px' : '400px',
+          maxWidth: isMobileView ? '510px' : '460px',
           height: 'auto',
           overflow: 'visible',
           display: 'block'
@@ -1112,7 +1112,12 @@ Z
                     opacity={0.9}
                   />
 
-                  {renderIcon(item, iconPoint.x, iconPoint.y, palette.icon)}
+                  <g
+                    transform={`rotate(${-totalRotation} ${iconPoint.x} ${iconPoint.y})`}
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  >
+                    {renderIcon(item, iconPoint.x, iconPoint.y, palette.icon)}
+                  </g>
 
                   <g
                     transform={`rotate(${-totalRotation} ${textPoint.x} ${textPoint.y})`}
