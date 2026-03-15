@@ -73,6 +73,7 @@ const LS_PROJECTS_WHEEL_MODE = 'gug_projects_wheel_mode';
 const LS_ACTIVE_VIEW = 'gug_active_view';
 const LS_PRELOGIN_LANDING_DISMISSED = 'gug_prelogin_landing_dismissed';
 const LS_ACTIVE_PROJECT_NAME = 'gug_active_project_name';
+const LS_WHEEL_ANIMATION_ENABLED = 'gug_wheel_animation_enabled';
 
 /* =====================================================
    SECTION 03 - DEFAULT SETTINGS
@@ -367,6 +368,11 @@ const App: React.FC = () => {
       return stored ? JSON.parse(stored) : defaultNotificationSettings;
     });
 
+  const [wheelAnimationEnabled, setWheelAnimationEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(LS_WHEEL_ANIMATION_ENABLED);
+    return stored === null ? true : stored === 'true';
+  });
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeView, setActiveView] = useState<ViewType>(() => getStoredActiveView());
@@ -418,6 +424,13 @@ const App: React.FC = () => {
       JSON.stringify(notificationSettings)
     );
   }, [notificationSettings]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      LS_WHEEL_ANIMATION_ENABLED,
+      String(wheelAnimationEnabled)
+    );
+  }, [wheelAnimationEnabled]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1031,6 +1044,8 @@ const App: React.FC = () => {
             onThemeChange={setTheme}
             notificationSettings={notificationSettings}
             setNotificationSettings={setNotificationSettings}
+            wheelAnimationEnabled={wheelAnimationEnabled}
+            onWheelAnimationChange={setWheelAnimationEnabled}
           />
         );
 
