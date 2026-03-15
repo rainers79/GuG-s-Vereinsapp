@@ -998,7 +998,11 @@ const App: React.FC = () => {
         return (
           <ProjectsView
             onNavigate={navigateTo}
+            user={user!}
             userRole={user!.role}
+            polls={polls}
+            onRefresh={fetchAppData}
+            onUnauthorized={handleUnauthorized}
             onProjectContextChange={setProjectContextFromProjects}
             backRequestTick={projectsBackRequestTick}
           />
