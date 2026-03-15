@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ViewType } from '../types';
 import {
   CalendarDays,
@@ -63,6 +63,8 @@ type LabelLayout = {
 };
 
 let lastPlayedAnimationKey = -1;
+
+const LS_WHEEL_ANIMATION_ENABLED = 'gug_wheel_animation_enabled';
 
 const arcPath = (
   polarToCartesianFn: (cx: number, cy: number, radius: number, angleDeg: number) => Point,
@@ -310,9 +312,40 @@ const ProjectsWheelMenu: React.FC<Props> = ({
   animationKey
 }) => {
   const rotatingRingRef = useRef<SVGGElement>(null);
+  const [wheelAnimationEnabled, setWheelAnimationEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem(LS_WHEEL_ANIMATION_ENABLED);
+    return stored === null ? true : stored === 'true';
+  });
+
+  useEffect(() => {
+    const syncWheelAnimationSetting = () => {
+      const stored = localStorage.getItem(LS_WHEEL_ANIMATION_ENABLED);
+      setWheelAnimationEnabled(stored === null ? true : stored === 'true');
+    };
+
+    syncWheelAnimationSetting();
+
+    window.addEventListener('focus', syncWheelAnimationSetting);
+    window.addEventListener('storage', syncWheelAnimationSetting);
+    document.addEventListener('visibilitychange', syncWheelAnimationSetting);
+
+    return () => {
+      window.removeEventListener('focus', syncWheelAnimationSetting);
+      window.removeEventListener('storage', syncWheelAnimationSetting);
+      document.removeEventListener('visibilitychange', syncWheelAnimationSetting);
+    };
+  }, []);
 
   useEffect(() => {
     if (!rotatingRingRef.current) return;
+
+    if (!wheelAnimationEnabled) {
+      rotatingRingRef.current.getAnimations().forEach((animation) => animation.cancel());
+      rotatingRingRef.current.style.transform = 'rotate(0deg)';
+      return;
+    }
+
     if (animationKey <= 0) return;
     if (animationKey === lastPlayedAnimationKey) return;
 
@@ -336,7 +369,7 @@ const ProjectsWheelMenu: React.FC<Props> = ({
     return () => {
       animation.cancel();
     };
-  }, [animationKey]);
+  }, [animationKey, wheelAnimationEnabled]);
 
   void wheelColors;
   void labelRadius;
